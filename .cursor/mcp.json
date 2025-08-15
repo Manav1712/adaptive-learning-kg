@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "zep-docs": {
+      "transport": "sse",
+      "url": "https://docs-mcp.getzep.com/sse"
+    }
+  }
+}
