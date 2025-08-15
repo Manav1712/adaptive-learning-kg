@@ -10,6 +10,9 @@ pandas>=2.0.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
 
+# Zep integration for automated KG construction
+zep-python>=0.35.0
+
 # Web scraping and HTML processing
 selenium>=4.15.0
 webdriver-manager>=4.0.0
@@ -20,5 +23,4 @@ click>=8.1.0
 
 # Development and testing
 pytest>=7.4.0
-black>=23.0.0
-flake8>=6.0.0
+

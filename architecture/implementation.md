@@ -118,7 +118,7 @@ class StudentOverlay:
 ## Phase 1 — Static Knowledge Graph (Weeks 1-3)
 
 ### 1.1 Corpus Ingestion (Week 1)
-**Goal**: Extract and chunk OpenStax Calculus → Algebra content
+**Goal**: Extract and prepare OpenStax content for Zep processing
 
 **Implementation**:
 ```python
@@ -131,97 +131,99 @@ class CorpusIngestion:
         """Split content into manageable chunks by section/subsection"""
         pass
         
-    def extract_metadata(self, chunk: Chunk) -> ChunkMetadata:
-        """Extract chapter, section, exercise numbers"""
+    def prepare_for_zep(self, chunks: List[Chunk]) -> List[ZepInput]:
+        """Format chunks for Zep's automated entity extraction"""
         pass
 ```
 
 **Deliverables**:
 - [ ] Web scraper for OpenStax HTML content
 - [ ] Chunking strategy (by section/subsection)
-- [ ] Metadata extraction (chapter, section, exercise numbers)
+- [ ] Zep-compatible data formatting
 - [ ] Raw data stored in `data/raw/`
 
-### 1.2 Entity & Fact Extraction (Week 2)
-**Goal**: Extract Learning Objectives, Concepts, and Problems from chunks
+### 1.2 Zep Integration & Automated KG Construction (Week 2)
+**Goal**: Use Zep's automatic entity extraction to build the knowledge graph
 
 **Implementation**:
 ```python
-class EntityExtractor:
-    def extract_learning_objectives(self, chunk: Chunk) -> List[LearningObjective]:
-        """Use GPT-4 with structured prompts to extract LOs"""
+class ZepKGBuilder:
+    def __init__(self, zep_client):
+        self.zep_client = zep_client
+        
+    def add_openstax_content(self, content: List[ZepInput]) -> None:
+        """Feed OpenStax content to Zep for automatic processing"""
         pass
         
-    def extract_concepts(self, chunk: Chunk) -> List[Concept]:
-        """Extract mathematical concepts and definitions"""
+    def build_math_knowledge_graph(self, user_id: str = "system") -> KnowledgeGraph:
+        """Let Zep automatically construct the mathematical knowledge graph"""
         pass
         
-    def extract_problems(self, chunk: Chunk) -> List[Problem]:
-        """Extract practice problems and exercises"""
+    def extract_math_entities(self) -> List[MathEntity]:
+        """Retrieve automatically extracted mathematical entities"""
+        pass
+```
+
+**Zep Integration Approach**:
+- **Feed OpenStax content directly to Zep** as text/JSON
+- **Let Zep automatically extract** Learning Objectives, Concepts, Problems
+- **Zep handles entity identification** and relationship mapping
+- **Automatic graph construction** with mathematical domain entities
+
+**Deliverables**:
+- [ ] Zep client integration
+- [ ] Automated entity extraction pipeline
+- [ ] Mathematical knowledge graph construction
+- [ ] Entity and relationship data from Zep
+
+### 1.3 Knowledge Graph Enhancement & Validation (Week 2-3)
+**Goal**: Enhance Zep's automatic extraction with domain-specific refinements
+
+**Implementation**:
+```python
+class MathKGEnhancer:
+    def enhance_math_entities(self, zep_entities: List[Entity]) -> List[MathEntity]:
+        """Add mathematical-specific metadata and relationships"""
         pass
         
-    def extract_relationships(self, entities: List[Entity]) -> List[Relationship]:
-        """Identify PREREQUISITE_OF, ASSESSED_BY relationships"""
+    def validate_math_relationships(self, kg: KnowledgeGraph) -> ValidationResult:
+        """Validate mathematical prerequisite and assessment relationships"""
+        pass
+        
+    def add_math_specific_edges(self, kg: KnowledgeGraph) -> KnowledgeGraph:
+        """Add mathematical domain relationships (PREREQUISITE_OF, ASSESSED_BY)"""
         pass
 ```
 
 **Approach**:
-- **LLM-based extraction** with structured prompts
-- **Few-shot examples** for each entity type
-- **Confidence scoring** for quality control
+- **Leverage Zep's automatic extraction** as the foundation
+- **Add mathematical domain expertise** on top
+- **Validate and enhance** the automatically constructed graph
+- **Maintain Zep's temporal capabilities** for future personalization
 
-**Deliverables**:
-- [ ] GPT-4 prompts for entity extraction
-- [ ] Relationship extraction (PREREQUISITE_OF, ASSESSED_BY)
-- [ ] Quality validation pipeline
-
-### 1.3 Resolution & Deduplication (Week 2-3)
-**Goal**: Merge duplicate entities and resolve references
+### 1.4 Final KG Construction & Storage (Week 3)
+**Goal**: Complete the static knowledge graph and prepare for Phase 2
 
 **Implementation**:
 ```python
-class Resolver:
-    def find_duplicates(self, entities: List[Entity]) -> List[DuplicateGroup]:
-        """Use embedding similarity to find potential duplicates"""
+class FinalKGConstructor:
+    def merge_zep_and_enhanced(self, zep_kg: KnowledgeGraph, enhanced_kg: KnowledgeGraph) -> KnowledgeGraph:
+        """Combine Zep's automatic extraction with domain enhancements"""
         pass
         
-    def merge_entities(self, group: DuplicateGroup) -> Entity:
-        """LLM-based merging decisions with confidence scores"""
+    def detect_math_communities(self, kg: KnowledgeGraph) -> List[MathCommunity]:
+        """Identify mathematical topic communities (Algebra, Calculus, etc.)"""
         pass
         
-    def resolve_references(self, entities: List[Entity]) -> List[Entity]:
-        """Link entities to their canonical forms"""
-        pass
-```
-
-**Approach**:
-- **Embedding-based similarity** for duplicate detection
-- **LLM-based merging** decisions
-- **Provenance tracking** (which chunks contributed to each entity)
-
-### 1.4 Knowledge Graph Construction (Week 3)
-**Goal**: Build static KG and save to JSON files
-
-**Implementation**:
-```python
-class KGWriter:
-    def build_graph(self, entities: List[Entity], relations: List[Relation]) -> KG:
-        """Construct final knowledge graph structure"""
-        pass
-        
-    def detect_communities(self, kg: KG) -> List[Community]:
-        """Basic community detection for topics/chapters"""
-        pass
-        
-    def save_to_files(self, kg: KG) -> None:
-        """Save to kg_nodes.json and kg_edges.json"""
+    def export_for_visualization(self, kg: KnowledgeGraph) -> Dict[str, Any]:
+        """Prepare KG for D3.js visualization"""
         pass
 ```
 
 **Deliverables**:
-- [ ] `kg_nodes.json` with ~500-1000 nodes
-- [ ] `kg_edges.json` with relationship data
-- [ ] Basic community detection (topics/chapters)
+- [ ] Complete mathematical knowledge graph (500+ nodes)
+- [ ] Mathematical community detection
+- [ ] D3.js visualization data
 - [ ] Validation scripts for graph integrity
 
 ---
