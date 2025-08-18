@@ -117,114 +117,91 @@ class StudentOverlay:
 
 ## Phase 1 — Static Knowledge Graph (Weeks 1-3)
 
-### 1.1 Corpus Ingestion (Week 1)
-**Goal**: Extract and prepare OpenStax content for Zep processing
+### 1.1 3-Tiered Chunking Strategy (Week 1)
+**Goal**: Test 3 chunking approaches from simple to advanced
 
-**Implementation**:
+**Tier 1: Simple Subheading Chunking**
 ```python
-class CorpusIngestion:
-    def fetch_openstax_content(self, book_urls: List[str]) -> List[RawContent]:
-        """Scrape OpenStax HTML content"""
+class SimpleChunker:
+    def chunk_by_subheadings(self, text: str) -> List[str]:
+        """Split by section headers (1.1, 1.2, etc.)"""
         pass
-        
-    def chunk_by_section(self, content: RawContent) -> List[Chunk]:
-        """Split content into manageable chunks by section/subsection"""
-        pass
-        
-    def prepare_for_zep(self, chunks: List[Chunk]) -> List[ZepInput]:
-        """Format chunks for Zep's automated entity extraction"""
-        pass
+```
+
+**Tier 2: Contextualized Chunking**
+```python
+class ContextualizedChunker:
+    def add_document_context(self, chunk: str, context: dict) -> str:
+        """Add chapter/section context to each chunk"""
+        return f"Chapter {context['chapter']}, Section {context['section']}\n\n{chunk}"
+```
+
+**Tier 3: Custom Entity Types**
+```python
+class CustomEntityChunker:
+    def __init__(self):
+        self.math_entity_types = {
+            "MathConcept": MathConcept,
+            "PracticeProblem": PracticeProblem,
+            "LearningObjective": LearningObjective
+        }
 ```
 
 **Deliverables**:
-- [ ] Web scraper for OpenStax HTML content
-- [ ] Chunking strategy (by section/subsection)
-- [ ] Zep-compatible data formatting
-- [ ] Raw data stored in `data/raw/`
+- [x] Text cleaner for OpenStax content (completed)
+- [ ] Tier 1: Simple subheading chunker
+- [ ] Tier 2: Contextualized chunker  
+- [ ] Tier 3: Custom entity types
+- [ ] Compare results across all 3 tiers
 
-### 1.2 Zep Integration & Automated KG Construction (Week 2)
-**Goal**: Use Zep's automatic entity extraction to build the knowledge graph
+### 1.2 Zep Integration & Testing (Week 2)
+**Goal**: Test all 3 chunking tiers with Zep
 
 **Implementation**:
 ```python
-class ZepKGBuilder:
-    def __init__(self, zep_client):
-        self.zep_client = zep_client
-        
-    def add_openstax_content(self, content: List[ZepInput]) -> None:
-        """Feed OpenStax content to Zep for automatic processing"""
-        pass
-        
-    def build_math_knowledge_graph(self, user_id: str = "system") -> KnowledgeGraph:
-        """Let Zep automatically construct the mathematical knowledge graph"""
-        pass
-        
-    def extract_math_entities(self) -> List[MathEntity]:
-        """Retrieve automatically extracted mathematical entities"""
-        pass
+class ZepTester:
+    def test_tier(self, tier_number: int, chunks: List[str]) -> Dict:
+        """Test a chunking tier and return KG quality metrics"""
+        for chunk in chunks:
+            episode = self.zep_client.add_episode(
+                name=f"tier_{tier_number}_chunk_{i}",
+                episode_body=chunk,
+                source=EpisodeType.text
+            )
+        return self.analyze_kg_quality()
 ```
 
-**Zep Integration Approach**:
-- **Feed OpenStax content directly to Zep** as text/JSON
-- **Let Zep automatically extract** Learning Objectives, Concepts, Problems
-- **Zep handles entity identification** and relationship mapping
-- **Automatic graph construction** with mathematical domain entities
+**Testing Approach**:
+- Test Tier 1: Simple chunks only
+- Test Tier 2: Chunks + context
+- Test Tier 3: Chunks + context + custom entities
+- Compare entity quality and relationships
 
 **Deliverables**:
 - [ ] Zep client integration
-- [ ] Automated entity extraction pipeline
-- [ ] Mathematical knowledge graph construction
-- [ ] Entity and relationship data from Zep
+- [ ] Test framework for all 3 tiers
+- [ ] KG quality comparison
+- [ ] Best approach selection
 
-### 1.3 Knowledge Graph Enhancement & Validation (Week 2-3)
-**Goal**: Enhance Zep's automatic extraction with domain-specific refinements
-
-**Implementation**:
-```python
-class MathKGEnhancer:
-    def enhance_math_entities(self, zep_entities: List[Entity]) -> List[MathEntity]:
-        """Add mathematical-specific metadata and relationships"""
-        pass
-        
-    def validate_math_relationships(self, kg: KnowledgeGraph) -> ValidationResult:
-        """Validate mathematical prerequisite and assessment relationships"""
-        pass
-        
-    def add_math_specific_edges(self, kg: KnowledgeGraph) -> KnowledgeGraph:
-        """Add mathematical domain relationships (PREREQUISITE_OF, ASSESSED_BY)"""
-        pass
-```
-
-**Approach**:
-- **Leverage Zep's automatic extraction** as the foundation
-- **Add mathematical domain expertise** on top
-- **Validate and enhance** the automatically constructed graph
-- **Maintain Zep's temporal capabilities** for future personalization
-
-### 1.4 Final KG Construction & Storage (Week 3)
-**Goal**: Complete the static knowledge graph and prepare for Phase 2
+### 1.3 Final Implementation (Week 3)
+**Goal**: Build production pipeline with best chunking approach
 
 **Implementation**:
 ```python
-class FinalKGConstructor:
-    def merge_zep_and_enhanced(self, zep_kg: KnowledgeGraph, enhanced_kg: KnowledgeGraph) -> KnowledgeGraph:
-        """Combine Zep's automatic extraction with domain enhancements"""
-        pass
-        
-    def detect_math_communities(self, kg: KnowledgeGraph) -> List[MathCommunity]:
-        """Identify mathematical topic communities (Algebra, Calculus, etc.)"""
-        pass
-        
-    def export_for_visualization(self, kg: KnowledgeGraph) -> Dict[str, Any]:
-        """Prepare KG for D3.js visualization"""
-        pass
+class ProductionProcessor:
+    def __init__(self, best_tier: int):
+        self.chunker = self.get_best_chunker(best_tier)
+    
+    def process_full_textbook(self) -> KnowledgeGraph:
+        """Process entire textbook with winning strategy"""
+        chunks = self.chunker.chunk_textbook(cleaned_text)
+        return self.send_to_zep_batch(chunks)
 ```
 
 **Deliverables**:
-- [ ] Complete mathematical knowledge graph (500+ nodes)
-- [ ] Mathematical community detection
-- [ ] D3.js visualization data
-- [ ] Validation scripts for graph integrity
+- [ ] Production-ready chunking pipeline
+- [ ] Complete Calculus Volume 1 knowledge graph
+- [ ] Basic visualization and validation
 
 ---
 
