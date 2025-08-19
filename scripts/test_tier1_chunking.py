@@ -81,13 +81,13 @@ Solution: f'(x) = 3x² - 6x = 3x(x - 2), so critical points are x = 0 and x = 2.
         # Show first chunk in full for validation
         if i == 1:
             print(f"\n  📄 Full content of first chunk:")
-            print(f"  {chunk.content}")
-            print(f"\n  🔧 Zep episode metadata:")
+            print(f"  {chunk.content[:200]}...")
+            print(f"\n  🔧 Zep episode format (current API):")
             episode = chunk.to_zep_episode()
-            print(f"    Name: {episode['name']}")
-            print(f"    Source: {episode['source']}")
-            print(f"    Description: {episode['source_description']}")
-            print(f"    Metadata keys: {list(episode['metadata'].keys())}")
+            print(f"    Type: {episode['type']}")
+            print(f"    Data length: {len(episode['data'])} characters")
+            print(f"    Data preview: {episode['data'][:150]}...")
+            print(f"\n  ✅ Ready for: client.graph.add_batch(episodes=[EpisodeData(data=..., type='text')])")
         
         print("-" * 40)
     
