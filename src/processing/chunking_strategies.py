@@ -44,28 +44,23 @@ class TextChunk:
     
     def to_zep_episode(self) -> Dict[str, Any]:
         """
-        Convert chunk to Zep episode format.
+        Convert chunk to Zep episode format (current API).
         
         Returns:
-            Dict containing episode data for Zep ingestion
+            Dict containing EpisodeData for Zep's add_batch API
         """
         episode_content = self.content
         if self.context:
-            # Prepend context for better entity extraction
+            # Prepend context for better entity extraction (Anthropic's technique)
             episode_content = f"{self.context}\n\n{self.content}"
             
+        # Add metadata as part of the content for Zep to extract
+        metadata_text = f"[Source: {self.source_file}, Type: {self.chunk_type}, ID: {self.chunk_id}]\n\n"
+        full_content = metadata_text + episode_content
+        
         return {
-            "name": self.chunk_id,
-            "episode_body": episode_content,
-            "source": "text",  # EpisodeType.text
-            "source_description": f"OpenStax textbook - {self.chunk_type}",
-            "reference_time": datetime.now(),
-            "metadata": {
-                "source_file": self.source_file,
-                "chunk_type": self.chunk_type,
-                "chunk_id": self.chunk_id,
-                **self.metadata
-            }
+            "data": full_content,
+            "type": "text"
         }
 
 
