@@ -188,6 +188,111 @@ class KnowledgeGraphEvaluator:
         except Exception as e:
             return {"error": str(e)}
     
+    def get_comprehensive_analysis(self) -> Dict[str, Any]:
+        """
+        Get comprehensive analysis of the ENTIRE graph without search limitations.
+        
+        Returns:
+            Comprehensive analysis results
+        """
+        try:
+            print("   Fetching ALL nodes and edges...")
+            
+            # Get ALL nodes from the graph
+            all_nodes = self.client.graph.node.get_by_graph_id(graph_id=self.graph_id)
+            all_edges = self.client.graph.edge.get_by_graph_id(graph_id=self.graph_id)
+            
+            print(f"   Analyzing {len(all_nodes)} nodes and {len(all_edges)} edges...")
+            
+            # Comprehensive node analysis
+            node_analysis = {
+                "total_count": len(all_nodes),
+                "labels_distribution": {},
+                "summary_lengths": [],
+                "metadata_coverage": {},
+                "content_type_analysis": {}
+            }
+            
+            # Analyze all nodes
+            for node in all_nodes:
+                # Labels distribution
+                if hasattr(node, 'labels') and node.labels:
+                    for label in node.labels:
+                        node_analysis["labels_distribution"][label] = node_analysis["labels_distribution"].get(label, 0) + 1
+                
+                # Summary length analysis
+                if hasattr(node, 'summary') and node.summary:
+                    node_analysis["summary_lengths"].append(len(node.summary))
+                
+                # Metadata coverage
+                if hasattr(node, 'metadata') and node.metadata:
+                    for key in node.metadata.keys():
+                        node_analysis["metadata_coverage"][key] = node_analysis["metadata_coverage"].get(key, 0) + 1
+                
+                # Content type detection from summaries
+                if hasattr(node, 'summary') and node.summary:
+                    summary_lower = node.summary.lower()
+                    if 'concept' in summary_lower or 'definition' in summary_lower:
+                        node_analysis["content_type_analysis"]["concept"] = node_analysis["content_type_analysis"].get("concept", 0) + 1
+                    elif 'example' in summary_lower or 'instance' in summary_lower:
+                        node_analysis["content_type_analysis"]["example"] = node_analysis["content_type_analysis"].get("example", 0) + 1
+                    elif 'try' in summary_lower or 'practice' in summary_lower or 'exercise' in summary_lower:
+                        node_analysis["content_type_analysis"]["try_it"] = node_analysis["content_type_analysis"].get("try_it", 0) + 1
+                    elif 'problem' in summary_lower or 'solve' in summary_lower:
+                        node_analysis["content_type_analysis"]["problem"] = node_analysis["content_type_analysis"].get("problem", 0) + 1
+                    else:
+                        node_analysis["content_type_analysis"]["other"] = node_analysis["content_type_analysis"].get("other", 0) + 1
+            
+            # Comprehensive edge analysis
+            edge_analysis = {
+                "total_count": len(all_edges),
+                "relationship_types": {},
+                "fact_lengths": [],
+                "connection_patterns": {}
+            }
+            
+            # Analyze all edges
+            for edge in all_edges:
+                # Relationship type distribution
+                edge_type = getattr(edge, 'name', 'unknown')
+                edge_analysis["relationship_types"][edge_type] = edge_analysis["relationship_types"].get(edge_type, 0) + 1
+                
+                # Fact length analysis
+                if hasattr(edge, 'fact') and edge.fact:
+                    edge_analysis["fact_lengths"].append(len(edge.fact))
+                
+                # Connection patterns (source/target analysis)
+                if hasattr(edge, 'source_node_uuid') and hasattr(edge, 'target_node_uuid'):
+                    source = edge.source_node_uuid
+                    target = edge.target_node_uuid
+                    if source not in edge_analysis["connection_patterns"]:
+                        edge_analysis["connection_patterns"][source] = 0
+                    if target not in edge_analysis["connection_patterns"]:
+                        edge_analysis["connection_patterns"][target] = 0
+                    edge_analysis["connection_patterns"][source] += 1
+                    edge_analysis["connection_patterns"][target] += 1
+            
+            # Calculate statistics
+            node_analysis["avg_summary_length"] = sum(node_analysis["summary_lengths"]) / len(node_analysis["summary_lengths"]) if node_analysis["summary_lengths"] else 0
+            edge_analysis["avg_fact_length"] = sum(edge_analysis["fact_lengths"]) / len(edge_analysis["fact_lengths"]) if edge_analysis["fact_lengths"] else 0
+            
+            # Top connected nodes
+            sorted_connections = sorted(edge_analysis["connection_patterns"].items(), key=lambda x: x[1], reverse=True)
+            edge_analysis["top_connected_nodes"] = sorted_connections[:10]
+            
+            return {
+                "node_analysis": node_analysis,
+                "edge_analysis": edge_analysis,
+                "graph_connectivity": {
+                    "avg_connections_per_node": len(all_edges) / len(all_nodes) if all_nodes else 0,
+                    "isolated_nodes": len([n for n in all_nodes if getattr(n, 'uuid', '') not in edge_analysis["connection_patterns"]]),
+                    "highly_connected_nodes": len([n for n in edge_analysis["connection_patterns"].values() if n > 5])
+                }
+            }
+            
+        except Exception as e:
+            return {"error": str(e)}
+    
     def get_detailed_analysis(self) -> Dict[str, Any]:
         """
         Get detailed analysis of graph content and structure.
@@ -280,14 +385,19 @@ class KnowledgeGraphEvaluator:
         
         # 4. Contextual Retrieval Tests
         print("🎯 Testing contextual retrieval...")
-        sample_lo_ids = ["LO_001", "LO_002", "LO_003"]
+        # Test with ACTUAL LO IDs from the CSV data
+        actual_lo_ids = ["1867", "1868", "1869", "1870", "1872"]
         results["contextual_retrieval"] = {}
-        for lo_id in sample_lo_ids:
+        for lo_id in actual_lo_ids:
             results["contextual_retrieval"][lo_id] = self.test_contextual_retrieval(lo_id)
         
-        # 5. Detailed Analysis
-        print("🔬 Getting detailed graph analysis...")
-        results["detailed_analysis"] = self.get_detailed_analysis()
+        # 5. Comprehensive Analysis (FULL GRAPH)
+        print("🔬 Getting comprehensive graph analysis...")
+        results["comprehensive_analysis"] = self.get_comprehensive_analysis()
+        
+        # 6. Sample Analysis (for comparison)
+        print("📋 Getting sample analysis...")
+        results["sample_analysis"] = self.get_detailed_analysis()
         
         print("✅ Evaluation complete!")
         return results
@@ -360,16 +470,72 @@ def demo_evaluation():
             else:
                 print(f"     • {lo_id:8} → Error: {result['error']}")
     
-    # Detailed Analysis
-    if "detailed_analysis" in results:
-        analysis = results["detailed_analysis"]
+    # Comprehensive Analysis (FULL GRAPH)
+    if "comprehensive_analysis" in results:
+        analysis = results["comprehensive_analysis"]
         if "error" not in analysis:
-            print(f"\n🔬 GRAPH STRUCTURE ANALYSIS")
+            print(f"\n🔬 COMPREHENSIVE GRAPH ANALYSIS (FULL GRAPH)")
             
-            # Edge types
+            # Node analysis
+            node_analysis = analysis.get("node_analysis", {})
+            print(f"\n   📊 NODE ANALYSIS ({node_analysis.get('total_count', 0):,} total)")
+            print(f"     Average Summary Length: {node_analysis.get('avg_summary_length', 0):.0f} characters")
+            
+            # Labels distribution
+            if node_analysis.get("labels_distribution"):
+                print(f"     Labels Distribution:")
+                for label, count in sorted(node_analysis["labels_distribution"].items(), key=lambda x: x[1], reverse=True):
+                    print(f"       • {label:15}: {count:3}")
+            
+            # Content type analysis
+            if node_analysis.get("content_type_analysis"):
+                print(f"     Content Type Distribution:")
+                for content_type, count in sorted(node_analysis["content_type_analysis"].items(), key=lambda x: x[1], reverse=True):
+                    print(f"       • {content_type:10}: {count:3} nodes")
+            
+            # Metadata coverage
+            if node_analysis.get("metadata_coverage"):
+                print(f"     Metadata Coverage:")
+                for key, count in sorted(node_analysis["metadata_coverage"].items(), key=lambda x: x[1], reverse=True):
+                    print(f"       • {key:20}: {count:3} nodes")
+            
+            # Edge analysis
+            edge_analysis = analysis.get("edge_analysis", {})
+            print(f"\n   🔗 EDGE ANALYSIS ({edge_analysis.get('total_count', 0):,} total)")
+            print(f"     Average Fact Length: {edge_analysis.get('avg_fact_length', 0):.0f} characters")
+            
+            # Relationship types
+            if edge_analysis.get("relationship_types"):
+                print(f"     Relationship Types ({len(edge_analysis['relationship_types'])} total):")
+                for rel_type, count in sorted(edge_analysis["relationship_types"].items(), key=lambda x: x[1], reverse=True):
+                    print(f"       • {rel_type:25}: {count:3}")
+            
+            # Graph connectivity
+            connectivity = analysis.get("graph_connectivity", {})
+            print(f"\n   🌐 GRAPH CONNECTIVITY")
+            print(f"     Average Connections per Node: {connectivity.get('avg_connections_per_node', 0):.2f}")
+            print(f"     Isolated Nodes: {connectivity.get('isolated_nodes', 0)}")
+            print(f"     Highly Connected Nodes (>5 connections): {connectivity.get('highly_connected_nodes', 0)}")
+            
+            # Top connected nodes
+            if edge_analysis.get("top_connected_nodes"):
+                print(f"     Top Connected Nodes:")
+                for i, (node_id, connections) in enumerate(edge_analysis["top_connected_nodes"][:5]):
+                    print(f"       {i+1}. Node {node_id[:8]}...: {connections} connections")
+            
+        else:
+            print(f"\n🔬 Comprehensive Analysis: Error - {analysis['error']}")
+    
+    # Sample Analysis (for comparison)
+    if "sample_analysis" in results:
+        analysis = results["sample_analysis"]
+        if "error" not in analysis:
+            print(f"\n📋 SAMPLE ANALYSIS (Limited Search Results)")
+            
+            # Edge types from sample
             if analysis.get("edge_type_distribution"):
                 edge_types = analysis["edge_type_distribution"]
-                print(f"   Relationship Types ({len(edge_types)} found):")
+                print(f"   Sample Relationship Types ({len(edge_types)} found):")
                 for edge_type, count in sorted(edge_types.items(), key=lambda x: x[1], reverse=True):
                     print(f"     • {edge_type:20}: {count}")
             
@@ -388,7 +554,7 @@ def demo_evaluation():
                     edge_type = edge_info['name'] or "Unknown"
                     print(f"     • [{edge_type}] {fact}")
         else:
-            print(f"\n🔬 Graph Analysis: Error - {analysis['error']}")
+            print(f"\n📋 Sample Analysis: Error - {analysis['error']}")
     
     print(f"\n" + "="*60)
 
