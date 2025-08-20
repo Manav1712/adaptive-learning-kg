@@ -20,7 +20,7 @@ This document captures the comprehensive baseline evaluation results for our cal
 
 ## Retrieval Performance
 
-### Test Query Results
+### Test Query Results (RATE LIMITED BY THE API)
 All test queries returned consistent results, indicating stable graph performance:
 
 | Query | Nodes Found | Edges Found |
@@ -129,6 +129,98 @@ The graph demonstrates sophisticated understanding of:
 4. **Educational Pathways**: Validate if prerequisite relationships support learning progression
 
 **Recommendation**: This baseline exceeds expectations. Focus on developing better exploration tools to leverage the rich semantic network that Zep has automatically constructed.
+
+## **Next Experiment: Enhanced Episode Ingestion**
+
+### **Current Limitations Identified:**
+1. **Missing Structured Metadata**: LO IDs, units, chapters not attached to nodes
+2. **Unvalidated Search Quality**: Test queries return consistent but unverified results
+3. **Content Type Detection**: Based on text parsing, not structured classification
+4. **Relationship Quality**: 279 types discovered but mathematical validity unconfirmed
+
+### **Recommended Improvements for Next Experiment:**
+
+#### **1. Enhanced Episode Structure**
+```python
+# Current: Basic text ingestion
+episode_data = {
+    "data": content,
+    "type": "text"
+}
+
+# Recommended: Structured with metadata
+episode_data = {
+    "data": content,
+    "type": "text",
+    "metadata": {
+        "lo_id": row["lo_id"],
+        "content_type": row["type"],  # concept, example, try_it, problem
+        "unit": row["unit"],
+        "chapter": row["chapter"],
+        "book": row["book"],
+        "difficulty": "easy/medium/hard",  # from assessments
+        "mathematical_domain": "functions/limits/derivatives/etc"
+    }
+}
+```
+
+#### **2. JSON Episode Type for Structured Content**
+```python
+# For mathematical problems with clear structure
+structured_episode = {
+    "type": "json",
+    "data": {
+        "problem": row["problem"],
+        "solution_steps": row["solution"]["steps"],
+        "learning_objective": row["learning_objective"],
+        "content_type": row["type"],
+        "mathematical_concepts": ["functions", "evaluation", "substitution"],
+        "prerequisites": ["basic_algebra", "function_notation"]
+    }
+}
+```
+
+#### **3. Validation and Quality Checks**
+- **Pre-ingestion validation**: Verify CSV data quality and completeness
+- **Post-ingestion verification**: Check if metadata is properly attached to nodes
+- **Search quality testing**: Validate that search results are semantically relevant
+- **Relationship validation**: Sample and verify mathematical relationship accuracy
+
+#### **4. Enhanced Evaluation Framework**
+```python
+# Test actual metadata attachment
+def test_metadata_coverage():
+    nodes = client.graph.node.get_by_graph_id(graph_id)
+    lo_nodes = [n for n in nodes if getattr(n, 'metadata', {}).get('lo_id')]
+    return len(lo_nodes)
+
+# Test search relevance
+def test_search_quality(query, expected_concepts):
+    results = client.graph.search(query=query, scope="nodes")
+    # Check if results contain expected mathematical concepts
+    return relevance_score(results, expected_concepts)
+```
+
+#### **5. Zep Best Practices to Implement**
+- **Use `add_episode_bulk`** for efficient batch ingestion
+- **Implement fact ratings** for quality filtering (`min_fact_rating` parameter)
+- **Use episode mentions reranker** for importance-based search
+- **Leverage hybrid search** (semantic + keyword + graph-based)
+- **Implement proper error handling** and ingestion status monitoring
+
+#### **6. Expected Improvements**
+- **Accurate LO coverage**: Real counts based on structured metadata
+- **Better search quality**: Relevant results with proper relevance scoring
+- **Content type accuracy**: Proper classification without text parsing
+- **Relationship validation**: Mathematically sound connections
+- **Metadata accessibility**: Unit/chapter information available in search
+
+### **Success Criteria for Next Experiment:**
+1. ✅ **Metadata Attachment**: 100% of nodes have proper LO IDs and content types
+2. ✅ **Search Quality**: Results are semantically relevant to queries
+3. ✅ **Content Coverage**: Accurate counts for all content types
+4. ✅ **Relationship Validation**: Sample of relationships confirmed mathematically sound
+5. ✅ **Performance**: Ingestion completes without errors, search response <2s
 
 ---
 
