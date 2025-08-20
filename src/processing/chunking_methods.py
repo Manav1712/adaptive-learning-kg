@@ -297,34 +297,57 @@ def demo_kg_building():
     # Initialize KG builder
     kg_builder = ZepKnowledgeGraphBuilder(api_key)
     
-    # Convert CSV to episodes
-    csv_path = "data/raw/try_it_draft_contents.csv"
-    converter = CSVToEpisodeConverter(csv_path)
-    episodes = converter.convert_csv_to_episodes()
+    # Convert CSVs to episodes (all three files)
+    csv_paths = [
+        "data/raw/try_it_draft_contents.csv",
+        "data/raw/example_draft_contents (3).csv",
+        "data/raw/concept_draft_contents (4).csv",
+    ]
+    all_episodes: List[CSVEpisode] = []
+    for path in csv_paths:
+        try:
+            converter = CSVToEpisodeConverter(path)
+            eps = converter.convert_csv_to_episodes()
+            print(f"Loaded {len(eps)} episodes from {path}")
+            all_episodes.extend(eps)
+        except FileNotFoundError:
+            print(f"CSV file not found at: {path}")
+            print("Skipping this file.")
     
-    print(f"Ready to add {len(episodes)} episodes to knowledge graph")
+    if not all_episodes:
+        print("No episodes loaded. Aborting.")
+        return
+    
+    print(f"Ready to add {len(all_episodes)} episodes to knowledge graph")
     print("API key loaded successfully from environment")
     
-    # Test adding a few episodes to the knowledge graph
-    print("\nTesting knowledge graph building...")
-    
+    # Ensure graph exists
+    print("\nEnsuring graph exists: calculus-learning-content...")
     try:
-        # First, create a graph for our learning content
-        print("Creating graph for calculus learning content...")
-        graph = kg_builder.client.graph.create(
-            graph_id="calculus-learning-content"
-        )
+        graph = kg_builder.client.graph.create(graph_id="calculus-learning-content")
         print(f"✅ Graph created successfully: {graph}")
-        
-        # Now add episodes to that graph
-        print("\nAdding episodes to the knowledge graph...")
-        result = kg_builder.add_batch_episodes(episodes[:3], graph_id="calculus-learning-content")
-        print(f"Test result: {result}")
-        print("✅ Successfully added episodes to knowledge graph!")
-        
     except Exception as e:
-        print(f"❌ Error testing knowledge graph: {e}")
-        print("This might be expected if you don't have the right permissions or graph setup")
+        # Likely already exists; proceed
+        print(f"Graph create returned: {e}. Proceeding to add episodes.")
+    
+    # Add episodes in batches
+    print("\nAdding episodes to the knowledge graph in batches...")
+    batch_size = 20  # Zep API limit: episodes cannot contain more than 20 items
+    total = len(all_episodes)
+    added = 0
+    for start in range(0, total, batch_size):
+        end = min(start + batch_size, total)
+        batch = all_episodes[start:end]
+        try:
+            kg_builder.add_batch_episodes(batch, graph_id="calculus-learning-content")
+            added += len(batch)
+            print(f"Progress: {added}/{total} episodes added")
+        except Exception as e:
+            print(f"Error adding batch {start}-{end}: {e}")
+            # Continue with next batch
+            continue
+    
+    print("\n✅ Completed adding episodes to the knowledge graph.")
 
 
 if __name__ == "__main__":
