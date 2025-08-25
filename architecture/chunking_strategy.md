@@ -1,28 +1,40 @@
-# Knowledge Graph Strategy
+# Knowledge Graph Strategy - Production Approach
 
 ## Goal
-Transform pre-chunked CSV content into knowledge graphs with contextualized retrieval using Zep's graph capabilities.
+Transform pre-chunked CSV content into production-ready knowledge graphs with ontology-enforced relationships and contextualized retrieval using Zep's advanced graph capabilities.
 
 ## Content Structure
 Your CSV contains:
-- **Pre-chunked content**: Already split by learning objectives
+- **Pre-chunked content**: Already split by learning objectives (270 episodes across 3 files)
 - **Rich metadata**: lo_id, type, book, learning_objective, unit, chapter
 - **Structured content**: JSON-formatted problems, solutions, assessments
 - **Session types**: concept, exercise, example, try-it
 
-## The Approach: Contextualized Retrieval
+## Current Approach: Ontology-Enforced Knowledge Graphs
 
-**Method**: Build KG from CSV, then implement smart retrieval with context using Zep's hybrid search capabilities
+**Method**: Build constrained KGs using Zep's `set_ontology()` method with custom entity/edge types, then implement smart retrieval
 
 ```python
-# CSV provides base structure
-# Use Zep's hybrid search (semantic + BM25 + BFS)
-# Implement contextual search across LOs and content
-# Add prerequisite relationships and learning paths
+# Define custom ontology before ingestion
+entities = {"Concept": ConceptModel, "Example": ExampleModel, "Exercise": ExerciseModel, "TryIt": TryItModel}
+edges = {"PREREQUISITE_OF": ConstrainedEdge, "PART_OF": ConstrainedEdge, "ASSESSED_BY": ConstrainedEdge}
+client.graph.set_ontology(entities=entities, edges=edges, graph_ids=[graph_id])
+
+# Apply fact rating to filter noise
+fact_rating_instruction = "Rate by calculus learning relevance..."
+client.graph.update(graph_id=graph_id, fact_rating_instruction=instruction)
 ```
 
-**Pros**: Best user experience, intelligent recommendations, leverages Zep's built-in capabilities
-**Cons**: Requires understanding of Zep's graph search API
+**Pros**: 
+- Production-ready constraint enforcement
+- Reduced edge-type noise (target: 3-5 types vs 200+ without ontology)
+- Higher precision relationships (target: 80%+ effectiveness vs 24.6% with schema hints)
+- Built-in fact filtering for quality control
+
+**Cons**: 
+- Complex ontology design required
+- Longer processing times (2-6 hours for 270 episodes on FREE plan)
+- Need iterative testing to validate constraint effectiveness
 
 ### Zep Implementation Strategy
 
@@ -54,23 +66,28 @@ prereq_results = client.graph.search(
 )
 ```
 
-## Implementation Plan
+## Experimental Results & Current Status
 
-### Week 2: Test CSV Integration
+### Baseline V1 (Initial Approach)
+- **Results**: 474 nodes, 493 edges from raw CSV data
+- **Issue**: High edge-type noise, generic entity extraction
+- **Learning**: Need more constraint on entity/relationship types
 
-**Day 1-2**: Build CSV to KG transformer
-**Day 3-4**: Test with small sample (first 10 rows)
-**Day 5-7**: Compare with existing chunking approaches
+### Baseline V2 (Schema Hints)
+- **Results**: 270 episodes, 24.6% constraint effectiveness, 169 edge types  
+- **Issue**: Schema hints insufficient for production constraints
+- **Learning**: Text-based hints don't enforce server-side constraints
 
-### Testing Process
-1. Transform CSV rows to KG nodes/edges
-2. Test entity extraction from JSON content
-3. Send to Zep and build knowledge graph
-4. Measure: entity quality, relationship accuracy, completeness
+### Baseline V3 (Ontology Enforcement) - **IN PROGRESS**
+- **Approach**: Custom entity types (Concept/Example/Exercise/TryIt) with property definitions
+- **Constraints**: PREREQUISITE_OF/PART_OF/ASSESSED_BY edges with source-target restrictions
+- **Enhancements**: Fact rating instruction, type balancing (250 max per type)
+- **Status**: 270 episodes processing overnight (2-6 hour completion time)
+- **Target**: 80%+ constraint effectiveness, <10 edge types for production readiness
 
-### Success Criteria
-- Learning objectives properly extracted and linked
-- Content items (problems, solutions) connected to LOs
-- Prerequisites and relationships identified
-- Contextual retrieval working (find related content based on current LO)
-- Best approach identified for full dataset processing
+### Next Steps
+1. **Evaluate V3 Results**: Check constraint effectiveness and edge type reduction
+2. **Production Decision**: 
+   - ✅ If successful → Ready for Phase 2 (retrieval pipeline)
+   - ⚠️ If unsuccessful → Investigate alternative constraint approaches
+3. **Scale to Full Dataset**: Once approach validated with 270 episodes

@@ -1,14 +1,14 @@
 # Phases
 
-## Current Status: Phase 1 Complete ✅
+## Current Status: Phase 1 - Advanced Experiments 🚧
 
-**Last Updated**: Baseline V2 experiment completed
-**Next Milestone**: Phase 2 - Enhanced KG Construction with custom entity types
-**Key Learning**: Schema hints provide guidance but `set_ontology()` method needed for true control
+**Last Updated**: Baseline V3 ontology enforcement experiment launched
+**Next Milestone**: Evaluate V3 results → decide production readiness vs further iteration
+**Key Learning**: FREE plan processing limits (2-6 hours for 270 episodes), ontology enforcement critical for production
 
 ---
 
-## Phase 1 — Foundations & Ground Truth (Weeks 1–3) ✅ **COMPLETED**
+## Phase 1 — Foundations & Ground Truth (Weeks 1–3) 🚧 **IN PROGRESS**
 
 **Agents**
 - ✅ Corpus Ingestion → pull OpenStax, chunk
@@ -24,13 +24,24 @@
 Example: `PREREQUISITE_OF(Factoring → Completing the Square)`; `ASSESSED_BY(CTS → Ex 9.4 #17)`.
 
 **Progress Status:**
-- **Baseline V1**: Built initial KG with 474 nodes, 493 edges (474 relationships)
-- **Baseline V2**: Improved KG with schema hints and relationship constraints (270 episodes)
-- **Evaluation Framework**: Comprehensive metrics for node/edge counts, retrieval quality, content coverage
-- **Experiment Structure**: Organized framework for iterative development
-- **Key Insight**: Schema hints help but need `set_ontology()` for true entity type control
+- **Baseline V1**: Built initial KG with 474 nodes, 493 edges (baseline performance)
+- **Baseline V2**: Schema hints experiment - 270 episodes, 24.6% constraint effectiveness, 169 edge types
+- **Baseline V3**: Ontology enforcement experiment - 270 episodes with custom entity/edge types, fact rating, processing overnight
+- **Key Achievements**: Fixed async processing pipeline, solved rate limiting, implemented comprehensive evaluation framework
+- **Critical Discovery**: Schema hints insufficient for production - need ontology enforcement for edge type control
 
-**Next**: Ready to move to Phase 2 with enhanced KG construction approach
+**Current Investigation (Baseline V3):**
+- **Custom Ontology**: Concept/Example/Exercise/TryIt entities with property definitions
+- **Edge Constraints**: PREREQUISITE_OF/PART_OF/ASSESSED_BY with source-target restrictions  
+- **Fact Rating**: Applied instruction to filter low-relevance relationships
+- **Type Balancing**: 250 max per type to ensure concept dominance
+- **Status**: Processing on Zep (2-6 hour completion time for 270 episodes)
+
+**Decision Point**: 
+- ✅ If V3 achieves 80%+ constraint effectiveness + <10 edge types → Ready for Phase 2
+- ⚠️ If still high edge-type noise → Investigate alternative approaches before Phase 2
+
+**Next**: Evaluate V3 overnight results to determine production readiness
 
 ---
 
