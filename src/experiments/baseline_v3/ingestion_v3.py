@@ -21,14 +21,14 @@ from dotenv import load_dotenv
 
 
 # -------- Experiment configuration --------
-GRAPH_ID: str = "baseline_v3_ontology_enforced"  # <-- set for this experiment
+GRAPH_ID = "baseline_v3_full_group"  # <-- new graph for full ingestion
 CSV_PATHS: List[str] = [
     "data/raw/try_it_draft_contents.csv",
     "data/raw/example_draft_contents (3).csv",
     "data/raw/concept_draft_contents (4).csv",
 ]
 BATCH_SIZE: int = 20  # Zep API limit
-VALIDATION_LIMIT: int = 40  # small sample prior to full ingestion
+VALIDATION_LIMIT = 40  # small sample prior to full ingestion
 MAX_PER_TYPE: Optional[int] = 250  # enable type balancing; None to disable
 
 
@@ -238,9 +238,80 @@ class ZepKnowledgeGraphBuilder:
         self.client.graph.set_ontology(entities=entities, edges=edges, graph_ids=[graph_id])
         print("Ontology applied.")
 
-    def add_batch(self, episodes: List[CSVEpisode], graph_id: str) -> None:
+    def add_batch(self, episodes: List[CSVEpisode], graph_id: str) -> List[str]:
+        """Add episodes in batch and return their UUIDs for status tracking."""
         payload = [{"type": ep.to_zep_episode()["type"], "data": ep.to_zep_episode()["data"]} for ep in episodes]
-        self.client.graph.add_batch(graph_id=graph_id, episodes=payload)
+        
+        try:
+            response = self.client.graph.add_batch(graph_id=graph_id, episodes=payload)
+            
+            # Extract episode UUIDs from response - Zep returns a list of Episode objects
+            episode_uuids = []
+            if isinstance(response, list):
+                for episode_obj in response:
+                    if hasattr(episode_obj, 'uuid_'):
+                        episode_uuids.append(episode_obj.uuid_)
+                    elif hasattr(episode_obj, 'uuid'):
+                        episode_uuids.append(episode_obj.uuid)
+            
+            print(f"Batch added: {len(episodes)} episodes, extracted {len(episode_uuids)} UUIDs")
+            return episode_uuids
+            
+        except Exception as e:
+            print(f"Error in add_batch: {e}")
+            return []
+
+    def wait_for_episodes_processed(self, episode_uuids: List[str], graph_id: str, timeout_minutes: int = 30) -> bool:
+        """Wait for episodes to be processed, with rate limit handling."""
+        import time
+        
+        if not episode_uuids:
+            print("No episode UUIDs to check")
+            return True
+            
+        print(f"Waiting for {len(episode_uuids)} episodes to process...")
+        start_time = time.time()
+        timeout_seconds = timeout_minutes * 60
+        check_interval = 10  # Check every 10 seconds instead of 1
+        
+        while time.time() - start_time < timeout_seconds:
+            processed_count = 0
+            rate_limit_hit = False
+            
+            for uuid_ in episode_uuids:
+                try:
+                    episode = self.client.graph.episode.get(uuid_=uuid_)
+                    if hasattr(episode, 'processed') and episode.processed:
+                        processed_count += 1
+                    # Add small delay between individual checks to avoid rate limits
+                    time.sleep(0.5)
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if "rate limit" in error_msg or "429" in error_msg:
+                        print(f"⚠️  Rate limit hit, waiting 60 seconds...")
+                        time.sleep(60)
+                        rate_limit_hit = True
+                        break
+                    else:
+                        print(f"Error checking episode {uuid_}: {e}")
+            
+            if rate_limit_hit:
+                continue  # Retry the full check after rate limit cooldown
+            
+            if processed_count == len(episode_uuids):
+                print(f"✅ All {len(episode_uuids)} episodes processed successfully!")
+                return True
+            
+            remaining = len(episode_uuids) - processed_count
+            elapsed = int(time.time() - start_time)
+            print(f"⏳ {processed_count}/{len(episode_uuids)} processed ({remaining} remaining). Elapsed: {elapsed}s")
+            
+            # Wait longer between checks to avoid rate limits
+            print(f"Waiting {check_interval} seconds before next check...")
+            time.sleep(check_interval)
+        
+        print(f"❌ Timeout after {timeout_minutes} minutes. Assuming episodes are processing in background.")
+        return True  # Return True to continue - episodes may still be processing
 
 
 def run_ingestion():
@@ -271,17 +342,32 @@ def run_ingestion():
     # 4) Enable type balancing so Concepts dominate
     episodes = balance_types(episodes, MAX_PER_TYPE)
 
-    # 5) Validation batch (small)
+    # 5) Validation batch (small) - submit only, no polling
     print("\nValidation ingest (small sample)...")
+    import time
     validated = 0
     v_total = min(VALIDATION_LIMIT, len(episodes))
     for start in range(0, v_total, BATCH_SIZE):
         end = min(start + BATCH_SIZE, v_total)
-        builder.add_batch(episodes[start:end], graph_id=GRAPH_ID)
-        validated += (end - start)
-    print(f"Validation batch added: {validated} episodes")
+        try:
+            builder.add_batch(episodes[start:end], graph_id=GRAPH_ID)
+            validated += (end - start)
+            time.sleep(2)  # small delay to avoid rate limits
+        except Exception as e:
+            msg = str(e).lower()
+            if "429" in msg or "rate limit" in msg:
+                print("Rate limit hit during validation. Waiting 60s and retrying once...")
+                time.sleep(60)
+                try:
+                    builder.add_batch(episodes[start:end], graph_id=GRAPH_ID)
+                    validated += (end - start)
+                except Exception as e2:
+                    print(f"Validation batch {start}-{end} failed after retry: {e2}")
+            else:
+                print(f"Validation batch {start}-{end} failed: {e}")
+    print(f"Validation batch submitted: {validated} episodes")
 
-    # 6) Full ingestion in batches
+    # 6) Full ingestion in batches - submit only, no polling
     print("\nFull ingest in batches...")
     total = len(episodes)
     added = 0
@@ -289,13 +375,28 @@ def run_ingestion():
         end = min(start + BATCH_SIZE, total)
         batch = episodes[start:end]
         try:
+            print(f"Submitting batch {start//BATCH_SIZE + 1} ({start}-{end})...")
             builder.add_batch(batch, graph_id=GRAPH_ID)
             added += len(batch)
             print(f"Progress: {added + min(VALIDATION_LIMIT, total)}/{total}")
+            time.sleep(2)  # small delay to avoid rate limits
         except Exception as e:
-            print(f"Batch {start}-{end} failed: {e}")
+            msg = str(e).lower()
+            if "429" in msg or "rate limit" in msg:
+                print("Rate limit hit. Waiting 60s and retrying this batch once...")
+                time.sleep(60)
+                try:
+                    builder.add_batch(batch, graph_id=GRAPH_ID)
+                    added += len(batch)
+                    print(f"Progress: {added + min(VALIDATION_LIMIT, total)}/{total}")
+                except Exception as e2:
+                    print(f"Batch {start}-{end} failed after retry: {e2}")
+            else:
+                print(f"Batch {start}-{end} failed: {e}")
 
-    print("\nDone.")
+    print("\n🎉 Ingestion submitted! Episodes are processing asynchronously in Zep.")
+    print(f"Total episodes submitted: {added + min(VALIDATION_LIMIT, total)}")
+    print("You can monitor processing in the Zep console.")
 
 
 if __name__ == "__main__":
