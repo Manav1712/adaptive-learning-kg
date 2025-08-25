@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
 from zep_cloud.client import Zep
-from src.processing.chunking_methods import CSVEpisode, CSVToEpisodeConverter
+from src.processing.chunk_conversion import CSVEpisode, CSVToEpisodeConverter
 
 
 class KnowledgeGraphEvaluator:

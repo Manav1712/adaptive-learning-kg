@@ -324,8 +324,9 @@ def demo_kg_building():
     # Ensure graph exists
     print("\nEnsuring graph exists: calculus-learning-content...")
     try:
+        #TODO: be careful of the graph id, we want to make sure it is unique for each experiment
         graph = kg_builder.client.graph.create(graph_id="calculus-learning-content")
-        print(f"✅ Graph created successfully: {graph}")
+        print(f"Graph created successfully: {graph}")
     except Exception as e:
         # Likely already exists; proceed
         print(f"Graph create returned: {e}. Proceeding to add episodes.")
@@ -347,7 +348,7 @@ def demo_kg_building():
             # Continue with next batch
             continue
     
-    print("\n✅ Completed adding episodes to the knowledge graph.")
+    print("\n Completed adding episodes to the knowledge graph.")
 
 
 if __name__ == "__main__":
