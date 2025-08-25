@@ -143,17 +143,26 @@ class ZepKnowledgeGraphBuilder:
     def ensure_graph(self, graph_id: str, fact_rating_instruction: Optional[str] = None) -> None:
         print(f"Ensuring graph exists: {graph_id}...")
         try:
-            self.client.graph.create(
-                graph_id=graph_id,
-                description="Baseline V3: Ontology-enforced knowledge graph with custom entity types, constrained relationships, and fact rating for noise reduction. Built on OpenStax calculus content with type balancing.",
-                fact_rating_instruction=fact_rating_instruction
-            )
-            print("Graph created with description.")
+            # Create graph without description first to avoid JSON error
+            self.client.graph.create(graph_id=graph_id)
+            print("Graph created.")
         except Exception as e:
             print(f"Graph create returned: {e}. Proceeding.")
+        
+        # Set fact rating instruction separately
         if fact_rating_instruction:
             try:
-                self.client.graph.update(graph_id=graph_id, fact_rating_instruction=fact_rating_instruction)
+                # Zep expects a structured instruction with examples
+                from zep_cloud import ModelsFactRatingInstruction, ModelsFactRatingExamples
+                fri = ModelsFactRatingInstruction(
+                    instruction=fact_rating_instruction,
+                    examples=ModelsFactRatingExamples(
+                        high="PREREQUISITE_OF(Concept A -> Concept B)",
+                        medium="PART_OF(Example -> Concept)",
+                        low="Stylistic phrasing without mathematical relation"
+                    )
+                )
+                self.client.graph.update(graph_id=graph_id, fact_rating_instruction=fri)
                 print("Fact rating instruction set.")
             except Exception as e:
                 print(f"Graph update (fact rating) returned: {e}.")
@@ -161,29 +170,38 @@ class ZepKnowledgeGraphBuilder:
     def set_ontology(self, graph_id: str) -> None:
         """Define and apply custom entity/edge types with source/target constraints."""
         from zep_cloud import EntityEdgeSourceTarget
+        from zep_cloud.external_clients.ontology import EntityModel, EdgeModel, EntityText
+        from pydantic import Field
 
-        # Entities: minimal schemas (description-only); fields optional for this experiment
-        class Concept:
-            description = "Represents a calculus concept or definition."
+        # Entities: define with at least one property and a description (docstring)
+        class Concept(EntityModel):
+            """Represents a calculus concept or definition."""
+            category: EntityText = Field(description="High-level type label for the concept", default=None)
 
-        class Example:
-            description = "Represents a worked example."
+        class Example(EntityModel):
+            """Represents a worked example."""
+            role: EntityText = Field(description="Example role or tag (e.g., worked example)", default=None)
 
-        class Exercise:
-            description = "Represents a practice problem or exercise."
+        class Exercise(EntityModel):
+            """Represents a practice problem or exercise."""
+            difficulty: EntityText = Field(description="Relative difficulty or tag", default=None)
 
-        class TryIt:
-            description = "Represents a short try-it/practice item."
+        class TryIt(EntityModel):
+            """Represents a short try-it/practice item."""
+            difficulty: EntityText = Field(description="Relative difficulty or tag", default=None)
 
-        # Edges: map name -> (EdgeModel, [allowed source/target])
-        class PREREQUISITE_OF:
-            description = "Indicates prerequisite relationship between concepts."
+        # Edges: define with at least one property and a description (docstring)
+        class PREREQUISITE_OF(EdgeModel):
+            """Prerequisite relation between two concepts."""
+            justification: EntityText = Field(description="Rationale or context for the prerequisite", default=None)
 
-        class PART_OF:
-            description = "Indicates hierarchical/structural membership."
+        class PART_OF(EdgeModel):
+            """Structural membership relation to a concept."""
+            context: EntityText = Field(description="Hierarchy context (e.g., chapter/unit)", default=None)
 
-        class ASSESSED_BY:
-            description = "Indicates an assessment item evaluates a concept."
+        class ASSESSED_BY(EdgeModel):
+            """Assessment relation mapping an exercise/try-it to a concept."""
+            rubric: EntityText = Field(description="Assessment rubric or tag", default=None)
 
         edges = {
             "PREREQUISITE_OF": (
@@ -255,8 +273,13 @@ def run_ingestion():
 
     # 5) Validation batch (small)
     print("\nValidation ingest (small sample)...")
-    builder.add_batch(episodes[:VALIDATION_LIMIT], graph_id=GRAPH_ID)
-    print(f"Validation batch added: {min(VALIDATION_LIMIT, len(episodes))} episodes")
+    validated = 0
+    v_total = min(VALIDATION_LIMIT, len(episodes))
+    for start in range(0, v_total, BATCH_SIZE):
+        end = min(start + BATCH_SIZE, v_total)
+        builder.add_batch(episodes[start:end], graph_id=GRAPH_ID)
+        validated += (end - start)
+    print(f"Validation batch added: {validated} episodes")
 
     # 6) Full ingestion in batches
     print("\nFull ingest in batches...")
