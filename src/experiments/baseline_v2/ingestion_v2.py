@@ -17,6 +17,7 @@ Key differences from baseline_v1:
 Goal: Build a cleaner, more focused KG with better entity classification and relationship quality.
 """
 
+
 import csv
 import json
 import os
@@ -29,7 +30,7 @@ from dotenv import load_dotenv
 # - graph_id: set the target graph for ingestion (e.g., "baseline_retriever_v2")
 # - csv_paths: set the input CSV files for this run
 # - batch_size: keep at or below 20 to satisfy API limits
-GRAPH_ID: str = "baseline_retriever_v2"  # <-- set for this experiment
+GRAPH_ID: str = "baseline_v2_experiment"  # <-- set for this experiment
 CSV_PATHS: List[str] = [
     "data/raw/try_it_draft_contents.csv",
     "data/raw/example_draft_contents (3).csv",
