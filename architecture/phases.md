@@ -1,18 +1,36 @@
 # Phases
 
-## Phase 1 — Foundations & Ground Truth (Weeks 1–3)
+## Current Status: Phase 1 Complete ✅
+
+**Last Updated**: Baseline V2 experiment completed
+**Next Milestone**: Phase 2 - Enhanced KG Construction with custom entity types
+**Key Learning**: Schema hints provide guidance but `set_ontology()` method needed for true control
+
+---
+
+## Phase 1 — Foundations & Ground Truth (Weeks 1–3) ✅ **COMPLETED**
+
 **Agents**
-- Corpus Ingestion → pull OpenStax, chunk
-- Entity/Fact Extractor → LO/Concept/Problem + edges
-- Resolver/Deduper → merge synonyms, keep provenance
-- KG Writer → write to Zep/Neo4j; light Community Detector
+- ✅ Corpus Ingestion → pull OpenStax, chunk
+- ✅ Entity/Fact Extractor → LO/Concept/Problem + edges  
+- ✅ Resolver/Deduper → merge synonyms, keep provenance
+- ✅ KG Writer → write to Zep/Neo4j; light Community Detector
 
 **Flow**
-1. Fetch → chunk → extract entities/relations
-2. Dedup → write nodes/edges (+ section/exercise IDs)
+1. ✅ Fetch → chunk → extract entities/relations
+2. ✅ Dedup → write nodes/edges (+ section/exercise IDs)
 
 **You get:** A clean static subject KG (no personalization yet).
 Example: `PREREQUISITE_OF(Factoring → Completing the Square)`; `ASSESSED_BY(CTS → Ex 9.4 #17)`.
+
+**Progress Status:**
+- **Baseline V1**: Built initial KG with 474 nodes, 493 edges (474 relationships)
+- **Baseline V2**: Improved KG with schema hints and relationship constraints (270 episodes)
+- **Evaluation Framework**: Comprehensive metrics for node/edge counts, retrieval quality, content coverage
+- **Experiment Structure**: Organized framework for iterative development
+- **Key Insight**: Schema hints help but need `set_ontology()` for true entity type control
+
+**Next**: Ready to move to Phase 2 with enhanced KG construction approach
 
 ---
 

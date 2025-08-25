@@ -20,22 +20,32 @@ See the [architecture/](architecture/) folder for detailed design documents:
 
 ## Progress Report
 
-### Phase 1: Static Knowledge Graph (Weeks 1-3) - IN PROGRESS
+### Phase 1: Static Knowledge Graph (Weeks 1-3) - COMPLETED ✅
 
-**Current Status**: Project setup and foundation
-- Project structure created for Phase 1
-- Basic data models implemented
-- Dependencies defined
-- Git workflow established (feature branches + main)
-- Zep MCP server configured for documentation access
+**Current Status**: Baseline experiments completed
+- ✅ Project structure created for Phase 1
+- ✅ Basic data models implemented  
+- ✅ Dependencies defined and virtual environment configured
+- ✅ Git workflow established (feature branches + main)
+- ✅ Zep MCP server configured for documentation access
+- ✅ **Baseline V1**: Built initial KG with 474 nodes, 493 edges (474 relationships)
+- ✅ **Baseline V2**: Improved KG with schema hints and relationship constraints (270 episodes)
+- ✅ Evaluation framework implemented for both experiments
+- ✅ Experiment structure organized for iterative development
 
-**Next Steps**:
-- Implement OpenStax corpus ingestion
-- Integrate with Zep's automated KG construction
-- Build basic knowledge graph
-- Develop simple visualization
+**Key Achievements**:
+- Successfully ingested OpenStax content into Zep knowledge graphs
+- Implemented comprehensive evaluation metrics (node/edge counts, retrieval quality, content coverage)
+- Created reproducible experiment framework with ingestion/evaluation scripts
+- Identified areas for improvement: entity type classification, relationship constraints, content balancing
 
-**Target**: Static KG with 500+ nodes, visualizable in D3
+**Next Phase**: Enhanced KG Construction
+- Implement custom entity types using Zep's `set_ontology()` method
+- Apply relationship constraints before ingestion
+- Balance content distribution (concepts vs examples)
+- Scale to full dataset once received
+
+**Target**: Clean, focused KG with 1000+ nodes, constrained relationships, balanced content types
 
 ## Development Setup
 
@@ -49,13 +59,22 @@ See the [architecture/](architecture/) folder for detailed design documents:
 
 ```
 src/
-├── processing/         # OpenStax content ingestion
-├── data/models/       # Basic data models
-├── zep_client.py      # Simple Zep integration
-└── main.py            # Phase 1 entry point
+├── experiments/       # Iterative experiment framework
+│   ├── baseline_v1/  # Initial KG construction (474 nodes, 493 edges)
+│   │   ├── ingestion_v1.py
+│   │   └── evaluation_v1.py
+│   └── baseline_v2/  # Improved KG with schema hints (270 episodes)
+│       ├── ingestion_v2.py
+│       └── evaluation_v2.py
+├── processing/        # Content processing utilities
+├── data/models/      # Basic data models
+├── evaluation/       # KG evaluation framework
+├── zep_client.py     # Zep integration utilities
+└── main.py           # Phase 1 entry point
 
-data/                  # Data storage
-tests/                 # Basic testing
+data/                 # Data storage (raw CSV files)
+tests/                # Basic testing
+architecture/          # Design documents and specifications
 ```
 
 ## Technology Stack
