@@ -1,5 +1,5 @@
 """
-Discover Content ↔ LO Links (Candidate Generation)
+Discover Content ↔ LO Links (Candidates + Scoring)
 
 This module prepares candidate LO targets for each content item
 to be later scored by an LLM. It reads processed inputs from the
@@ -9,14 +9,16 @@ Inputs (from prepare step):
 - data/processed/lo_index.csv
 - data/processed/content_items.csv
 
-Output (candidates for LLM step):
+Outputs:
 - data/processed/content_link_candidates.csv
+ - data/processed/edges_content.csv (after scoring)
 
 Candidate strategy:
 - Start with LOs in the same unit and/or chapter as the content's parent LO
 - Optionally add lexical shortlist by overlapping keywords with LO text
 
-Note: This module does NOT call the LLM. It only prepares candidates.
+This module can both prepare candidates and (optionally) score them using an LLM
+or a deterministic dry-run heuristic.
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
+import time
 
 try:
     import yaml  # type: ignore
@@ -34,6 +37,11 @@ except Exception:  # pragma: no cover - optional
     yaml = None
 
 import pandas as pd
+
+try:  # Optional import; only required for real LLM scoring
+    from openai import OpenAI  # type: ignore
+except Exception:  # pragma: no cover - soft dependency
+    OpenAI = None  # type: ignore
 
 
 # ----------------------------
@@ -71,6 +79,16 @@ class DiscoveryConfig:
     relation_example: str = "exemplified_by"
     relation_try_it: str = "practiced_by"
 
+    # Scoring/LLM parameters
+    model: str = "gpt-4o-mini"
+    modality: str = "text_only"  # "text_only" | "multimodal"
+    temperature: float = 0.0
+    max_targets_per_call: int = 8
+    max_retries: int = 3
+    score_mode: str = "score"  # "score" | "yes_no"
+    score_threshold: float = 0.6
+    output_edges: str = "data/processed/edges_content.csv"
+
 
 def load_config(config_path: Optional[str]) -> DiscoveryConfig:
     """
@@ -95,7 +113,7 @@ def load_config(config_path: Optional[str]) -> DiscoveryConfig:
     inputs_alt = data.get("input_paths", {})
     pruning = data.get("pruning", {})
     relations = data.get("relations", {})
-    return DiscoveryConfig(
+    cfg = DiscoveryConfig(
         input_lo_index=inputs.get("lo_index", inputs_alt.get("lo_index", "data/processed/lo_index.csv")),
         input_content_items=inputs.get("content_items", inputs_alt.get("content_items", "data/processed/content_items.csv")),
         output_candidates=data.get("output_candidates", "data/processed/content_link_candidates.csv"),
@@ -107,6 +125,25 @@ def load_config(config_path: Optional[str]) -> DiscoveryConfig:
         relation_example=relations.get("example", "exemplified_by"),
         relation_try_it=relations.get("try_it", "practiced_by"),
     )
+    # Scoring/LLM params (optional)
+    model = data.get("model")
+    if isinstance(model, str):
+        cfg.model = model
+    modality = data.get("modality")
+    if modality in {"text_only", "multimodal"}:
+        cfg.modality = modality
+    scoring = data.get("scoring", {})
+    if isinstance(scoring, dict):
+        cfg.score_mode = scoring.get("mode", cfg.score_mode)
+        cfg.score_threshold = float(scoring.get("threshold", cfg.score_threshold))
+    runtime = data.get("runtime", {})
+    if isinstance(runtime, dict):
+        cfg.max_targets_per_call = int(runtime.get("max_targets_per_call", cfg.max_targets_per_call))
+        cfg.max_retries = int(runtime.get("max_retries", cfg.max_retries))
+    outputs = data.get("output_paths", {})
+    if isinstance(outputs, dict):
+        cfg.output_edges = outputs.get("edges_content", cfg.output_edges)
+    return cfg
 
 
 # ----------------------------
@@ -130,6 +167,271 @@ def tokenize(text: str) -> List[str]:
     if not isinstance(text, str) or not text:
         return []
     return [m.group(0).lower() for m in _WORD_PATTERN.finditer(text)]
+
+
+def build_prompt_for_content(
+    content_row: pd.Series,
+    candidate_los: List[Tuple[str, str]],
+    lo_lookup: Dict[str, Dict[str, str]],
+    config: DiscoveryConfig,
+) -> Dict[str, object]:
+    """
+    Builds a prompt payload for the LLM (text-only or multimodal).
+
+    Args:
+        content_row: Content item row (text, image_urls, content_type)
+        candidate_los: List of (lo_id, reason) pairs
+        lo_lookup: Mapping lo_id -> {learning_objective, unit, chapter}
+        config: DiscoveryConfig with modality settings
+
+    Returns:
+        Dict representing a prompt payload ready for LLM client
+
+    Behavior:
+        - Includes content text and optional image_url blocks
+        - Packs multiple candidate LOs with identifiers for scoring
+        - Asks model to return JSON with ids and scores or YES/NO
+    """
+    content_text = str(content_row.get("text") or "")
+    image_urls: List[str] = content_row.get("image_urls") or []
+    ct = str(content_row.get("content_type") or "")
+
+    lo_items = [
+        {
+            "lo_id": lo_id,
+            "objective": lo_lookup.get(lo_id, {}).get("learning_objective", ""),
+            "unit": lo_lookup.get(lo_id, {}).get("unit", ""),
+            "chapter": lo_lookup.get(lo_id, {}).get("chapter", ""),
+            "reason": reason,
+        }
+        for lo_id, reason in candidate_los
+    ]
+
+    system = (
+        "You are a precise educational graph builder. Given a content item and candidate learning objectives, "
+        "decide if the content directly supports the LO. Output JSON: {results:[{lo_id, verdict|score, rationale}]}."
+    )
+
+    user_blocks: List[Dict[str, object]] = []
+    user_blocks.append({"type": "text", "text": f"Content type: {ct}\n\nContent:\n{content_text}"})
+    if config.modality == "multimodal" and image_urls:
+        for url in image_urls:
+            user_blocks.append({"type": "image_url", "image_url": url})
+    user_blocks.append({"type": "text", "text": "Candidates:"})
+    for item in lo_items:
+        user_blocks.append({
+            "type": "text",
+            "text": f"- [{item['lo_id']}] {item['objective']} (unit: {item['unit']}, chapter: {item['chapter']}, reason: {item['reason']})",
+        })
+
+    # Returning a generic payload; the LLM client will adapt as needed
+    return {"system": system, "user": user_blocks, "mode": config.score_mode}
+
+
+def heuristic_score(content_text: str, lo_text: str) -> float:
+    """
+    Simple deterministic similarity heuristic for dry-run mode.
+
+    Args:
+        content_text: Text of the content item
+        lo_text: Learning objective text
+
+    Returns:
+        Float score between 0 and 1 based on token overlap
+    """
+    ctoks = set(tokenize(content_text))
+    ltoks = set(tokenize(lo_text))
+    if not ctoks or not ltoks:
+        return 0.0
+    overlap = len(ctoks.intersection(ltoks))
+    # Normalize by LO token count to measure "how much of LO is covered by content"
+    denom = max(1, len(ltoks))
+    return overlap / float(denom)
+
+
+def score_candidates(
+    candidates_df: pd.DataFrame,
+    content_df: pd.DataFrame,
+    lo_df: pd.DataFrame,
+    config: DiscoveryConfig,
+    dry_run: bool = False,
+) -> pd.DataFrame:
+    """
+    Scores candidate content→LO pairs using LLM or heuristic fallback.
+
+    Args:
+        candidates_df: DataFrame of candidate pairs
+        content_df: DataFrame with content details (text, images)
+        lo_df: DataFrame with LO details
+        config: Scoring configuration
+        dry_run: If True, use heuristic instead of LLM
+
+    Returns:
+        DataFrame of filtered edges with columns:
+        source_lo_id, target_content_id, relation, score, rationale, modality, run_id
+    """
+    # Build quick lookups
+    lo_lookup: Dict[str, Dict[str, str]] = {
+        str(r["lo_id"]): {
+            "learning_objective": str(r.get("learning_objective") or ""),
+            "unit": str(r.get("unit") or ""),
+            "chapter": str(r.get("chapter") or ""),
+        }
+        for _, r in lo_df.iterrows()
+    }
+    content_lookup: Dict[str, pd.Series] = {str(r["content_id"]): r for _, r in content_df.iterrows()}
+
+    rows: List[Dict[str, object]] = []
+
+    # Batch by content_id to pack multiple LOs per call
+    grouped = candidates_df.groupby("target_content_id")
+    for content_id, group in grouped:
+        content_row = content_lookup.get(str(content_id))
+        if content_row is None:
+            continue
+
+        ctext = str(content_row.get("text") or "")
+        candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
+
+        if dry_run:
+            # Heuristic scoring
+            for lo_id, _reason in candidate_list:
+                lo_text = lo_lookup.get(lo_id, {}).get("learning_objective", "")
+                score = heuristic_score(ctext, lo_text)
+                if config.score_mode == "yes_no":
+                    keep = score >= config.score_threshold
+                    verdict = "YES" if keep else "NO"
+                else:
+                    keep = score >= config.score_threshold
+                    verdict = f"{score:.2f}"
+                if keep:
+                    relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
+                    rows.append(
+                        {
+                            "source_lo_id": lo_id,
+                            "target_content_id": content_id,
+                            "relation": relation,
+                            "score": score,
+                            "rationale": "heuristic token overlap",
+                            "modality": config.modality,
+                            "run_id": config.model,
+                        }
+                    )
+            continue
+
+        # Real LLM integration (if OPENAI_API_KEY is set and OpenAI client available)
+        use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
+        if not use_llm:
+            # Fallback to heuristic if LLM not available
+            for lo_id, _reason in candidate_list:
+                lo_text = lo_lookup.get(lo_id, {}).get("learning_objective", "")
+                score = heuristic_score(ctext, lo_text)
+                if score >= config.score_threshold:
+                    relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
+                    rows.append(
+                        {
+                            "source_lo_id": lo_id,
+                            "target_content_id": content_id,
+                            "relation": relation,
+                            "score": score,
+                            "rationale": "heuristic token overlap (no OPENAI_API_KEY)",
+                            "modality": config.modality,
+                            "run_id": config.model,
+                        }
+                    )
+            continue
+
+        # Prepare LO lookup for prompt chunks of size max_targets_per_call
+        def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
+            return [items[i : i + n] for i in range(0, len(items), n)]
+
+        client = OpenAI()
+
+        for chunk in chunk_list(candidate_list, max(1, int(config.max_targets_per_call))):
+            prompt = build_prompt_for_content(content_row, chunk, lo_lookup, config)
+            # Build OpenAI chat messages structure
+            system_msg = {"role": "system", "content": prompt["system"]}
+            # Convert our user blocks to OpenAI content blocks
+            content_blocks: List[Dict[str, object]] = []
+            for block in prompt["user"]:
+                if block.get("type") == "text":
+                    content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
+                elif block.get("type") == "image_url":
+                    url = block.get("image_url")
+                    # Support both string and dict forms
+                    if isinstance(url, str):
+                        content_blocks.append({"type": "image_url", "image_url": {"url": url}})
+                    elif isinstance(url, dict):
+                        content_blocks.append({"type": "image_url", "image_url": url})
+            user_msg = {"role": "user", "content": content_blocks}
+
+            # Ask model to output strict JSON
+            instruction = (
+                "Respond ONLY with JSON in this schema: {\n"
+                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"rationale\": string } ]\n"
+                "} where score in [0,1]."
+            )
+            content_blocks.append({"type": "text", "text": instruction})
+
+            # Retry with exponential backoff
+            last_err: Optional[Exception] = None
+            for attempt in range(int(config.max_retries) + 1):
+                try:
+                    resp = client.chat.completions.create(
+                        model=config.model,
+                        temperature=float(config.temperature),
+                        messages=[system_msg, user_msg],
+                    )
+                    text = resp.choices[0].message.content if resp.choices else "{}"
+                    try:
+                        data = json.loads(text)
+                    except Exception:
+                        # Try to extract JSON blob if extra text wraps it
+                        start = text.find("{")
+                        end = text.rfind("}")
+                        data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
+                    results = data.get("results", []) if isinstance(data, dict) else []
+                    for item in results:
+                        lo_id = str(item.get("lo_id", ""))
+                        score = float(item.get("score", 0.0))
+                        rationale = str(item.get("rationale", ""))
+                        if score >= config.score_threshold:
+                            relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
+                            rows.append(
+                                {
+                                    "source_lo_id": lo_id,
+                                    "target_content_id": content_id,
+                                    "relation": relation,
+                                    "score": score,
+                                    "rationale": rationale or "LLM decision",
+                                    "modality": config.modality,
+                                    "run_id": config.model,
+                                }
+                            )
+                    break  # success
+                except Exception as e:  # rate limits, network, etc.
+                    last_err = e
+                    time.sleep(2 ** attempt)
+            # If all retries failed, fall back to heuristic for this chunk
+            if last_err is not None and not results:
+                for lo_id, _reason in chunk:
+                    lo_text = lo_lookup.get(lo_id, {}).get("learning_objective", "")
+                    score = heuristic_score(ctext, lo_text)
+                    if score >= config.score_threshold:
+                        relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
+                        rows.append(
+                            {
+                                "source_lo_id": lo_id,
+                                "target_content_id": content_id,
+                                "relation": relation,
+                                "score": score,
+                                "rationale": f"heuristic fallback after error: {type(last_err).__name__}",
+                                "modality": config.modality,
+                                "run_id": config.model,
+                            }
+                        )
+
+    return pd.DataFrame(rows)
 
 
 def relation_for_content_type(content_type: str, config: DiscoveryConfig) -> str:
@@ -305,9 +607,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     Returns:
         Exit code 0 on success
     """
-    parser = argparse.ArgumentParser(description="Generate content→LO candidate pairs")
+    parser = argparse.ArgumentParser(description="Generate and/or score content→LO links")
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml (optional)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of content items for a smoke run")
+    parser.add_argument("--mode", type=str, default="candidates", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
+    parser.add_argument("--dry-run", action="store_true", help="Use deterministic heuristic scoring instead of LLM")
+    parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     config = load_config(args.config)
@@ -328,8 +633,29 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         content_df = content_df.head(args.limit).copy()
 
     lo_meta = build_lo_metadata(lo_df)
-    out_df = write_candidates(content_df, lo_meta, config)
-    print(f"Wrote {config.output_candidates} ({len(out_df)} rows)")
+    # Allow CLI to override score threshold
+    if args.threshold is not None:
+        try:
+            config.score_threshold = float(args.threshold)
+        except Exception:
+            pass
+
+    if args.mode in {"candidates", "both"}:
+        out_df = write_candidates(content_df, lo_meta, config)
+        print(f"Wrote {config.output_candidates} ({len(out_df)} rows)")
+
+    if args.mode in {"score", "both"}:
+        # Load candidates (ensure exists if running score standalone)
+        cand_path = config.output_candidates
+        if not os.path.exists(cand_path):
+            out_df = write_candidates(content_df, lo_meta, config)
+        else:
+            out_df = pd.read_csv(cand_path)
+
+        edges_df = score_candidates(out_df, content_df, lo_meta, config, dry_run=args.dry_run)
+        ensure_parent_directory(config.output_edges)
+        edges_df.to_csv(config.output_edges, index=False)
+        print(f"Wrote {config.output_edges} ({len(edges_df)} rows)")
     return 0
 
 
