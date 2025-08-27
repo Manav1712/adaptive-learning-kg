@@ -84,7 +84,3 @@ architecture/            # Design documents and specifications
 - **Frontend**: Vanilla JS + D3.js
 - **Architecture**: Multi-agent system with Zep integration
  
-## Repo Hygiene
-
-- Example notebook outputs (CSV/HTML/JSON, etc.) are ignored via `.gitignore`
-- Do not commit secrets; use environment variables for API keys

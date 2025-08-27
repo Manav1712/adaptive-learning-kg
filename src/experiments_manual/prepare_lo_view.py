@@ -48,6 +48,21 @@ class PrepareConfig:
 
 
 def load_config(config_path: Optional[str]) -> PrepareConfig:
+    
+    """
+    Loads configuration from a YAML file or returns defaults.
+    
+    Args:
+        config_path: Path to config.yaml file, or None for defaults
+        
+    Returns:
+        PrepareConfig instance with loaded or default values
+        
+    Behavior:
+        - Falls back to defaults if file doesn't exist or YAML unavailable
+        - Maps config keys to PrepareConfig fields
+    """
+
     if not config_path:
         return PrepareConfig()
     if not os.path.exists(config_path):
@@ -81,6 +96,22 @@ _URL_PATTERN = re.compile(r"https?://[^\s)]+")
 
 
 def extract_image_urls_from_text(text: str) -> List[str]:
+    
+    """
+    Extracts image URLs from text content.
+    
+    Args:
+        text: Raw text that may contain markdown images or plain URLs
+        
+    Returns:
+        List of unique image URLs found in the text
+        
+    Behavior:
+        - Looks for markdown format: ![alt](url)
+        - Also finds plain URLs starting with http/https
+        - Removes duplicates while preserving order
+    """
+
     if not text:
         return []
     urls: List[str] = []
@@ -97,12 +128,40 @@ def extract_image_urls_from_text(text: str) -> List[str]:
 
 
 def strip_markdown_images(text: str) -> str:
+    """
+    Removes markdown image syntax from text.
+    
+    Args:
+        text: Text that may contain markdown images
+        
+    Returns:
+        Text with markdown image syntax removed
+        
+    Behavior:
+        - Removes patterns like ![alt](url) from text
+        - Preserves the rest of the text content
+    """
     if not text:
         return text
     return _MARKDOWN_IMAGE_PATTERN.sub("", text)
 
 
 def try_parse_json(text: str) -> Optional[object]:
+    
+    """
+    Attempts to parse text as JSON with graceful fallback.
+    
+    Args:
+        text: String that may contain JSON data
+        
+    Returns:
+        Parsed JSON object if successful, None if parsing fails
+        
+    Behavior:
+        - Returns None for invalid JSON instead of raising exceptions
+        - Useful for handling mixed content types
+    """
+
     try:
         return json.loads(text)
     except Exception:
@@ -110,6 +169,22 @@ def try_parse_json(text: str) -> Optional[object]:
 
 
 def collect_strings_recursively(node: object) -> List[str]:
+    
+    """
+    Recursively extracts all string values from nested data structures.
+    
+    Args:
+        node: Object that may be a string, dict, list, or other type
+        
+    Returns:
+        List of all string values found in the nested structure
+        
+    Behavior:
+        - Traverses nested dictionaries and lists
+        - Collects all string values into a flat list
+        - Handles arbitrary nesting depth
+    """
+
     collected: List[str] = []
     if isinstance(node, str):
         collected.append(node)
@@ -123,6 +198,21 @@ def collect_strings_recursively(node: object) -> List[str]:
 
 
 def normalize_row_text_and_images(raw_content: str) -> Tuple[str, List[str]]:
+    """
+    Normalizes raw content by extracting clean text and image URLs.
+    
+    Args:
+        raw_content: Raw content string that may be JSON or plain text
+        
+    Returns:
+        Tuple of (cleaned_text, image_urls_list)
+        
+    Behavior:
+        - First tries to parse as JSON and extract strings recursively
+        - Falls back to plain text if JSON parsing fails
+        - Extracts image URLs from both formats
+        - Removes markdown image syntax from final text
+    """
     # Attempt JSON parse first
     parsed = try_parse_json(raw_content)
     if parsed is not None:
@@ -138,12 +228,39 @@ def normalize_row_text_and_images(raw_content: str) -> Tuple[str, List[str]]:
 
 
 def ensure_parent_directory(path: str) -> None:
+    """
+    Creates parent directories for a file path if they don't exist.
+    
+    Args:
+        path: File path whose parent directories should be created
+        
+    Returns:
+        None
+        
+    Behavior:
+        - Creates all necessary parent directories
+        - Uses exist_ok=True to avoid errors if directories already exist
+    """
     directory = os.path.dirname(os.path.abspath(path))
     if directory and not os.path.exists(directory):
         os.makedirs(directory, exist_ok=True)
 
 
 def read_csvs_by_glob(glob_pattern: str) -> List[pd.DataFrame]:
+    """
+    Reads multiple CSV files matching a glob pattern.
+    
+    Args:
+        glob_pattern: Glob pattern to match CSV files (e.g., "data/raw/*.csv")
+        
+    Returns:
+        List of pandas DataFrames, one per CSV file
+        
+    Behavior:
+        - Finds all matching files and reads them as CSVs
+        - Skips unreadable files gracefully
+        - Returns empty list if no files found
+    """
     import glob
 
     file_paths = sorted(glob.glob(glob_pattern))
@@ -159,6 +276,21 @@ def read_csvs_by_glob(glob_pattern: str) -> List[pd.DataFrame]:
 
 
 def load_raw_frames(config: PrepareConfig) -> pd.DataFrame:
+    """
+    Loads and unifies raw CSV data from multiple content types.
+    
+    Args:
+        config: Configuration object with file glob patterns
+        
+    Returns:
+        Unified DataFrame with all raw content data
+        
+    Behavior:
+        - Reads concept, example, and try_it CSV files
+        - Harmonizes columns across different file formats
+        - Normalizes lo_id to string and creates content_type column
+        - Raises FileNotFoundError if no files found
+    """
     frames: List[pd.DataFrame] = []
     frames.extend(read_csvs_by_glob(config.concept_glob))
     frames.extend(read_csvs_by_glob(config.example_glob))
@@ -202,6 +334,22 @@ def load_raw_frames(config: PrepareConfig) -> pd.DataFrame:
 def apply_sampling(
     df: pd.DataFrame, max_los: Optional[int], max_content_per_lo: Optional[int]
 ) -> pd.DataFrame:
+    """
+    Applies sampling to reduce dataset size for experimentation.
+    
+    Args:
+        df: Input DataFrame to sample
+        max_los: Maximum number of learning objectives to keep
+        max_content_per_lo: Maximum content items per (lo_id, content_type) combination
+        
+    Returns:
+        Sampled DataFrame with reduced size
+        
+    Behavior:
+        - First filters by max_los if specified
+        - Then limits content per (lo_id, content_type) group
+        - Returns original DataFrame if no sampling specified
+    """
     if max_los is None and max_content_per_lo is None:
         return df
     sampled = df
@@ -218,6 +366,20 @@ def apply_sampling(
 
 
 def generate_content_ids(df: pd.DataFrame) -> pd.Series:
+    """
+    Generates unique content IDs for each content item.
+    
+    Args:
+        df: DataFrame with lo_id and content_type columns
+        
+    Returns:
+        Series of content IDs in format "lo_id_content_type_sequence"
+        
+    Behavior:
+        - Creates sequence numbers within each (lo_id, content_type) group
+        - Generates IDs like "100_concept_1", "100_concept_2", "100_example_1"
+        - Ensures stable, predictable ID generation
+    """
     # Sequence within (lo_id, content_type)
     df = df.copy()
     df["_seq"] = (
@@ -227,6 +389,22 @@ def generate_content_ids(df: pd.DataFrame) -> pd.Series:
 
 
 def build_outputs(unified: pd.DataFrame, config: PrepareConfig) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Builds the final output DataFrames from unified raw data.
+    
+    Args:
+        unified: Unified DataFrame with all raw content
+        config: Configuration object with sampling parameters
+        
+    Returns:
+        Tuple of (lo_index_df, content_items_df)
+        
+    Behavior:
+        - Applies sampling first to reduce processing time
+        - Normalizes text and extracts image URLs for all content
+        - Generates content IDs and creates final column structure
+        - Separates into LO index and content items tables
+    """
     # Apply sampling first to speed up normalization
     unified_sampled = apply_sampling(unified, config.sample_max_los, config.sample_max_content_per_lo)
 
@@ -269,6 +447,22 @@ def build_outputs(unified: pd.DataFrame, config: PrepareConfig) -> Tuple[pd.Data
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
+    """
+    Main entry point for the prepare_lo_view script.
+    
+    Args:
+        argv: Command line arguments (optional, for testing)
+        
+    Returns:
+        Exit code (0 for success)
+        
+    Behavior:
+        - Parses command line arguments
+        - Loads configuration
+        - Processes raw data and generates outputs
+        - Creates output directories if needed
+        - Writes CSV files and reports results
+    """
     parser = argparse.ArgumentParser(description="Prepare LO content view")
     parser.add_argument(
         "--config",
