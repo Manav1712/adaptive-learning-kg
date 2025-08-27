@@ -11,7 +11,7 @@ pydantic>=2.0.0
 python-dotenv>=1.0.0
 
 # Zep integration for automated KG construction
-zep-python>=0.35.0
+zep-cloud>=0.35.0
 
 # Web scraping and HTML processing
 selenium>=4.15.0
@@ -23,4 +23,9 @@ click>=8.1.0
 
 # Development and testing
 pytest>=7.4.0
+
+# Visualization and notebook dependencies (for example_notebooks HTML generation)
+pyvis>=0.3.2
+networkx>=3.0
+ipython>=8.0.0
 

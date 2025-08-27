@@ -18,7 +18,7 @@ from zep_cloud.client import Zep
 class KnowledgeGraphEvaluatorV3:
     def __init__(self, api_key: str):
         self.client = Zep(api_key=api_key)
-        self.graph_id = "baseline_v3_ontology_enforced"
+        self.graph_id = "baseline_v3_full_group"
 
     def get_graph_statistics(self) -> Dict[str, Any]:
         try:
