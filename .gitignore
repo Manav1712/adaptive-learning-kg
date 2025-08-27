@@ -49,3 +49,15 @@ data/storage/*.json
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# Example notebook outputs (generated data files)
+example_notebooks/**/*.csv
+example_notebooks/**/*.html
+example_notebooks/**/*.json
+example_notebooks/**/*.xlsx
+example_notebooks/**/*.xls
+example_notebooks/**/*.parquet
+example_notebooks/**/*.pickle
+example_notebooks/**/*.pkl
+example_notebooks/**/*.h5
+example_notebooks/**/*.hdf5

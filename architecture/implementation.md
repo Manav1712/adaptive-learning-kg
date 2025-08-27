@@ -117,112 +117,91 @@ class StudentOverlay:
 
 ## Phase 1 — Static Knowledge Graph (Weeks 1-3)
 
-### 1.1 Corpus Ingestion (Week 1)
-**Goal**: Extract and chunk OpenStax Calculus → Algebra content
+### 1.1 3-Tiered Chunking Strategy (Week 1)
+**Goal**: Test 3 chunking approaches from simple to advanced
 
-**Implementation**:
+**Tier 1: Simple Subheading Chunking**
 ```python
-class CorpusIngestion:
-    def fetch_openstax_content(self, book_urls: List[str]) -> List[RawContent]:
-        """Scrape OpenStax HTML content"""
+class SimpleChunker:
+    def chunk_by_subheadings(self, text: str) -> List[str]:
+        """Split by section headers (1.1, 1.2, etc.)"""
         pass
-        
-    def chunk_by_section(self, content: RawContent) -> List[Chunk]:
-        """Split content into manageable chunks by section/subsection"""
-        pass
-        
-    def extract_metadata(self, chunk: Chunk) -> ChunkMetadata:
-        """Extract chapter, section, exercise numbers"""
-        pass
+```
+
+**Tier 2: Contextualized Chunking**
+```python
+class ContextualizedChunker:
+    def add_document_context(self, chunk: str, context: dict) -> str:
+        """Add chapter/section context to each chunk"""
+        return f"Chapter {context['chapter']}, Section {context['section']}\n\n{chunk}"
+```
+
+**Tier 3: Custom Entity Types**
+```python
+class CustomEntityChunker:
+    def __init__(self):
+        self.math_entity_types = {
+            "MathConcept": MathConcept,
+            "PracticeProblem": PracticeProblem,
+            "LearningObjective": LearningObjective
+        }
 ```
 
 **Deliverables**:
-- [ ] Web scraper for OpenStax HTML content
-- [ ] Chunking strategy (by section/subsection)
-- [ ] Metadata extraction (chapter, section, exercise numbers)
-- [ ] Raw data stored in `data/raw/`
+- [x] Text cleaner for OpenStax content (completed)
+- [ ] Tier 1: Simple subheading chunker
+- [ ] Tier 2: Contextualized chunker  
+- [ ] Tier 3: Custom entity types
+- [ ] Compare results across all 3 tiers
 
-### 1.2 Entity & Fact Extraction (Week 2)
-**Goal**: Extract Learning Objectives, Concepts, and Problems from chunks
+### 1.2 Zep Integration & Testing (Week 2)
+**Goal**: Test all 3 chunking tiers with Zep
 
 **Implementation**:
 ```python
-class EntityExtractor:
-    def extract_learning_objectives(self, chunk: Chunk) -> List[LearningObjective]:
-        """Use GPT-4 with structured prompts to extract LOs"""
-        pass
-        
-    def extract_concepts(self, chunk: Chunk) -> List[Concept]:
-        """Extract mathematical concepts and definitions"""
-        pass
-        
-    def extract_problems(self, chunk: Chunk) -> List[Problem]:
-        """Extract practice problems and exercises"""
-        pass
-        
-    def extract_relationships(self, entities: List[Entity]) -> List[Relationship]:
-        """Identify PREREQUISITE_OF, ASSESSED_BY relationships"""
-        pass
+class ZepTester:
+    def test_tier(self, tier_number: int, chunks: List[str]) -> Dict:
+        """Test a chunking tier and return KG quality metrics"""
+        for chunk in chunks:
+            episode = self.zep_client.add_episode(
+                name=f"tier_{tier_number}_chunk_{i}",
+                episode_body=chunk,
+                source=EpisodeType.text
+            )
+        return self.analyze_kg_quality()
 ```
 
-**Approach**:
-- **LLM-based extraction** with structured prompts
-- **Few-shot examples** for each entity type
-- **Confidence scoring** for quality control
+**Testing Approach**:
+- Test Tier 1: Simple chunks only
+- Test Tier 2: Chunks + context
+- Test Tier 3: Chunks + context + custom entities
+- Compare entity quality and relationships
 
 **Deliverables**:
-- [ ] GPT-4 prompts for entity extraction
-- [ ] Relationship extraction (PREREQUISITE_OF, ASSESSED_BY)
-- [ ] Quality validation pipeline
+- [ ] Zep client integration
+- [ ] Test framework for all 3 tiers
+- [ ] KG quality comparison
+- [ ] Best approach selection
 
-### 1.3 Resolution & Deduplication (Week 2-3)
-**Goal**: Merge duplicate entities and resolve references
-
-**Implementation**:
-```python
-class Resolver:
-    def find_duplicates(self, entities: List[Entity]) -> List[DuplicateGroup]:
-        """Use embedding similarity to find potential duplicates"""
-        pass
-        
-    def merge_entities(self, group: DuplicateGroup) -> Entity:
-        """LLM-based merging decisions with confidence scores"""
-        pass
-        
-    def resolve_references(self, entities: List[Entity]) -> List[Entity]:
-        """Link entities to their canonical forms"""
-        pass
-```
-
-**Approach**:
-- **Embedding-based similarity** for duplicate detection
-- **LLM-based merging** decisions
-- **Provenance tracking** (which chunks contributed to each entity)
-
-### 1.4 Knowledge Graph Construction (Week 3)
-**Goal**: Build static KG and save to JSON files
+### 1.3 Final Implementation (Week 3)
+**Goal**: Build production pipeline with best chunking approach
 
 **Implementation**:
 ```python
-class KGWriter:
-    def build_graph(self, entities: List[Entity], relations: List[Relation]) -> KG:
-        """Construct final knowledge graph structure"""
-        pass
-        
-    def detect_communities(self, kg: KG) -> List[Community]:
-        """Basic community detection for topics/chapters"""
-        pass
-        
-    def save_to_files(self, kg: KG) -> None:
-        """Save to kg_nodes.json and kg_edges.json"""
-        pass
+class ProductionProcessor:
+    def __init__(self, best_tier: int):
+        self.chunker = self.get_best_chunker(best_tier)
+    
+    def process_full_textbook(self) -> KnowledgeGraph:
+        """Process entire textbook with winning strategy"""
+        chunks = self.chunker.chunk_textbook(cleaned_text)
+        return self.send_to_zep_batch(chunks)
 ```
 
 **Deliverables**:
-- [ ] `kg_nodes.json` with ~500-1000 nodes
-- [ ] `kg_edges.json` with relationship data
-- [ ] Basic community detection (topics/chapters)
-- [ ] Validation scripts for graph integrity
+- [ ] Production-ready chunking pipeline
+- [ ] Complete Calculus Volume 1 knowledge graph
+- [ ] Basic visualization and validation
 
 ---
 
