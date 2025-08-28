@@ -31,6 +31,13 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 import time
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not available, use system environment
+
 try:
     import yaml  # type: ignore
 except Exception:  # pragma: no cover - optional
@@ -88,6 +95,8 @@ class DiscoveryConfig:
     score_mode: str = "score"  # "score" | "yes_no"
     score_threshold: float = 0.6
     output_edges: str = "data/processed/edges_content.csv"
+    # Progress logging
+    progress_path: str = "data/processed/progress_links.jsonl"
 
 
 def load_config(config_path: Optional[str]) -> DiscoveryConfig:
@@ -285,7 +294,21 @@ def score_candidates(
 
     # Batch by content_id to pack multiple LOs per call
     grouped = candidates_df.groupby("target_content_id")
+    total_groups = int(getattr(grouped, "ngroups", 0) or 0)
+    processed_groups = 0
+    started_at = time.time()
+    progress_path = getattr(config, "progress_path", "data/processed/progress_links.jsonl")
+    # Initialize/clear progress log
+    try:
+        ensure_parent_directory(progress_path)
+        with open(progress_path, "w", encoding="utf-8") as _f:
+            pass
+    except Exception:
+        pass
+
     for content_id, group in grouped:
+        processed_groups += 1
+        len_before = len(rows)
         content_row = content_lookup.get(str(content_id))
         if content_row is None:
             continue
@@ -430,6 +453,35 @@ def score_candidates(
                                 "run_id": config.model,
                             }
                         )
+
+        # Per-content progress logging
+        try:
+            len_after = len(rows)
+            kept_for_content = max(0, len_after - len_before)
+            elapsed = max(0.0, time.time() - started_at)
+            rate = (processed_groups / elapsed) if elapsed > 0 else 0.0
+            remaining = max(0, total_groups - processed_groups)
+            eta_sec = int(remaining / rate) if rate > 0 else 0
+            print(
+                f"[score] {processed_groups}/{total_groups} content | +{kept_for_content} edges (total {len_after}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m",
+                flush=True,
+            )
+            # Append JSONL record
+            rec = {
+                "content_id": str(content_id),
+                "num_candidates": int(len(group)),
+                "num_kept": int(kept_for_content),
+                "edges_total": int(len_after),
+                "processed": int(processed_groups),
+                "total": int(total_groups),
+                "elapsed_sec": round(elapsed, 1),
+                "eta_sec": int(eta_sec),
+            }
+            with open(progress_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+        except Exception:
+            # Best-effort logging; never fail the run due to progress issues
+            pass
 
     return pd.DataFrame(rows)
 
@@ -651,6 +703,15 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             out_df = write_candidates(content_df, lo_meta, config)
         else:
             out_df = pd.read_csv(cand_path)
+
+        # Initialize progress log file
+        try:
+            ensure_parent_directory(getattr(config, "progress_path", "data/processed/progress_links.jsonl"))
+            if os.path.exists(config.progress_path):
+                os.remove(config.progress_path)
+            print(f"Progress log: {config.progress_path}")
+        except Exception:
+            pass
 
         edges_df = score_candidates(out_df, content_df, lo_meta, config, dry_run=args.dry_run)
         ensure_parent_directory(config.output_edges)
