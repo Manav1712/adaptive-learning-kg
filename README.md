@@ -32,6 +32,48 @@ See the [architecture/](architecture/) folder for detailed design documents:
   - LLM-driven edge discovery (multimodal) to build a Retriever graph with LO→LO and content↔LO edges
 - Decide on production direction based on quality, effort, and cost
 
+### Phase 2: Manual LLM-based Graph (experiments_manual) — Status
+
+- **Scope**: Offline pipeline to discover edges using an LLM with multimodal prompts (text + image URLs)
+- **Inputs**: `data/processed/lo_index.csv`, `data/processed/content_items.csv` (from `src/experiments_manual/prepare_lo_view.py`)
+- **Config**: `src/experiments_manual/config.yaml`
+  - **model**: `gpt-4o-mini`, **modality**: `multimodal`, **threshold**: `0.6`, **batch**: `8`, **retries**: `3`
+- **Discovery scripts**:
+  - Content → LO: `src/experiments_manual/discover_content_links.py`
+  - LO → LO prerequisites: `src/experiments_manual/discover_prereqs.py`
+  - Both support: sharding via `--num-shards N --shard-index i`, progress logs (`progress_links.jsonl`, `progress_prereqs.jsonl`), heuristic fallback
+- **Evaluation**: `src/experiments_manual/evaluate_outputs.py` (edge counts, score stats, integrity, coverage, top-N)
+- **Visualization**: `src/experiments_manual/build_and_visualize.py` → `data/processed/graph_preview.html` (labeled nodes/edges + legend)
+- **Report**: `src/experiments_manual/report_offline_multimodal_sample100.md` (sample-100 multimodal run summary)
+
+#### Repro (offline, multimodal)
+
+```bash
+# Prepare processed inputs (LO index + content items)
+python3 src/experiments_manual/prepare_lo_view.py
+
+# Content → LO: candidates + scoring (sample via --limit)
+python3 src/experiments_manual/discover_content_links.py \
+  --config src/experiments_manual/config.yaml --mode both --limit 100
+
+# LO → LO prerequisites: candidates + scoring (sample via --limit)
+python3 src/experiments_manual/discover_prereqs.py \
+  --config src/experiments_manual/config.yaml --mode both --limit 100
+
+# Evaluate (human-readable summary; add --json-out for machine output)
+python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv --top-n 5
+python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv --top-n 5
+
+# Build interactive HTML preview
+python3 src/experiments_manual/build_and_visualize.py --out data/processed/graph_preview.html
+```
+
+#### Notes
+
+- Multimodal prompts include image URLs when available; JSON-only responses are enforced.
+- Sharding deterministically splits work (CRC32) and auto-suffixes output/progress paths per shard.
+- Heuristic scoring provides deterministic fallback when LLM calls are unavailable or fail.
+
 ## Development Setup
 
 1. Create virtual environment: `python3 -m venv venv`
