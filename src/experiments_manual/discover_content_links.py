@@ -29,6 +29,7 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
+import zlib
 import time
 
 # Load environment variables from .env file
@@ -520,6 +521,22 @@ def ensure_parent_directory(path: str) -> None:
         os.makedirs(directory, exist_ok=True)
 
 
+def _add_suffix_to_path(path: str, suffix: str) -> str:
+    """
+    Inserts a suffix before the file extension. If no extension, appends suffix.
+
+    example: edges.csv + .shard0-of-4 => edges.shard0-of-4.csv
+    """
+    base = os.path.basename(path)
+    parent = os.path.dirname(path)
+    if "." in base:
+        name, ext = base.rsplit(".", 1)
+        new_base = f"{name}{suffix}.{ext}"
+    else:
+        new_base = f"{base}{suffix}"
+    return os.path.join(parent, new_base)
+
+
 # ----------------------------
 # Candidate generation
 # ----------------------------
@@ -665,6 +682,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     parser.add_argument("--mode", type=str, default="candidates", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
     parser.add_argument("--dry-run", action="store_true", help="Use deterministic heuristic scoring instead of LLM")
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
+    # Sharding flags for parallel processing
+    parser.add_argument("--num-shards", type=int, default=1, help="Number of parallel shards")
+    parser.add_argument("--shard-index", type=int, default=0, help="This shard index (0-based)")
+    parser.add_argument("--no-suffix-outputs", action="store_true", help="Do not suffix output/progress paths with shard info")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     config = load_config(args.config)
@@ -680,6 +701,30 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             except Exception:
                 return []
         content_df["image_urls"] = content_df["image_urls"].astype(str).map(_safe_parse)
+
+    # Apply sharding on content_ids deterministically (CRC32)
+    num_shards = max(1, int(args.num_shards))
+    shard_index = int(args.shard_index)
+    if shard_index < 0 or shard_index >= num_shards:
+        raise SystemExit(f"Invalid --shard-index {shard_index}; must be in [0,{num_shards-1}]")
+    if num_shards > 1:
+        def _belongs_to_shard(cid: str) -> bool:
+            try:
+                key = str(cid).encode("utf-8")
+                return (zlib.crc32(key) % num_shards) == shard_index
+            except Exception:
+                return False
+        before = len(content_df)
+        content_df = content_df[content_df["content_id"].astype(str).map(_belongs_to_shard)].copy()
+        after = len(content_df)
+        print(f"Shard {shard_index}/{num_shards}: content items {after}/{before}")
+
+        # Auto-suffix outputs/progress unless disabled
+        if not args.no_suffix_outputs:
+            suffix = f".shard{shard_index}-of-{num_shards}"
+            config.output_candidates = _add_suffix_to_path(config.output_candidates, suffix)
+            config.output_edges = _add_suffix_to_path(config.output_edges, suffix)
+            config.progress_path = _add_suffix_to_path(getattr(config, "progress_path", "data/processed/progress_links.jsonl"), suffix)
 
     if args.limit is not None and args.limit > 0:
         content_df = content_df.head(args.limit).copy()

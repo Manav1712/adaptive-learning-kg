@@ -1,2 +1,18 @@
 # Configuration for Manual LLM-based Graph Construction
-# Model, modality, pruning, thresholds, sample size
+model: gpt-4o-mini
+modality: multimodal
+scoring:
+  threshold: 0.6
+runtime:
+  max_targets_per_call: 8
+  max_retries: 3
+
+# For discover_prereqs.py loader keys
+llm:
+  model: gpt-4o-mini
+  modality: multimodal
+  temperature: 0.0
+  max_targets_per_call: 8
+  max_retries: 3
+  score_mode: score
+  score_threshold: 0.6
