@@ -1,0 +1,279 @@
+source_lo_id,target_content_id,relation,score,rationale,modality,run_id
+1034,1034_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding non-right triangles and the Law of Sines.,multimodal,gpt-4o-mini
+1035,1034_concept_1,explained_by,1.0,The content directly supports the learning objective of using the Law of Sines to solve oblique triangles.,multimodal,gpt-4o-mini
+1038,1034_concept_1,explained_by,1.0,"The content supports solving applied problems using the Law of Sines, as illustrated by the aircraft example.",multimodal,gpt-4o-mini
+1034,1035_concept_1,explained_by,1.0,The content directly supports the understanding of non-right triangles and the application of the Law of Sines.,multimodal,gpt-4o-mini
+1035,1035_concept_1,explained_by,1.0,"The content specifically addresses using the Law of Sines to solve oblique triangles, which is the main focus of the learning objective.",multimodal,gpt-4o-mini
+1036,1035_concept_1,explained_by,1.0,"The content includes methods for solving SSA triangles using the Law of Sines, aligning with the learning objective.",multimodal,gpt-4o-mini
+1035,1036_concept_1,explained_by,1.0,"The content directly supports the objective of using the Law of Sines to solve oblique triangles, particularly focusing on SSA cases.",multimodal,gpt-4o-mini
+1036,1036_concept_1,explained_by,1.0,"The content is explicitly about using the Law of Sines to solve SSA triangles, aligning perfectly with the objective.",multimodal,gpt-4o-mini
+1037,1037_concept_1,explained_by,1.0,"The content directly supports finding the area of an oblique triangle using the sine function, which is the same topic as the learning objective.",multimodal,gpt-4o-mini
+1034,1038_concept_1,explained_by,1.0,The content directly supports the learning objective by demonstrating the application of the Law of Sines in solving a real-world problem involving non-right triangles.,multimodal,gpt-4o-mini
+1035,1038_concept_1,explained_by,1.0,"The content provides a clear example of using the Law of Sines to solve for unknown sides and angles in a triangle, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1036,1038_concept_1,explained_by,1.0,"The example illustrates the use of the Law of Sines in an SSA triangle scenario, fulfilling the learning objective.",multimodal,gpt-4o-mini
+1038,1038_concept_1,explained_by,1.0,"The content is explicitly about solving applied problems using the Law of Sines, directly supporting this learning objective.",multimodal,gpt-4o-mini
+1039,1039_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding the Law of Cosines as it is the main focus of the section.,multimodal,gpt-4o-mini
+1040,1039_concept_1,explained_by,1.0,"The content explicitly mentions using the Law of Cosines to solve oblique triangles, aligning perfectly with the learning objective.",multimodal,gpt-4o-mini
+1041,1039_concept_1,explained_by,1.0,"The content discusses applied problems involving the Law of Cosines, which directly supports this learning objective.",multimodal,gpt-4o-mini
+1039,1040_concept_1,explained_by,1.0,The content directly supports the understanding of the Law of Cosines as it explains its application in solving non-right triangles.,multimodal,gpt-4o-mini
+1040,1040_concept_1,explained_by,1.0,"The content is specifically about using the Law of Cosines to solve oblique triangles, which aligns perfectly with this learning objective.",multimodal,gpt-4o-mini
+1039,1041_concept_1,explained_by,1.0,The content directly supports the understanding of the Law of Cosines as it provides applied problems and solutions related to non-right triangles.,multimodal,gpt-4o-mini
+1040,1041_concept_1,explained_by,1.0,The content demonstrates the application of the Law of Cosines to solve oblique triangles through practical examples.,multimodal,gpt-4o-mini
+1041,1041_concept_1,explained_by,1.0,"The content is specifically focused on solving applied problems using the Law of Cosines, aligning perfectly with this learning objective.",multimodal,gpt-4o-mini
+1042,1042_concept_1,explained_by,1.0,The content directly supports the learning objective of using Heron's formula to find the area of a triangle.,multimodal,gpt-4o-mini
+1043,1043_concept_1,explained_by,1.0,The content directly supports the understanding of polar coordinates as it introduces the concept and context for their use.,multimodal,gpt-4o-mini
+1044,1043_concept_1,explained_by,1.0,"The content includes the objective of plotting points using polar coordinates, which is directly addressed.",multimodal,gpt-4o-mini
+1045,1043_concept_1,explained_by,1.0,"The content mentions converting from polar to rectangular coordinates, aligning with the learning objective.",multimodal,gpt-4o-mini
+1046,1043_concept_1,explained_by,1.0,"The content supports the conversion from rectangular to polar coordinates, which is a stated learning objective.",multimodal,gpt-4o-mini
+1047,1043_concept_1,explained_by,1.0,The transformation of equations between polar and rectangular forms is relevant to the content provided.,multimodal,gpt-4o-mini
+1048,1043_concept_1,explained_by,1.0,Identifying and graphing polar equations by converting to rectangular equations is directly supported by the content.,multimodal,gpt-4o-mini
+1043,1044_concept_1,explained_by,1.0,"The content directly supports understanding polar coordinates, which is the focus of this learning objective.",multimodal,gpt-4o-mini
+1044,1044_concept_1,explained_by,1.0,"The content provides a detailed explanation of plotting points using polar coordinates, aligning with this learning objective.",multimodal,gpt-4o-mini
+1043,1045_concept_1,explained_by,1.0,"The content directly supports understanding polar coordinates, as it explains the conversion process.",multimodal,gpt-4o-mini
+1045,1045_concept_1,explained_by,1.0,The content is specifically about converting from polar to rectangular coordinates.,multimodal,gpt-4o-mini
+1046,1046_concept_1,explained_by,1.0,The content directly supports converting from rectangular coordinates to polar coordinates.,multimodal,gpt-4o-mini
+1043,1047_concept_1,explained_by,1.0,"The content directly supports understanding polar coordinates, as it explains the transformation between polar and rectangular forms.",multimodal,gpt-4o-mini
+1046,1047_concept_1,explained_by,1.0,The content includes methods for converting from rectangular coordinates to polar coordinates.,multimodal,gpt-4o-mini
+1047,1047_concept_1,explained_by,1.0,The content is focused on transforming equations between polar and rectangular forms.,multimodal,gpt-4o-mini
+1048,1047_concept_1,explained_by,1.0,The content supports identifying and graphing polar equations by converting to rectangular equations.,multimodal,gpt-4o-mini
+1043,1048_concept_1,explained_by,1.0,The content directly supports understanding polar coordinates and their graphs.,multimodal,gpt-4o-mini
+1044,1048_concept_1,explained_by,1.0,The content includes examples of converting polar coordinates to rectangular coordinates.,multimodal,gpt-4o-mini
+1045,1048_concept_1,explained_by,1.0,"The content discusses converting from polar to rectangular coordinates, which is a key aspect of the learning objective.",multimodal,gpt-4o-mini
+1047,1048_concept_1,explained_by,1.0,The content explicitly covers transforming equations between polar and rectangular forms.,multimodal,gpt-4o-mini
+1048,1048_concept_1,explained_by,1.0,The content is centered on identifying and graphing polar equations by converting them to rectangular equations.,multimodal,gpt-4o-mini
+1049,1049_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding polar coordinates and their graphs.,multimodal,gpt-4o-mini
+1050,1049_concept_1,explained_by,1.0,"The content discusses testing polar equations for symmetry, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1051,1049_concept_1,explained_by,1.0,"The content mentions graphing polar equations by plotting points, directly supporting the learning objective.",multimodal,gpt-4o-mini
+1049,1050_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining how to test polar equations for symmetry, which is essential for understanding polar coordinates and their graphs.",multimodal,gpt-4o-mini
+1050,1050_concept_1,explained_by,1.0,"The content is specifically focused on testing polar equations for symmetry, making it directly relevant to this learning objective.",multimodal,gpt-4o-mini
+1049,1051_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining how to graph polar equations by plotting points, including finding zeros and maximum values.",multimodal,gpt-4o-mini
+1050,1051_concept_1,explained_by,1.0,"The content includes methods for testing polar equations for symmetry, which is essential for understanding the properties of the graphs discussed.",multimodal,gpt-4o-mini
+1051,1051_concept_1,explained_by,1.0,"The content provides a comprehensive guide on graphing polar equations by plotting points, which aligns perfectly with the learning objective.",multimodal,gpt-4o-mini
+1052,1051_concept_1,explained_by,1.0,"The content summarizes various polar curves, which is relevant to understanding the different types of graphs that can be produced in polar coordinates.",multimodal,gpt-4o-mini
+1049,1052_concept_1,explained_by,1.0,"The content provides a summary of polar curves, which directly supports the learning objective of understanding graphs of polar coordinates.",multimodal,gpt-4o-mini
+1052,1052_concept_1,explained_by,1.0,"The content is a summary of curves, which aligns with the learning objective of summarizing curves in polar coordinates.",multimodal,gpt-4o-mini
+1053,1053_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding the polar form of complex numbers.,multimodal,gpt-4o-mini
+1054,1053_concept_1,explained_by,1.0,"The content includes information on plotting complex numbers, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1055,1053_concept_1,explained_by,1.0,"The content discusses finding the absolute value of complex numbers, directly supporting this learning objective.",multimodal,gpt-4o-mini
+1056,1053_concept_1,explained_by,1.0,"The content explicitly covers writing complex numbers in polar form, fulfilling this learning objective.",multimodal,gpt-4o-mini
+1057,1053_concept_1,explained_by,1.0,"The content addresses converting complex numbers from polar to rectangular form, which is directly related to this learning objective.",multimodal,gpt-4o-mini
+1058,1053_concept_1,explained_by,1.0,"The content includes methods for finding products of complex numbers in polar form, supporting this learning objective.",multimodal,gpt-4o-mini
+1059,1053_concept_1,explained_by,1.0,"The content discusses finding quotients of complex numbers in polar form, which aligns with this learning objective.",multimodal,gpt-4o-mini
+1060,1053_concept_1,explained_by,1.0,"The content covers finding powers of complex numbers in polar form, directly supporting this learning objective.",multimodal,gpt-4o-mini
+1061,1053_concept_1,explained_by,1.0,"The content directly supports the learning objective as it includes finding roots of complex numbers in polar form, which is explicitly mentioned in the learning objectives.",multimodal,gpt-4o-mini
+1054,1054_concept_1,explained_by,1.0,The content directly supports the objective of plotting complex numbers in the complex plane.,multimodal,gpt-4o-mini
+1055,1055_concept_1,explained_by,1.0,The content directly supports finding the absolute value of a complex number.,multimodal,gpt-4o-mini
+1053,1056_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding the polar form of complex numbers.,multimodal,gpt-4o-mini
+1056,1056_concept_1,explained_by,1.0,The content explicitly discusses writing complex numbers in polar form.,multimodal,gpt-4o-mini
+1057,1057_concept_1,explained_by,1.0,The content directly supports the learning objective of converting a complex number from polar to rectangular form.,multimodal,gpt-4o-mini
+1058,1058_concept_1,explained_by,1.0,The content directly supports this learning objective as it explains how to find the product of complex numbers in polar form.,multimodal,gpt-4o-mini
+1061,1058_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding products of complex numbers in polar form, as it explains the process and provides an example of how to perform the operation.",multimodal,gpt-4o-mini
+1059,1059_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding quotients of complex numbers in polar form, as it provides the formula and a step-by-step method to do so.",multimodal,gpt-4o-mini
+1061,1059_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding roots of complex numbers in polar form, as it provides a method for finding quotients of complex numbers in polar form, which is a related concept.",multimodal,gpt-4o-mini
+1053,1060_concept_1,explained_by,1.0,"The content directly supports the learning objective as it discusses the polar form of complex numbers, which is essential for understanding how to find powers of complex numbers using De Moivre's Theorem.",multimodal,gpt-4o-mini
+1056,1060_concept_1,explained_by,1.0,"The content supports this learning objective as it involves writing complex numbers in polar form, which is a prerequisite for applying De Moivre's Theorem.",multimodal,gpt-4o-mini
+1060,1060_concept_1,explained_by,1.0,The content directly supports this learning objective as it explicitly explains how to find powers of complex numbers using De Moivre's Theorem.,multimodal,gpt-4o-mini
+1061,1060_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding roots of complex numbers in polar form, as it discusses De Moivre's Theorem, which is essential for both finding powers and roots of complex numbers.",multimodal,gpt-4o-mini
+1053,1061_concept_1,explained_by,1.0,"The content directly supports the learning objective of understanding the polar form of complex numbers, as it explains how to find the nth root of a complex number in polar form.",multimodal,gpt-4o-mini
+1061,1061_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding roots of complex numbers in polar form, as it explains the process and provides an example using the nth Root Theorem.",multimodal,gpt-4o-mini
+1062,1062_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding parametric equations as it introduces the concept and applications of parameterizing curves.,multimodal,gpt-4o-mini
+1063,1062_concept_1,explained_by,1.0,"The content discusses parameterizing a curve, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1064,1062_concept_1,explained_by,1.0,"The content includes the elimination of the parameter, which is a key aspect of the learning objective.",multimodal,gpt-4o-mini
+1065,1062_concept_1,explained_by,1.0,"The content addresses finding rectangular equations from parametric definitions, directly supporting the learning objective.",multimodal,gpt-4o-mini
+1066,1062_concept_1,explained_by,1.0,"The content covers finding parametric equations for curves defined by rectangular equations, aligning with the learning objective.",multimodal,gpt-4o-mini
+1062,1063_concept_1,explained_by,1.0,"The content directly supports the understanding of parametric equations, which is the focus of this learning objective.",multimodal,gpt-4o-mini
+1063,1063_concept_1,explained_by,1.0,"The content provides a comprehensive explanation of parameterizing curves, aligning well with this learning objective.",multimodal,gpt-4o-mini
+1062,1064_concept_1,explained_by,1.0,"The content directly supports understanding parametric equations, as it discusses eliminating parameters in various types of equations.",multimodal,gpt-4o-mini
+1064,1064_concept_1,explained_by,1.0,"The content provides methods for eliminating parameters and converting parametric equations to Cartesian equations, which aligns with finding Cartesian equations from parametric definitions.",multimodal,gpt-4o-mini
+1065,1064_concept_1,explained_by,1.0,"The content explicitly discusses the process of eliminating parameters to find Cartesian equations, which is directly related to this learning objective.",multimodal,gpt-4o-mini
+1064,1065_concept_1,explained_by,1.0,"The content directly supports the learning objective of eliminating the parameter, as it explains methods to convert parametric equations into Cartesian equations.",multimodal,gpt-4o-mini
+1065,1065_concept_1,explained_by,1.0,"The content is specifically about finding Cartesian equations from curves defined parametrically, which aligns perfectly with this learning objective.",multimodal,gpt-4o-mini
+1062,1066_concept_1,explained_by,1.0,"The content directly supports understanding parametric equations, which is the focus of this learning objective.",multimodal,gpt-4o-mini
+1063,1066_concept_1,explained_by,1.0,"The content provides a method for parameterizing a curve, aligning with the objective of parameterizing curves.",multimodal,gpt-4o-mini
+1066,1066_concept_1,explained_by,1.0,"The content specifically discusses finding parametric equations from rectangular equations, directly supporting this learning objective.",multimodal,gpt-4o-mini
+1067,1067_concept_1,explained_by,1.0,"The content directly discusses parametric equations and their application in graphing plane curves, aligning with the learning objective.",multimodal,gpt-4o-mini
+1068,1067_concept_1,explained_by,1.0,The content supports the objective of graphing parametric equations by providing context and examples related to plotting points.,multimodal,gpt-4o-mini
+1069,1067_concept_1,explained_by,1.0,"The content mentions applications of parametric equations, specifically in modeling projectile motion, which is relevant to the learning objective.",multimodal,gpt-4o-mini
+1067,1068_concept_1,explained_by,1.0,"The content directly supports the learning objective by providing a method for graphing parametric equations, which is the focus of the objective.",multimodal,gpt-4o-mini
+1068,1068_concept_1,explained_by,1.0,"The content specifically details the process of graphing parametric equations by plotting points, aligning perfectly with the learning objective.",multimodal,gpt-4o-mini
+1067,1069_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining the applications of parametric equations, particularly in graphing and modeling real-world scenarios like projectile motion.",multimodal,gpt-4o-mini
+1069,1069_concept_1,explained_by,1.0,"The content provides a clear application of parametric equations in a real-world context, specifically in projectile motion, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1070,1070_concept_1,explained_by,1.0,"The content introduces the concept of vectors, which is directly related to the learning objective.",multimodal,gpt-4o-mini
+1071,1070_concept_1,explained_by,1.0,"The content discusses viewing vectors geometrically, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1072,1070_concept_1,explained_by,1.0,"Finding magnitude and direction is a fundamental aspect of vectors, directly supported by the content.",multimodal,gpt-4o-mini
+1073,1070_concept_1,explained_by,1.0,"The problem involves vector addition and scalar multiplication, which are key operations with vectors.",multimodal,gpt-4o-mini
+1074,1070_concept_1,explained_by,1.0,The content supports the concept of multiplying by a scalar in the context of vector operations.,multimodal,gpt-4o-mini
+1075,1070_concept_1,explained_by,1.0,Finding the component form of a vector is relevant to the problem presented.,multimodal,gpt-4o-mini
+1076,1070_concept_1,explained_by,1.0,"The content supports finding the unit vector in the direction of a vector, which is part of the learning objectives.",multimodal,gpt-4o-mini
+1077,1070_concept_1,explained_by,1.0,Performing operations with vectors in terms of i and j is relevant to the vector operations discussed.,multimodal,gpt-4o-mini
+1078,1070_concept_1,explained_by,1.0,"The content discusses performing operations with vectors, including the context of vector addition and scalar multiplication, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1079,1070_concept_1,explained_by,1.0,"The content involves finding the component form of a vector, as it describes the airplane's airspeed and wind vector, which relates directly to this learning objective.",multimodal,gpt-4o-mini
+1070,1071_concept_1,explained_by,1.0,"The content provides a foundational understanding of vectors, which is essential for the unit on Vectors.",multimodal,gpt-4o-mini
+1071,1071_concept_1,explained_by,1.0,"The content directly supports the understanding of vectors, including their representation and properties.",multimodal,gpt-4o-mini
+1079,1071_concept_1,explained_by,1.0,"The content provides a foundational understanding of vectors, including their representation and calculation of component forms, which supports calculating the component form of a vector.",multimodal,gpt-4o-mini
+1072,1072_concept_1,explained_by,1.0,The content directly supports finding the magnitude and direction of vectors.,multimodal,gpt-4o-mini
+1079,1072_concept_1,explained_by,1.0,"The content directly supports calculating the component form of a vector, including finding its magnitude and direction.",multimodal,gpt-4o-mini
+1073,1073_concept_1,explained_by,1.0,The content directly supports the learning objective of performing vector addition and scalar multiplication.,multimodal,gpt-4o-mini
+1078,1073_concept_1,explained_by,1.0,"The content directly supports performing operations on vectors, including addition and subtraction, which is essential for understanding vector operations in terms of i and j.",multimodal,gpt-4o-mini
+1073,1074_concept_1,explained_by,1.0,The content directly supports performing vector addition and scalar multiplication.,multimodal,gpt-4o-mini
+1074,1074_concept_1,explained_by,1.0,The content directly supports the concept of multiplying by a scalar.,multimodal,gpt-4o-mini
+1078,1074_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining scalar multiplication and its effects on vectors, which is essential for performing operations on vectors in terms of i and j.",multimodal,gpt-4o-mini
+1075,1075_concept_1,explained_by,1.0,The content directly supports finding component form of vectors.,multimodal,gpt-4o-mini
+1079,1075_concept_1,explained_by,1.0,"The content directly supports calculating the component form of a vector, as it explains how to break down vectors into their horizontal and vertical components.",multimodal,gpt-4o-mini
+1070,1076_concept_1,explained_by,1.0,"The content directly supports understanding unit vectors, which are a specific type of vector.",multimodal,gpt-4o-mini
+1076,1076_concept_1,explained_by,1.0,The content is specifically about finding the unit vector in the direction of a given vector.,multimodal,gpt-4o-mini
+1078,1076_concept_1,explained_by,1.0,The content directly supports the learning objective by explaining how to find unit vectors in terms of the standard unit vectors i and j.,multimodal,gpt-4o-mini
+1079,1076_concept_1,explained_by,1.0,"The content provides a method for calculating the component form of a vector, specifically in the context of finding a unit vector.",multimodal,gpt-4o-mini
+1070,1077_concept_1,explained_by,1.0,"The content directly supports understanding vectors, including their representation in terms of i and j.",multimodal,gpt-4o-mini
+1071,1077_concept_1,explained_by,1.0,The content provides a geometric view of vectors by illustrating their representation in the rectangular plane.,multimodal,gpt-4o-mini
+1075,1077_concept_1,explained_by,1.0,The content directly discusses finding the component form of vectors in terms of i and j.,multimodal,gpt-4o-mini
+1077,1077_concept_1,explained_by,1.0,The content is specifically about performing operations with vectors in terms of i and j.,multimodal,gpt-4o-mini
+1078,1077_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining how to perform operations on vectors in terms of i and j, including vector representation and calculations.",multimodal,gpt-4o-mini
+1079,1077_concept_1,explained_by,1.0,"The content supports the learning objective as it involves calculating the component form of a vector using initial and terminal points, which is essential for understanding vector operations.",multimodal,gpt-4o-mini
+1073,1078_concept_1,explained_by,1.0,"The content directly supports performing vector addition and subtraction, which is a key aspect of the learning objective.",multimodal,gpt-4o-mini
+1077,1078_concept_1,explained_by,1.0,"The content directly supports performing operations with vectors in terms of i and j, which is the focus of the learning objective.",multimodal,gpt-4o-mini
+1078,1078_concept_1,explained_by,1.0,"The content directly supports the learning objective as it explains how to perform operations on vectors in terms of i and j, which is the focus of the objective.",multimodal,gpt-4o-mini
+1070,1079_concept_1,explained_by,1.0,"The content directly supports the understanding of vectors, including their component form, which is essential for the learning objective.",multimodal,gpt-4o-mini
+1072,1079_concept_1,explained_by,1.0,"The content discusses finding direction and magnitude, which aligns with the learning objective of finding magnitude and direction of vectors.",multimodal,gpt-4o-mini
+1075,1079_concept_1,explained_by,1.0,"The content explicitly explains how to find the component form of a vector given its magnitude and direction, directly supporting this learning objective.",multimodal,gpt-4o-mini
+1079,1079_concept_1,explained_by,1.0,The content directly supports this learning objective as it explains how to calculate the component form of a vector given its magnitude and direction.,multimodal,gpt-4o-mini
+1070,1080_concept_1,explained_by,1.0,"The content directly supports the understanding of vectors, specifically in the context of finding the dot product and its applications.",multimodal,gpt-4o-mini
+1071,1080_concept_1,explained_by,1.0,"The content provides a geometric view of vectors through examples and illustrations, enhancing the understanding of vector operations.",multimodal,gpt-4o-mini
+1072,1080_concept_1,explained_by,1.0,"The content discusses finding the magnitude and direction of vectors, particularly in the context of calculating angles and ground speed.",multimodal,gpt-4o-mini
+1080,1080_concept_1,explained_by,1.0,"The content directly supports finding the dot product of two vectors, as it provides definitions, formulas, and examples.",multimodal,gpt-4o-mini
+1217,1217_concept_1,explained_by,1.0,"The content directly supports the understanding of functions and function notation, which is the overarching theme of the unit.",multimodal,gpt-4o-mini
+1218,1217_concept_1,explained_by,1.0,"The content discusses relationships that can be analyzed to determine if they represent functions, directly supporting this learning objective.",multimodal,gpt-4o-mini
+1219,1217_concept_1,explained_by,1.0,"The content implies the analysis of relationships, which includes finding input and output values of functions.",multimodal,gpt-4o-mini
+1220,1217_concept_1,explained_by,1.0,"The content discusses relationships that can be analyzed, which supports the understanding of whether a function is one-to-one.",multimodal,gpt-4o-mini
+1221,1217_concept_1,explained_by,1.0,The content's focus on analyzing relationships supports the use of the vertical line test to identify functions.,multimodal,gpt-4o-mini
+1218,1218_concept_1,explained_by,1.0,"The content directly supports the learning objective of determining whether a relation represents a function by providing definitions, examples, and methods for classification.",multimodal,gpt-4o-mini
+1217,1218_concept_1,explained_by,1.0,The content supports the learning objective related to functions and function notation as it explains the concept of functions and their notation in detail.,multimodal,gpt-4o-mini
+1217,1219_concept_1,explained_by,1.0,The content directly supports understanding functions and function notation by explaining how to find input and output values of a function.,multimodal,gpt-4o-mini
+1219,1219_concept_1,explained_by,1.0,"The content explicitly discusses finding input and output values of a function, which aligns with this learning objective.",multimodal,gpt-4o-mini
+1220,1220_concept_1,explained_by,1.0,The content directly supports this learning objective as it defines what a one-to-one function is and provides examples of how to determine if a function is one-to-one.,multimodal,gpt-4o-mini
+1218,1221_concept_1,explained_by,1.0,The content directly supports determining whether a relation represents a function using the vertical line test.,multimodal,gpt-4o-mini
+1221,1221_concept_1,explained_by,1.0,The content explicitly explains how to use the vertical line test to determine if a graph represents a function.,multimodal,gpt-4o-mini
+1225,1221_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding the domain of a function, as it explains how to determine if a graph represents a function using the vertical line test, which is essential for understanding the domain.",multimodal,gpt-4o-mini
+1220,1222_concept_1,explained_by,1.0,The content directly explains how to determine if a function is one-to-one using the horizontal line test.,multimodal,gpt-4o-mini
+1222,1222_concept_1,explained_by,1.0,The content specifically describes the horizontal line test and its application.,multimodal,gpt-4o-mini
+1234,1222_concept_1,explained_by,1.0,"The content about the horizontal line test supports understanding the behavior of graphs, which is relevant to locating absolute maximum and minimum values.",multimodal,gpt-4o-mini
+1223,1223_concept_1,explained_by,1.0,The content directly supports identifying basic toolkit functions.,multimodal,gpt-4o-mini
+1228,1223_concept_1,explained_by,1.0,The content directly supports finding domains and ranges of the toolkit functions as it provides definitions and characteristics of these functions.,multimodal,gpt-4o-mini
+1224,1225_concept_1,explained_by,1.0,The content directly supports understanding the concept of domain and range as it provides detailed explanations and examples related to finding the domain of functions.,multimodal,gpt-4o-mini
+1225,1225_concept_1,explained_by,1.0,"The content is specifically focused on finding the domain of a function defined by an equation, making it directly relevant.",multimodal,gpt-4o-mini
+1224,1226_concept_1,explained_by,1.0,The content directly supports the learning objective by explaining how to use notations to specify domain and range.,multimodal,gpt-4o-mini
+1226,1226_concept_1,explained_by,1.0,"The content is explicitly about using notations to specify domain and range, aligning perfectly with the learning objective.",multimodal,gpt-4o-mini
+1224,1227_concept_1,explained_by,1.0,The content directly supports the understanding of domain and range as it explains how to find them from graphs.,multimodal,gpt-4o-mini
+1227,1227_concept_1,explained_by,1.0,"The content is specifically about finding domain and range from graphs, which is directly aligned.",multimodal,gpt-4o-mini
+1224,1228_concept_1,explained_by,1.0,The content directly supports the learning objective by explaining how to find the domain and range of various toolkit functions.,multimodal,gpt-4o-mini
+1225,1228_concept_1,explained_by,1.0,"The content provides methods for determining the domain of functions defined by equations, which aligns with the learning objective.",multimodal,gpt-4o-mini
+1227,1228_concept_1,explained_by,1.0,The content includes examples and explanations that help in finding domain and range from graphs.,multimodal,gpt-4o-mini
+1228,1228_concept_1,explained_by,1.0,"The content is specifically about finding domains and ranges of toolkit functions, directly matching the learning objective.",multimodal,gpt-4o-mini
+1229,1229_concept_1,explained_by,1.0,The content directly supports the learning objective of graphing piecewise-defined functions.,multimodal,gpt-4o-mini
+1219,1229_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining how to identify input and output values in piecewise-defined functions, including examples and step-by-step processes.",multimodal,gpt-4o-mini
+1231,1231_concept_1,explained_by,1.0,"The content directly supports finding the average rate of change of a function, providing formulas and examples.",multimodal,gpt-4o-mini
+1230,1232_concept_1,explained_by,1.0,"The content directly supports understanding rates of change and behavior of graphs by explaining how to identify increasing, decreasing, and constant intervals of functions.",multimodal,gpt-4o-mini
+1232,1232_concept_1,explained_by,1.0,"The content is specifically about using a graph to determine where a function is increasing, decreasing, or constant, which aligns perfectly with this learning objective.",multimodal,gpt-4o-mini
+1232,1233_concept_1,explained_by,1.0,The content directly supports determining where functions are increasing or decreasing.,multimodal,gpt-4o-mini
+1233,1233_concept_1,explained_by,1.0,The content is specifically about analyzing toolkit functions for increasing or decreasing intervals.,multimodal,gpt-4o-mini
+1234,1234_concept_1,explained_by,1.0,The content directly supports the objective of locating absolute maximum and minimum values from a graph.,multimodal,gpt-4o-mini
+1235,1235_concept_1,explained_by,1.0,The content directly supports the learning objective of understanding the composition of functions.,multimodal,gpt-4o-mini
+1237,1235_concept_1,explained_by,1.0,The content explains how to create a new function by composing two functions.,multimodal,gpt-4o-mini
+1238,1235_concept_1,explained_by,1.0,The content includes evaluating composite functions as part of the example.,multimodal,gpt-4o-mini
+1239,1235_concept_1,explained_by,1.0,The content implies finding the domain of a composite function through the relationships defined.,multimodal,gpt-4o-mini
+1236,1236_concept_1,explained_by,1.0,The content directly supports the learning objective as it discusses combining functions using algebraic operations.,multimodal,gpt-4o-mini
+1235,1237_concept_1,explained_by,1.0,"The content directly supports understanding the composition of functions, which is the focus of the learning objective.",multimodal,gpt-4o-mini
+1237,1237_concept_1,explained_by,1.0,"The content specifically discusses creating functions by composition, aligning directly with the learning objective.",multimodal,gpt-4o-mini
+1238,1237_concept_1,explained_by,1.0,"The content includes examples and explanations on evaluating composite functions, which supports the learning objective.",multimodal,gpt-4o-mini
+1239,1237_concept_1,explained_by,1.0,"The content addresses the domain of composite functions, which is relevant to the learning objective.",multimodal,gpt-4o-mini
+1219,1237_concept_1,explained_by,1.0,The content directly supports finding input and output values of functions through the explanation of function composition.,multimodal,gpt-4o-mini
+1235,1238_concept_1,explained_by,1.0,"The content directly supports the understanding of composing functions, as it explains how to evaluate composite functions using various methods.",multimodal,gpt-4o-mini
+1237,1238_concept_1,explained_by,1.0,"The content provides examples and methods for creating and evaluating functions through composition, which aligns with this learning objective.",multimodal,gpt-4o-mini
+1238,1238_concept_1,explained_by,1.0,"The content is specifically about evaluating composite functions, making it directly relevant to this learning objective.",multimodal,gpt-4o-mini
+1235,1239_concept_1,explained_by,1.0,"The content directly supports the learning objective of understanding the composition of functions, as it explains how to find the domain of a composite function.",multimodal,gpt-4o-mini
+1239,1239_concept_1,explained_by,1.0,"The content directly supports the learning objective of finding the domain of a composite function, providing a clear method and examples.",multimodal,gpt-4o-mini
+957,957_concept_1,explained_by,1.0,The content directly supports the objective of solving trigonometric equations with identities by discussing the verification and simplification of trigonometric expressions.,multimodal,gpt-4o-mini
+958,957_concept_1,explained_by,1.0,The content directly supports the objective of verifying the fundamental trigonometric identities as it explicitly mentions this process.,multimodal,gpt-4o-mini
+959,957_concept_1,explained_by,1.0,"The content directly supports the objective of using algebra to simplify trigonometric expressions, as it discusses simplification using identities.",multimodal,gpt-4o-mini
+979,957_concept_1,explained_by,1.0,"The content supports the objective of solving trigonometric equations using fundamental identities, as it discusses the use of identities in solving equations.",multimodal,gpt-4o-mini
+958,958_concept_1,explained_by,1.0,The content directly supports verifying the fundamental trigonometric identities as it provides detailed explanations and examples.,multimodal,gpt-4o-mini
+957,959_concept_1,explained_by,1.0,"The content directly supports the learning objective of solving trigonometric equations with identities by demonstrating how algebra can simplify trigonometric expressions, which is essential for solving such equations.",multimodal,gpt-4o-mini
+959,959_concept_1,explained_by,1.0,"The content is explicitly about using algebra to simplify trigonometric expressions, which aligns perfectly with the learning objective.",multimodal,gpt-4o-mini
+960,960_concept_1,explained_by,1.0,The content directly supports the learning objective by introducing the sum and difference identities as a key concept in trigonometry.,multimodal,gpt-4o-mini
+961,960_concept_1,explained_by,1.0,"The content provides a foundation for using the sum and difference formulas for cosine, as it discusses trigonometric identities.",multimodal,gpt-4o-mini
+962,960_concept_1,explained_by,1.0,"The content lays the groundwork for using the sum and difference formulas for sine, as it covers trigonometric identities.",multimodal,gpt-4o-mini
+963,960_concept_1,explained_by,1.0,"The content supports the learning objective by discussing the application of trigonometric identities, which includes tangent.",multimodal,gpt-4o-mini
+964,960_concept_1,explained_by,1.0,"The content is relevant to using sum and difference formulas for cofunctions, as it addresses trigonometric identities.",multimodal,gpt-4o-mini
+965,960_concept_1,explained_by,1.0,"The content prepares learners to verify identities using sum and difference formulas, as it emphasizes the importance of these identities.",multimodal,gpt-4o-mini
+960,961_concept_1,explained_by,1.0,"The content directly supports the learning objective by explaining the sum and difference identities for cosine, which is the focus of the objective.",multimodal,gpt-4o-mini
+961,961_concept_1,explained_by,1.0,"The content specifically details the use of the sum and difference formulas for cosine, aligning perfectly with the learning objective.",multimodal,gpt-4o-mini
+960,962_concept_1,explained_by,1.0,"The content directly supports the learning objective as it explains the sum and difference identities for sine, which is the focus of the objective.",multimodal,gpt-4o-mini
+962,962_concept_1,explained_by,1.0,"The content is specifically about using the sum and difference formulas for sine, directly aligning with the learning objective.",multimodal,gpt-4o-mini
+960,963_concept_1,explained_by,1.0,The content directly supports the learning objective as it discusses the sum and difference identities specifically for tangent.,multimodal,gpt-4o-mini
+963,963_concept_1,explained_by,1.0,The content is specifically focused on using the sum and difference formulas for tangent.,multimodal,gpt-4o-mini
+960,964_concept_1,explained_by,1.0,"The content discusses the sum and difference formulas in the context of cofunctions, which directly relates to the learning objective about sum and difference identities.",multimodal,gpt-4o-mini
+964,964_concept_1,explained_by,1.0,"The content is explicitly about using sum and difference formulas for cofunctions, which aligns perfectly with the learning objective.",multimodal,gpt-4o-mini
+960,965_concept_1,explained_by,1.0,The content directly discusses the use of sum and difference identities in verifying trigonometric identities.,multimodal,gpt-4o-mini
+963,965_concept_1,explained_by,1.0,"The content includes examples that verify identities involving tangent, utilizing the sum and difference formulas.",multimodal,gpt-4o-mini
+965,965_concept_1,explained_by,1.0,"The content is centered around verifying identities using sum and difference formulas, which aligns with this learning objective.",multimodal,gpt-4o-mini
+966,966_concept_1,explained_by,1.0,"The content directly supports the learning objective as it covers double-angle, half-angle, and reduction formulas.",multimodal,gpt-4o-mini
+967,966_concept_1,explained_by,1.0,The content directly supports the learning objective as it involves using double-angle formulas to find exact values.,multimodal,gpt-4o-mini
+968,966_concept_1,explained_by,1.0,The content directly supports the learning objective as it includes using double-angle formulas to verify identities.,multimodal,gpt-4o-mini
+969,966_concept_1,explained_by,1.0,The content directly supports the learning objective as it discusses using reduction formulas to simplify expressions.,multimodal,gpt-4o-mini
+970,966_concept_1,explained_by,1.0,The content directly supports the learning objective as it involves using half-angle formulas to find exact values.,multimodal,gpt-4o-mini
+967,967_concept_1,explained_by,1.0,"The content directly supports the objective of using double-angle formulas to find exact values, as it provides detailed examples and explanations.",multimodal,gpt-4o-mini
+968,968_concept_1,explained_by,1.0,The content directly supports this learning objective as it specifically discusses using double-angle formulas to verify identities.,multimodal,gpt-4o-mini
+966,969_concept_1,explained_by,1.0,"The content directly supports the learning objective as it discusses the use of reduction formulas, which are derived from double-angle formulas, to simplify expressions.",multimodal,gpt-4o-mini
+969,969_concept_1,explained_by,1.0,"The content explicitly discusses using reduction formulas to simplify expressions, which aligns perfectly with the learning objective.",multimodal,gpt-4o-mini
+966,970_concept_1,explained_by,1.0,The content directly supports the learning objective by explaining half-angle formulas and their application in finding exact values.,multimodal,gpt-4o-mini
+970,970_concept_1,explained_by,1.0,The content directly supports the learning objective by detailing how to use half-angle formulas to find exact values.,multimodal,gpt-4o-mini
+971,971_concept_1,explained_by,1.0,The content directly supports the unit on Sum-to-Product and Product-to-Sum Formulas.,multimodal,gpt-4o-mini
+972,971_concept_1,explained_by,1.0,The content directly supports the objective of expressing products as sums.,multimodal,gpt-4o-mini
+973,971_concept_1,explained_by,1.0,The content directly supports the objective of expressing sums as products.,multimodal,gpt-4o-mini
+972,972_concept_1,explained_by,1.0,"The content directly supports the objective of expressing products as sums, as it provides formulas and examples for this process.",multimodal,gpt-4o-mini
+971,973_concept_1,explained_by,1.0,"The content directly supports the learning objective as it covers the sum-to-product and product-to-sum formulas, which are essential for understanding the topic.",multimodal,gpt-4o-mini
+973,973_concept_1,explained_by,1.0,"The content is specifically about expressing sums as products, which aligns perfectly with the learning objective.",multimodal,gpt-4o-mini
+974,974_concept_1,explained_by,1.0,The content directly supports the learning objective of solving trigonometric equations as it introduces the topic and provides context.,multimodal,gpt-4o-mini
+975,974_concept_1,explained_by,1.0,"The content supports the learning objective of solving linear trigonometric equations in sine and cosine, as it is part of the broader topic of solving trigonometric equations.",multimodal,gpt-4o-mini
+976,974_concept_1,explained_by,1.0,"The content supports the learning objective of solving equations involving a single trigonometric function, as it is included in the study of trigonometric equations.",multimodal,gpt-4o-mini
+977,974_concept_1,explained_by,1.0,"The content supports the learning objective of solving trigonometric equations using a calculator, as it is part of the overall approach to solving these equations.",multimodal,gpt-4o-mini
+978,974_concept_1,explained_by,1.0,"The content supports the learning objective of solving trigonometric equations that are quadratic in form, as it is included in the study of trigonometric equations.",multimodal,gpt-4o-mini
+979,974_concept_1,explained_by,1.0,"The content supports the learning objective of solving trigonometric equations using fundamental identities, as it discusses identities in the context of trigonometric equations.",multimodal,gpt-4o-mini
+980,974_concept_1,explained_by,1.0,"The content supports the learning objective of solving trigonometric equations with multiple angles, as it is part of the broader topic of trigonometric equations.",multimodal,gpt-4o-mini
+974,975_concept_1,explained_by,1.0,"The content directly supports the learning objective of solving trigonometric equations, as it provides methods and examples for solving such equations.",multimodal,gpt-4o-mini
+975,975_concept_1,explained_by,1.0,"The content specifically addresses solving linear trigonometric equations in sine and cosine, which aligns perfectly with the learning objective.",multimodal,gpt-4o-mini
+976,975_concept_1,explained_by,1.0,"The content discusses solving equations involving sine and cosine, which supports the learning objective of solving equations with a single trigonometric function.",multimodal,gpt-4o-mini
+974,976_concept_1,explained_by,1.0,"The content directly supports the learning objective of solving trigonometric equations, as it provides methods and examples for solving equations involving single trigonometric functions.",multimodal,gpt-4o-mini
+976,976_concept_1,explained_by,1.0,"The content is explicitly about solving equations involving a single trigonometric function, which aligns perfectly with this learning objective.",multimodal,gpt-4o-mini
+974,977_concept_1,explained_by,1.0,"The content directly supports solving trigonometric equations using a calculator, which is the focus of this learning objective.",multimodal,gpt-4o-mini
+976,977_concept_1,explained_by,1.0,"The content involves solving equations with a single trigonometric function using a calculator, aligning with this learning objective.",multimodal,gpt-4o-mini
+977,977_concept_1,explained_by,1.0,"The content is explicitly about solving trigonometric equations using a calculator, matching this learning objective.",multimodal,gpt-4o-mini
+961,977_concept_1,explained_by,1.0,"The content directly supports the learning objective as it involves solving trigonometric equations, which is a fundamental aspect of using sum and difference formulas for cosine.",multimodal,gpt-4o-mini
+974,978_concept_1,explained_by,1.0,"The content directly supports the objective of solving trigonometric equations, specifically in quadratic form.",multimodal,gpt-4o-mini
+978,978_concept_1,explained_by,1.0,The content is specifically about solving trigonometric equations in quadratic form.,multimodal,gpt-4o-mini
+974,979_concept_1,explained_by,1.0,"The content directly supports the objective of solving trigonometric equations, as it provides methods and examples for using fundamental identities to solve such equations.",multimodal,gpt-4o-mini
+979,979_concept_1,explained_by,1.0,"The content directly supports the objective of solving trigonometric equations using fundamental identities, as it provides examples and explanations.",multimodal,gpt-4o-mini
+959,979_concept_1,explained_by,1.0,"The content discusses solving trigonometric equations using fundamental identities, which directly supports the objective of using algebra to simplify trigonometric expressions.",multimodal,gpt-4o-mini
+961,979_concept_1,explained_by,1.0,"The content includes the use of the difference formula for cosine, which aligns with the objective of using sum and difference formulas for cosine.",multimodal,gpt-4o-mini
+974,980_concept_1,explained_by,1.0,"The content directly supports the learning objective of solving trigonometric equations, specifically those involving multiple angles, as it provides a detailed explanation and example of how to solve such equations.",multimodal,gpt-4o-mini
+980,980_concept_1,explained_by,1.0,"The content is explicitly about solving trigonometric equations with multiple angles, making it directly relevant to this learning objective.",multimodal,gpt-4o-mini
+957,980_concept_1,explained_by,1.0,"The content directly supports the learning objective of solving trigonometric equations with identities, as it provides a detailed example of solving a trigonometric equation involving a multiple angle.",multimodal,gpt-4o-mini
+981,981_concept_1,explained_by,1.0,"The content directly supports solving right triangle problems, which is the focus of this learning objective.",multimodal,gpt-4o-mini
+982,982_concept_1,explained_by,1.0,The content directly supports the unit on Modeling with Trigonometric Functions by discussing periodic behavior and modeling equations.,multimodal,gpt-4o-mini
+983,982_concept_1,explained_by,1.0,The content supports determining the amplitude and period of sinusoidal functions as it discusses modeling sinusoidal functions.,multimodal,gpt-4o-mini
+984,982_concept_1,explained_by,1.0,The content directly relates to finding equations and graphing sinusoidal functions through the explanation of modeling periodic behavior.,multimodal,gpt-4o-mini
+985,982_concept_1,explained_by,1.0,"The content explicitly addresses modeling periodic behavior, which is a key focus of this learning objective.",multimodal,gpt-4o-mini
+986,982_concept_1,explained_by,1.0,The content supports modeling harmonic motion functions by discussing periodic phenomena and their mathematical representation.,multimodal,gpt-4o-mini
+983,983_concept_1,explained_by,1.0,The content directly supports determining the amplitude and period of sinusoidal functions.,multimodal,gpt-4o-mini
+983,984_concept_1,explained_by,1.0,The content directly addresses determining the amplitude and period of sinusoidal functions.,multimodal,gpt-4o-mini
+984,984_concept_1,explained_by,1.0,The content is specifically about finding equations and graphing sinusoidal functions.,multimodal,gpt-4o-mini
+982,985_concept_1,explained_by,1.0,The content directly supports the objective of modeling with trigonometric functions by providing examples of sinusoidal equations and their applications.,multimodal,gpt-4o-mini
+983,985_concept_1,explained_by,1.0,"The content includes detailed calculations of amplitude and period for sinusoidal functions, directly aligning with the objective.",multimodal,gpt-4o-mini
+984,985_concept_1,explained_by,1.0,"The content demonstrates finding equations and graphing sinusoidal functions through multiple examples, supporting this learning objective.",multimodal,gpt-4o-mini
+985,985_concept_1,explained_by,1.0,"The content focuses on modeling periodic behavior using sinusoidal functions, which is the essence of this learning objective.",multimodal,gpt-4o-mini
+986,985_concept_1,explained_by,1.0,"The content discusses modeling periodic behavior, which includes harmonic motion functions, thus supporting this objective.",multimodal,gpt-4o-mini
+982,986_concept_1,explained_by,1.0,"The content discusses modeling harmonic motion using trigonometric functions, which directly supports the learning objective of modeling with trigonometric functions.",multimodal,gpt-4o-mini
+983,986_concept_1,explained_by,1.0,"The content includes finding the amplitude and period of sinusoidal functions, which aligns with the learning objective of determining these characteristics.",multimodal,gpt-4o-mini
+984,986_concept_1,explained_by,1.0,"The content involves finding equations and graphing sinusoidal functions, which is directly related to the learning objective.",multimodal,gpt-4o-mini
+985,986_concept_1,explained_by,1.0,"The content focuses on modeling periodic behavior through harmonic motion, which supports the learning objective.",multimodal,gpt-4o-mini
+986,986_concept_1,explained_by,1.0,"The content is specifically about modeling harmonic motion functions, which directly aligns with the learning objective.",multimodal,gpt-4o-mini

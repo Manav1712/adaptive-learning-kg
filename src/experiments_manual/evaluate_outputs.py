@@ -22,7 +22,7 @@ import argparse
 import json
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Set
 
 import pandas as pd
 
@@ -61,14 +61,35 @@ class EvalConfig:
 
 
 def read_csv_safely(path: str) -> pd.DataFrame:
-    """Reads a CSV if available; raises FileNotFoundError otherwise."""
+    """Reads a CSV file safely, raising FileNotFoundError if missing.
+    
+    Args:
+        path: Path to CSV file
+        
+    Returns:
+        pandas DataFrame with CSV contents
+        
+    Raises:
+        FileNotFoundError: If file doesn't exist
+    """
     if not os.path.exists(path):
         raise FileNotFoundError(f"File not found: {path}")
     return pd.read_csv(path)
 
 
 def infer_edge_type(edges_df: pd.DataFrame) -> str:
-    """Infers edge type based on column names: 'content' or 'prereqs'."""
+    """Infers edge type based on column names.
+    
+    Args:
+        edges_df: DataFrame with edge data
+        
+    Returns:
+        "content" if has source_lo_id + target_content_id columns
+        "prereqs" if has source_lo_id + target_lo_id columns
+        
+    Raises:
+        ValueError: If schema doesn't match expected patterns
+    """
     cols = set(c.lower() for c in edges_df.columns)
     if {"source_lo_id", "target_content_id"}.issubset(cols):
         return "content"
@@ -78,7 +99,14 @@ def infer_edge_type(edges_df: pd.DataFrame) -> str:
 
 
 def basic_stats(values: List[float]) -> Dict[str, float]:
-    """Computes simple descriptive statistics for a list of numbers."""
+    """Computes descriptive statistics for a list of numeric values.
+    
+    Args:
+        values: List of float values to analyze
+        
+    Returns:
+        Dictionary with count, min, max, mean, p25, p50, p75 percentiles
+    """
     if not values:
         return {"count": 0, "min": 0.0, "max": 0.0, "mean": 0.0, "p25": 0.0, "p50": 0.0, "p75": 0.0}
     s = sorted(values)
@@ -100,7 +128,16 @@ def basic_stats(values: List[float]) -> Dict[str, float]:
 
 
 def summarize_edges_common(edges_df: pd.DataFrame, cfg: EvalConfig) -> Dict[str, object]:
-    """Summarizes fields common to both content and prereqs edges."""
+    """Summarizes common metrics across both content and prereq edges.
+    
+    Args:
+        edges_df: DataFrame with edges (content or prereq schema)
+        cfg: Evaluation configuration with threshold
+        
+    Returns:
+        Dictionary with num_edges, relations, run_ids, modalities counts,
+        score_stats, and num_kept_ge_threshold
+    """
     out: Dict[str, object] = {}
     out["num_edges"] = int(len(edges_df))
     out["relations"] = (
@@ -123,7 +160,17 @@ def summarize_edges_common(edges_df: pd.DataFrame, cfg: EvalConfig) -> Dict[str,
 
 
 def summarize_top_edges(edges_df: pd.DataFrame, cfg: EvalConfig, group_field: str) -> Dict[str, List[Dict[str, object]]]:
-    """Returns top-N edges per group (e.g., per relation) sorted by score desc."""
+    """Returns top-N highest-scoring edges per group (e.g., per relation).
+    
+    Args:
+        edges_df: DataFrame with edges and score column
+        cfg: Evaluation configuration with top_n setting
+        group_field: Column name to group by (e.g., "relation")
+        
+    Returns:
+        Dictionary mapping group values to lists of top edges with
+        source, target, relation, score, and truncated rationale
+    """
     results: Dict[str, List[Dict[str, object]]] = {}
     if "score" not in edges_df.columns:
         return results
@@ -150,8 +197,281 @@ def summarize_top_edges(edges_df: pd.DataFrame, cfg: EvalConfig, group_field: st
     return results
 
 
+# ----------------------------
+# Extended analysis helpers
+# ----------------------------
+
+
+def _edge_keys(edges_df: pd.DataFrame) -> List[Tuple[str, str]]:
+    """Extracts (source, target) pairs from edges DataFrame.
+    
+    Args:
+        edges_df: DataFrame with either content or prereq edge schema
+        
+    Returns:
+        List of (source_id, target_id) tuples for all edges
+    """
+    cols = set(c.lower() for c in edges_df.columns)
+    if {"source_lo_id", "target_content_id"}.issubset(cols):
+        return [(str(r.get("source_lo_id", "")), str(r.get("target_content_id", ""))) for _, r in edges_df.iterrows()]
+    if {"source_lo_id", "target_lo_id"}.issubset(cols):
+        return [(str(r.get("source_lo_id", "")), str(r.get("target_lo_id", ""))) for _, r in edges_df.iterrows()]
+    return []
+
+
+def compute_duplicates(edges_df: pd.DataFrame) -> int:
+    """Counts duplicate edges by (source, target) pairs.
+    
+    Args:
+        edges_df: DataFrame with edges
+        
+    Returns:
+        Number of duplicate edges (total edges - unique edges)
+    """
+    keys = _edge_keys(edges_df)
+    return max(0, len(keys) - len(set(keys)))
+
+
+def structural_metrics_prereqs(edges_df: pd.DataFrame) -> Dict[str, object]:
+    """Analyzes structural properties of LO→LO prerequisite graph.
+    
+    Args:
+        edges_df: Prerequisite edges DataFrame
+        
+    Returns:
+        Dictionary with is_dag, num_cycles, longest_path_len, reciprocal_pairs
+        Falls back to reciprocal pairs only if NetworkX unavailable
+    """
+    try:
+        import networkx as nx  # type: ignore
+    except Exception:  # Optional dependency
+        # Fallback: compute only reciprocal pairs without building a graph
+        keys = _edge_keys(edges_df)
+        edge_set = set(keys)
+        reciprocal = 0
+        seen: Set[Tuple[str, str]] = set()
+        for u, v in keys:
+            if (v, u) in edge_set and (v, u) not in seen and (u, v) not in seen:
+                reciprocal += 1
+                seen.add((u, v))
+                seen.add((v, u))
+        return {
+            "is_dag": None,
+            "num_cycles": None,
+            "longest_path_len": None,
+            "reciprocal_pairs": reciprocal,
+        }
+
+    G = nx.DiGraph()
+    for _, r in edges_df.iterrows():
+        u = str(r.get("source_lo_id", ""))
+        v = str(r.get("target_lo_id", ""))
+        if u and v:
+            G.add_edge(u, v)
+
+    is_dag = nx.is_directed_acyclic_graph(G)
+    # Count reciprocal pairs
+    reciprocal = 0
+    visited: Set[Tuple[str, str]] = set()
+    for u, v in G.edges():
+        if (v, u) in G.edges() and (u, v) not in visited and (v, u) not in visited:
+            reciprocal += 1
+            visited.add((u, v))
+            visited.add((v, u))
+
+    if is_dag:
+        try:
+            lp = nx.dag_longest_path_length(G)
+        except Exception:
+            lp = None
+        return {
+            "is_dag": True,
+            "num_cycles": 0,
+            "longest_path_len": lp,
+            "reciprocal_pairs": int(reciprocal),
+        }
+    else:
+        # Limit cycle enumeration for safety
+        try:
+            cycles_iter = nx.simple_cycles(G)
+            # Count up to a cap to avoid huge outputs
+            cap = 1000
+            count = 0
+            for _ in cycles_iter:
+                count += 1
+                if count >= cap:
+                    break
+        except Exception:
+            count = None  # unknown
+        return {
+            "is_dag": False,
+            "num_cycles": count,
+            "longest_path_len": None,
+            "reciprocal_pairs": int(reciprocal),
+        }
+
+
+def curriculum_consistency_prereqs(edges_df: pd.DataFrame, lo_df: pd.DataFrame) -> Dict[str, float]:
+    """Measures curriculum consistency for LO→LO prerequisite edges.
+    
+    Args:
+        edges_df: Prerequisite edges DataFrame
+        lo_df: LO index DataFrame with unit/chapter metadata
+        
+    Returns:
+        Dictionary with intra_unit_ratio, intra_chapter_ratio, total_considered
+    """
+    unit = lo_df.set_index("lo_id")["unit"].astype(str).to_dict()
+    chapter = lo_df.set_index("lo_id")["chapter"].astype(str).to_dict()
+    same_unit = 0
+    same_chapter = 0
+    total = 0
+    for _, r in edges_df.iterrows():
+        u = str(r.get("source_lo_id", ""))
+        v = str(r.get("target_lo_id", ""))
+        if not u or not v:
+            continue
+        total += 1
+        if unit.get(u, "") == unit.get(v, ""):
+            same_unit += 1
+        if chapter.get(u, "") == chapter.get(v, ""):
+            same_chapter += 1
+    return {
+        "intra_unit_ratio": (same_unit / total) if total else 0.0,
+        "intra_chapter_ratio": (same_chapter / total) if total else 0.0,
+        "total_considered": int(total),
+    }
+
+
+def curriculum_consistency_content(edges_df: pd.DataFrame, lo_df: pd.DataFrame, content_df: pd.DataFrame) -> Dict[str, float]:
+    """Measures curriculum consistency for content→LO edges.
+    
+    Args:
+        edges_df: Content edges DataFrame
+        lo_df: LO index DataFrame with unit/chapter metadata
+        content_df: Content items DataFrame with unit/chapter metadata
+        
+    Returns:
+        Dictionary with intra_unit_ratio, intra_chapter_ratio, total_considered
+    """
+    lo_unit = lo_df.set_index("lo_id")["unit"].astype(str).to_dict()
+    lo_chapter = lo_df.set_index("lo_id")["chapter"].astype(str).to_dict()
+    c_unit = content_df.set_index("content_id")["unit"].astype(str).to_dict()
+    c_chapter = content_df.set_index("content_id")["chapter"].astype(str).to_dict()
+
+    same_unit = 0
+    same_chapter = 0
+    total = 0
+    for _, r in edges_df.iterrows():
+        lo_id = str(r.get("source_lo_id", ""))
+        cid = str(r.get("target_content_id", ""))
+        if not lo_id or not cid:
+            continue
+        total += 1
+        if lo_unit.get(lo_id, "") == c_unit.get(cid, ""):
+            same_unit += 1
+        if lo_chapter.get(lo_id, "") == c_chapter.get(cid, ""):
+            same_chapter += 1
+    return {
+        "intra_unit_ratio": (same_unit / total) if total else 0.0,
+        "intra_chapter_ratio": (same_chapter / total) if total else 0.0,
+        "total_considered": int(total),
+    }
+
+
+def parsimony_prereqs(edges_df: pd.DataFrame) -> Dict[str, float]:
+    """Measures parsimony and redundancy for LO→LO prerequisite edges.
+    
+    Args:
+        edges_df: Prerequisite edges DataFrame
+        
+    Returns:
+        Dictionary with duplicate_edges, redundancy_ratio, out_degree_p95, in_degree_p95
+        Redundancy: edges (u,v) where 2-hop path u→w→v exists
+    """
+    # Duplicates
+    duplicates = compute_duplicates(edges_df)
+
+    # Build adjacency
+    adj_out: Dict[str, Set[str]] = {}
+    adj_in: Dict[str, Set[str]] = {}
+    keys = []
+    for _, r in edges_df.iterrows():
+        u = str(r.get("source_lo_id", ""))
+        v = str(r.get("target_lo_id", ""))
+        if not u or not v:
+            continue
+        keys.append((u, v))
+        adj_out.setdefault(u, set()).add(v)
+        adj_in.setdefault(v, set()).add(u)
+
+    # Redundancy via 2-hop presence: u->v considered redundant if exists w with u->w and w->v
+    redundant = 0
+    for u, v in keys:
+        mids = adj_out.get(u, set())
+        if any((w in adj_in.get(v, set())) for w in mids if w != v and w != u):
+            redundant += 1
+
+    def _p95(values: List[int]) -> float:
+        if not values:
+            return 0.0
+        s = sorted(values)
+        idx = max(0, min(len(s) - 1, int(round(0.95 * (len(s) - 1)))))
+        return float(s[idx])
+
+    out_degrees = [len(vs) for vs in adj_out.values()]
+    in_degrees = [len(vs) for vs in adj_in.values()]
+
+    total_edges = len(keys)
+    return {
+        "duplicate_edges": int(duplicates),
+        "redundancy_ratio": (redundant / total_edges) if total_edges else 0.0,
+        "out_degree_p95": _p95(out_degrees),
+        "in_degree_p95": _p95(in_degrees),
+    }
+
+
+def parsimony_content(edges_df: pd.DataFrame) -> Dict[str, float]:
+    """Measures parsimony for content→LO edges.
+    
+    Args:
+        edges_df: Content edges DataFrame
+        
+    Returns:
+        Dictionary with duplicate_edges, lo_out_degree_p95 (LO fan-out to content)
+    """
+    duplicates = compute_duplicates(edges_df)
+    # LO out-degree to content
+    out_counts: Dict[str, int] = {}
+    for _, r in edges_df.iterrows():
+        lo = str(r.get("source_lo_id", ""))
+        if lo:
+            out_counts[lo] = out_counts.get(lo, 0) + 1
+
+    def _p95(values: List[int]) -> float:
+        if not values:
+            return 0.0
+        s = sorted(values)
+        idx = max(0, min(len(s) - 1, int(round(0.95 * (len(s) - 1)))))
+        return float(s[idx])
+
+    return {
+        "duplicate_edges": int(duplicates),
+        "lo_out_degree_p95": _p95(list(out_counts.values())),
+    }
+
+
 def validate_references_content(edges_df: pd.DataFrame, lo_df: pd.DataFrame, content_df: pd.DataFrame) -> Dict[str, object]:
-    """Validates that content-link edges reference existing LO and content ids."""
+    """Validates referential integrity for content→LO edges and computes coverage.
+    
+    Args:
+        edges_df: Content edges DataFrame
+        lo_df: LO index DataFrame
+        content_df: Content items DataFrame
+        
+    Returns:
+        Dictionary with missing refs counts, content coverage ratio, and totals
+    """
     missing_lo = 0
     missing_content = 0
     lo_ids = set(lo_df["lo_id"].astype(str).tolist())
@@ -176,7 +496,15 @@ def validate_references_content(edges_df: pd.DataFrame, lo_df: pd.DataFrame, con
 
 
 def validate_references_prereqs(edges_df: pd.DataFrame, lo_df: pd.DataFrame) -> Dict[str, object]:
-    """Validates that LO→LO edges reference existing LO ids and computes coverage."""
+    """Validates referential integrity for LO→LO edges and computes incoming coverage.
+    
+    Args:
+        edges_df: Prerequisite edges DataFrame
+        lo_df: LO index DataFrame
+        
+    Returns:
+        Dictionary with missing refs counts, LO incoming coverage ratio, and totals
+    """
     missing_src = 0
     missing_tgt = 0
     lo_ids = set(lo_df["lo_id"].astype(str).tolist())
@@ -200,7 +528,21 @@ def validate_references_prereqs(edges_df: pd.DataFrame, lo_df: pd.DataFrame) -> 
 
 
 def evaluate(edges_path: str, cfg: EvalConfig) -> Dict[str, object]:
-    """Evaluates the specified edges CSV and returns a summary dict."""
+    """Evaluates the specified edges CSV and returns a comprehensive summary.
+    
+    Args:
+        edges_path: Path to edges CSV file (content or prereqs)
+        cfg: Evaluation configuration with thresholds and settings
+        
+    Returns:
+        Dictionary with comprehensive evaluation metrics including:
+        - Basic counts and statistics
+        - Top edges by relation
+        - Referential integrity checks
+        - Curriculum consistency metrics
+        - Parsimony analysis
+        - Structural analysis (for prereqs only)
+    """
     edges_df = read_csv_safely(edges_path)
     kind = infer_edge_type(edges_df)
     lo_df = read_csv_safely(cfg.lo_index)
@@ -216,10 +558,17 @@ def evaluate(edges_path: str, cfg: EvalConfig) -> Dict[str, object]:
         summary.update(summarize_edges_common(edges_df, cfg))
         summary["top_edges_by_relation"] = summarize_top_edges(edges_df, cfg, group_field="relation")
         summary["integrity"] = validate_references_content(edges_df, lo_df, content_df)
+        # Curriculum consistency and parsimony for content-links
+        summary["curriculum_consistency"] = curriculum_consistency_content(edges_df, lo_df, content_df)
+        summary["parsimony"] = parsimony_content(edges_df)
     else:  # prereqs
         summary.update(summarize_edges_common(edges_df, cfg))
         summary["top_edges_by_relation"] = summarize_top_edges(edges_df, cfg, group_field="relation")
         summary["integrity"] = validate_references_prereqs(edges_df, lo_df)
+        # Structure, curriculum consistency, parsimony for LO→LO
+        summary["structure"] = structural_metrics_prereqs(edges_df)
+        summary["curriculum_consistency"] = curriculum_consistency_prereqs(edges_df, lo_df)
+        summary["parsimony"] = parsimony_prereqs(edges_df)
 
     # Additional unique counts
     if kind == "content":
@@ -233,7 +582,11 @@ def evaluate(edges_path: str, cfg: EvalConfig) -> Dict[str, object]:
 
 
 def print_human_readable(summary: Dict[str, object]) -> None:
-    """Prints a compact, human-readable summary to stdout."""
+    """Prints a compact, human-readable summary to stdout.
+    
+    Args:
+        summary: Evaluation summary dictionary from evaluate() function
+    """
     print(f"Edges: {summary.get('edges_path')} ({summary.get('edge_type')})")
     print(f"Total edges: {summary.get('num_edges')} | Unique sources: {summary.get('unique_sources')} | Unique targets: {summary.get('unique_targets')}")
     score_stats = summary.get("score_stats", {}) or {}
@@ -266,6 +619,18 @@ def print_human_readable(summary: Dict[str, object]) -> None:
             f"content coverage {integrity.get('content_coverage', 0.0):.3f} "
             f"({integrity.get('num_content_with_edges', 0)}/{integrity.get('num_content_items', 0)})"
         )
+        cc = summary.get("curriculum_consistency", {}) or {}
+        pars = summary.get("parsimony", {}) or {}
+        print(
+            "Curriculum -> "
+            f"intra-unit {cc.get('intra_unit_ratio', 0.0):.3f}, "
+            f"intra-chapter {cc.get('intra_chapter_ratio', 0.0):.3f}"
+        )
+        print(
+            "Parsimony -> "
+            f"duplicates {pars.get('duplicate_edges', 0)}, "
+            f"LO out-degree p95 {pars.get('lo_out_degree_p95', 0.0):.1f}"
+        )
     else:
         print(
             "Integrity -> "
@@ -273,6 +638,27 @@ def print_human_readable(summary: Dict[str, object]) -> None:
             f"missing target LOs {integrity.get('missing_target_lo_refs', 0)}, "
             f"incoming coverage {integrity.get('lo_incoming_coverage', 0.0):.3f} "
             f"({integrity.get('num_los_with_incoming', 0)}/{integrity.get('num_los', 0)})"
+        )
+        struct = summary.get("structure", {}) or {}
+        cc = summary.get("curriculum_consistency", {}) or {}
+        pars = summary.get("parsimony", {}) or {}
+        print(
+            "Structure -> "
+            f"is_dag {struct.get('is_dag')}, "
+            f"cycles {struct.get('num_cycles')}, "
+            f"longest_path {struct.get('longest_path_len')}" 
+        )
+        print(
+            "Curriculum -> "
+            f"intra-unit {cc.get('intra_unit_ratio', 0.0):.3f}, "
+            f"intra-chapter {cc.get('intra_chapter_ratio', 0.0):.3f}"
+        )
+        print(
+            "Parsimony -> "
+            f"duplicates {pars.get('duplicate_edges', 0)}, "
+            f"redundancy {pars.get('redundancy_ratio', 0.0):.3f}, "
+            f"out-degree p95 {pars.get('out_degree_p95', 0.0):.1f}, "
+            f"in-degree p95 {pars.get('in_degree_p95', 0.0):.1f}"
         )
 
     # Top edges (by relation)
@@ -291,6 +677,14 @@ def print_human_readable(summary: Dict[str, object]) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    """Main entry point for edge evaluation script.
+    
+    Args:
+        argv: Optional command line arguments for testing
+        
+    Returns:
+        Exit code 0 on success
+    """
     parser = argparse.ArgumentParser(description="Evaluate generated edges (content or prereqs)")
     parser.add_argument("--edges", required=True, type=str, help="Path to edges CSV to evaluate")
     parser.add_argument("--lo-index", default="data/processed/lo_index.csv", type=str, help="Path to lo_index.csv")

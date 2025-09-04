@@ -1,0 +1,139 @@
+lo_id,learning_objective,unit,chapter,book
+957,Solving Trigonometric Equations with Identities,Solving Trigonometric Equations with Identities,Trigonometric Identities and Equations,Precalculus 2e
+958,Verifying the Fundamental Trigonometric Identities,Solving Trigonometric Equations with Identities,Trigonometric Identities and Equations,Precalculus 2e
+959,Using Algebra to Simplify Trigonometric Expressions,Solving Trigonometric Equations with Identities,Trigonometric Identities and Equations,Precalculus 2e
+960,Sum and Difference Identities,Sum and Difference Identities,Trigonometric Identities and Equations,Precalculus 2e
+961,Using the Sum and Difference Formulas for Cosine,Sum and Difference Identities,Trigonometric Identities and Equations,Precalculus 2e
+962,Using the Sum and Difference Formulas for Sine,Sum and Difference Identities,Trigonometric Identities and Equations,Precalculus 2e
+963,Using the Sum and Difference Formulas for Tangent,Sum and Difference Identities,Trigonometric Identities and Equations,Precalculus 2e
+964,Using Sum and Difference Formulas for Cofunctions,Sum and Difference Identities,Trigonometric Identities and Equations,Precalculus 2e
+965,Using the Sum and Difference Formulas to Verify Identities,Sum and Difference Identities,Trigonometric Identities and Equations,Precalculus 2e
+966,"Double-Angle, Half-Angle, and Reduction Formulas","Double-Angle, Half-Angle, and Reduction Formulas",Trigonometric Identities and Equations,Precalculus 2e
+967,Using Double-Angle Formulas to Find Exact Values,"Double-Angle, Half-Angle, and Reduction Formulas",Trigonometric Identities and Equations,Precalculus 2e
+968,Using Double-Angle Formulas to Verify Identities,"Double-Angle, Half-Angle, and Reduction Formulas",Trigonometric Identities and Equations,Precalculus 2e
+969,Use Reduction Formulas to Simplify an Expression,"Double-Angle, Half-Angle, and Reduction Formulas",Trigonometric Identities and Equations,Precalculus 2e
+970,Using Half-Angle Formulas to Find Exact Values,"Double-Angle, Half-Angle, and Reduction Formulas",Trigonometric Identities and Equations,Precalculus 2e
+971,Sum-to-Product and Product-to-Sum Formulas,Sum-to-Product and Product-to-Sum Formulas,Trigonometric Identities and Equations,Precalculus 2e
+972,Expressing Products as Sums,Sum-to-Product and Product-to-Sum Formulas,Trigonometric Identities and Equations,Precalculus 2e
+973,Expressing Sums as Products,Sum-to-Product and Product-to-Sum Formulas,Trigonometric Identities and Equations,Precalculus 2e
+974,Solving Trigonometric Equations,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+975,Solving Linear Trigonometric Equations in Sine and Cosine,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+976,Solving Equations Involving a Single Trigonometric Function,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+977,Solve Trigonometric Equations Using a Calculator,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+978,Solving Trigonometric Equations in Quadratic Form,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+979,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+980,Solving Trigonometric Equations with Multiple Angles,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+981,Solving Right Triangle Problems,Solving Trigonometric Equations,Trigonometric Identities and Equations,Precalculus 2e
+982,Modeling with Trigonometric Functions,Modeling with Trigonometric Functions,Trigonometric Identities and Equations,Precalculus 2e
+983,Determining the Amplitude and Period of a Sinusoidal Function,Modeling with Trigonometric Functions,Trigonometric Identities and Equations,Precalculus 2e
+984,Finding Equations and Graphing Sinusoidal Functions,Modeling with Trigonometric Functions,Trigonometric Identities and Equations,Precalculus 2e
+985,Modeling Periodic Behavior,Modeling with Trigonometric Functions,Trigonometric Identities and Equations,Precalculus 2e
+986,Modeling Harmonic Motion Functions,Modeling with Trigonometric Functions,Trigonometric Identities and Equations,Precalculus 2e
+1034,Non-right Triangles: Law of Sines,Non-right Triangles: Law of Sines,Further Applications of Trigonometry,Precalculus 2e
+1035,Using the Law of Sines to Solve Oblique Triangles,Non-right Triangles: Law of Sines,Further Applications of Trigonometry,Precalculus 2e
+1036,Using The Law of Sines to Solve SSA Triangles,Non-right Triangles: Law of Sines,Further Applications of Trigonometry,Precalculus 2e
+1037,Finding the Area of an Oblique Triangle Using the Sine Function,Non-right Triangles: Law of Sines,Further Applications of Trigonometry,Precalculus 2e
+1038,Solving Applied Problems Using the Law of Sines,Non-right Triangles: Law of Sines,Further Applications of Trigonometry,Precalculus 2e
+1039,Non-right Triangles: Law of Cosines,Non-right Triangles: Law of Cosines,Further Applications of Trigonometry,Precalculus 2e
+1040,Using the Law of Cosines to Solve Oblique Triangles,Non-right Triangles: Law of Cosines,Further Applications of Trigonometry,Precalculus 2e
+1041,Solving Applied Problems Using the Law of Cosines,Non-right Triangles: Law of Cosines,Further Applications of Trigonometry,Precalculus 2e
+1042,Using Heron’s Formula to Find the Area of a Triangle,Non-right Triangles: Law of Cosines,Further Applications of Trigonometry,Precalculus 2e
+1043,Polar Coordinates,Polar Coordinates,Further Applications of Trigonometry,Precalculus 2e
+1044,Plotting Points Using Polar Coordinates,Polar Coordinates,Further Applications of Trigonometry,Precalculus 2e
+1045,Converting from Polar Coordinates to Rectangular Coordinates,Polar Coordinates,Further Applications of Trigonometry,Precalculus 2e
+1046,Converting from Rectangular Coordinates to Polar Coordinates,Polar Coordinates,Further Applications of Trigonometry,Precalculus 2e
+1047,Transforming Equations between Polar and Rectangular Forms,Polar Coordinates,Further Applications of Trigonometry,Precalculus 2e
+1048,Identify and Graph Polar Equations by Converting to Rectangular Equations,Polar Coordinates,Further Applications of Trigonometry,Precalculus 2e
+1049,Polar Coordinates: Graphs,Polar Coordinates: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1050,Testing Polar Equations for Symmetry,Polar Coordinates: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1051,Graphing Polar Equations by Plotting Points,Polar Coordinates: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1052,Summary of Curves,Polar Coordinates: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1053,Polar Form of Complex Numbers,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1054,Plotting Complex Numbers in the Complex Plane,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1055,Finding the Absolute Value of a Complex Number,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1056,Writing Complex Numbers in Polar Form,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1057,Converting a Complex Number from Polar to Rectangular Form,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1058,Finding Products of Complex Numbers in Polar Form,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1059,Finding Quotients of Complex Numbers in Polar Form,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1060,Finding Powers of Complex Numbers in Polar Form,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1061,Finding Roots of Complex Numbers in Polar Form,Polar Form of Complex Numbers,Further Applications of Trigonometry,Precalculus 2e
+1062,Parametric Equations,Parametric Equations,Further Applications of Trigonometry,Precalculus 2e
+1063,Parameterizing a Curve,Parametric Equations,Further Applications of Trigonometry,Precalculus 2e
+1064,Eliminating the Parameter,Parametric Equations,Further Applications of Trigonometry,Precalculus 2e
+1065,Finding Cartesian Equations from Curves Defined Parametrically,Parametric Equations,Further Applications of Trigonometry,Precalculus 2e
+1066,Finding Parametric Equations for Curves Defined by Rectangular Equations,Parametric Equations,Further Applications of Trigonometry,Precalculus 2e
+1067,Parametric Equations: Graphs,Parametric Equations: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1068,Graphing Parametric Equations by Plotting Points,Parametric Equations: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1069,Applications of Parametric Equations,Parametric Equations: Graphs,Further Applications of Trigonometry,Precalculus 2e
+1070,Vectors,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1071,A Geometric View of Vectors,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1072,Finding Magnitude and Direction,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1073,Performing Vector Addition and Scalar Multiplication,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1074,Multiplying By a Scalar,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1075,Finding Component Form,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1076,Finding the Unit Vector in the Direction of v,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1077,Performing Operations with Vectors in Terms of i and j,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1078,Performing Operations on Vectors in Terms of i and j,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1079,Calculating the Component Form of a Vector: Direction,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1080,Finding the Dot Product of Two Vectors,Vectors,Further Applications of Trigonometry,Precalculus 2e
+1217,Functions and Function Notation,Functions and Function Notation,Functions,Precalculus 2e
+1218,Determining Whether a Relation Represents a Function,Functions and Function Notation,Functions,Precalculus 2e
+1219,Finding Input and Output Values of a Function,Functions and Function Notation,Functions,Precalculus 2e
+1220,Determining Whether a Function is One-to-One,Functions and Function Notation,Functions,Precalculus 2e
+1221,Using the Vertical Line Test,Functions and Function Notation,Functions,Precalculus 2e
+1222,Using the Horizontal Line Test,Functions and Function Notation,Functions,Precalculus 2e
+1223,Identifying Basic Toolkit Functions,Functions and Function Notation,Functions,Precalculus 2e
+1224,Domain and Range,Domain and Range,Functions,Precalculus 2e
+1225,Finding the Domain of a Function Defined by an Equation,Domain and Range,Functions,Precalculus 2e
+1226,Using Notations to Specify Domain and Range,Domain and Range,Functions,Precalculus 2e
+1227,Finding Domain and Range from Graphs,Domain and Range,Functions,Precalculus 2e
+1228,Finding Domains and Ranges of the Toolkit Functions,Domain and Range,Functions,Precalculus 2e
+1229,Graphing Piecewise-Defined Functions,Domain and Range,Functions,Precalculus 2e
+1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,Functions,Precalculus 2e
+1231,Finding the Average Rate of Change of a Function,Rates of Change and Behavior of Graphs,Functions,Precalculus 2e
+1232,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant",Rates of Change and Behavior of Graphs,Functions,Precalculus 2e
+1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,Rates of Change and Behavior of Graphs,Functions,Precalculus 2e
+1234,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Rates of Change and Behavior of Graphs,Functions,Precalculus 2e
+1235,Composition of Functions,Composition of Functions,Functions,Precalculus 2e
+1236,Combining Functions Using Algebraic Operations,Composition of Functions,Functions,Precalculus 2e
+1237,Create a Function by Composition of Functions,Composition of Functions,Functions,Precalculus 2e
+1238,Evaluating Composite Functions,Composition of Functions,Functions,Precalculus 2e
+1239,Finding the Domain of a Composite Function,Composition of Functions,Functions,Precalculus 2e
+1867,Functions,Review of Functions,Functions and Graphs,Calculus Volume 1
+1868,Representing Functions,Review of Functions,Functions and Graphs,Calculus Volume 1
+1869,Combining Functions,Review of Functions,Functions and Graphs,Calculus Volume 1
+1870,Symmetry of Functions,Review of Functions,Functions and Graphs,Calculus Volume 1
+1872,Linear Functions and Slope,Basic Classes of Functions,Functions and Graphs,Calculus Volume 1
+1873,Polynomials,Basic Classes of Functions,Functions and Graphs,Calculus Volume 1
+1874,Algebraic Functions,Basic Classes of Functions,Functions and Graphs,Calculus Volume 1
+1875,Transcendental Functions,Basic Classes of Functions,Functions and Graphs,Calculus Volume 1
+1876,Piecewise-Defined Functions,Basic Classes of Functions,Functions and Graphs,Calculus Volume 1
+1877,Transformations of Functions,Basic Classes of Functions,Functions and Graphs,Calculus Volume 1
+1879,Radian Measure,Trigonometric Functions,Functions and Graphs,Calculus Volume 1
+1880,The Six Basic Trigonometric Functions,Trigonometric Functions,Functions and Graphs,Calculus Volume 1
+1881,Trigonometric Identities,Trigonometric Functions,Functions and Graphs,Calculus Volume 1
+1882,Graphs and Periods of the Trigonometric Functions,Trigonometric Functions,Functions and Graphs,Calculus Volume 1
+1884,Existence of an Inverse Function,Inverse Functions,Functions and Graphs,Calculus Volume 1
+1885,Finding a Function’s Inverse,Inverse Functions,Functions and Graphs,Calculus Volume 1
+1886,Inverse Trigonometric Functions,Inverse Functions,Functions and Graphs,Calculus Volume 1
+1888,Exponential Functions,Exponential and Logarithmic Functions,Functions and Graphs,Calculus Volume 1
+1889,The Number e,Exponential and Logarithmic Functions,Functions and Graphs,Calculus Volume 1
+1890,Logarithmic Functions,Exponential and Logarithmic Functions,Functions and Graphs,Calculus Volume 1
+1891,Hyperbolic Functions,Exponential and Logarithmic Functions,Functions and Graphs,Calculus Volume 1
+1893,The Tangent Problem and Differential Calculus,A Preview of Calculus,Limits,Calculus Volume 1
+1894,The Area Problem and Integral Calculus,A Preview of Calculus,Limits,Calculus Volume 1
+1897,Intuitive Definition of a Limit,The Limit of a Function,Limits,Calculus Volume 1
+1898,The Existence of a Limit,The Limit of a Function,Limits,Calculus Volume 1
+1899,One-Sided Limits,The Limit of a Function,Limits,Calculus Volume 1
+1900,Infinite Limits,The Limit of a Function,Limits,Calculus Volume 1
+1902,Evaluating Limits with the Limit Laws,The Limit Laws,Limits,Calculus Volume 1
+1903,Limits of Polynomial and Rational Functions,The Limit Laws,Limits,Calculus Volume 1
+1904,Additional Limit Evaluation Techniques,The Limit Laws,Limits,Calculus Volume 1
+1905,The Squeeze Theorem,The Limit Laws,Limits,Calculus Volume 1
+1907,Continuity at a Point,Continuity,Limits,Calculus Volume 1
+1908,Types of Discontinuities,Continuity,Limits,Calculus Volume 1
+1909,Continuity over an Interval,Continuity,Limits,Calculus Volume 1
+1910,Proof,Continuity,Limits,Calculus Volume 1
+1911,The Intermediate Value Theorem,Continuity,Limits,Calculus Volume 1
+1913,Quantifying Closeness,The Precise Definition of a Limit,Limits,Calculus Volume 1
+1915,One-Sided and Infinite Limits,The Precise Definition of a Limit,Limits,Calculus Volume 1
