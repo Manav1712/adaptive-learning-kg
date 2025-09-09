@@ -16,7 +16,6 @@ from src.experiments_manual.discover_content_links import (
     generate_candidates_for_row,
     load_config,
     relation_for_content_type,
-    tokenize,
     write_candidates,
 )
 
@@ -41,7 +40,6 @@ class TestDiscoverContentLinks:
         config = load_config(None)
         assert config.input_lo_index == "data/processed/lo_index.csv"
         assert config.restrict_same_unit is True
-        assert config.lexical_top_k == 5
         assert config.relation_concept == "explained_by"
 
     def test_load_config_from_file(self, tmp_path):
@@ -84,42 +82,7 @@ class TestDiscoverContentLinks:
         assert config.output_candidates == "custom/candidates.csv"
         assert config.restrict_same_unit is False
         assert config.restrict_same_chapter is True
-        assert config.lexical_top_k == 10
-        assert config.lexical_min_overlap == 2
         assert config.relation_concept == "custom_explained_by"
-
-    def test_tokenize(self):
-        """
-        Tests text tokenization into keywords.
-        
-        Args:
-            Various text inputs
-            
-        Returns:
-            List of lowercase alphanumeric tokens
-            
-        Behavior:
-            - Extracts alphanumeric words
-            - Converts to lowercase
-            - Handles empty/None inputs gracefully
-        """
-        # Normal text
-        tokens1 = tokenize("Solving Trigonometric Equations with Identities")
-        expected1 = ["solving", "trigonometric", "equations", "with", "identities"]
-        assert tokens1 == expected1
-
-        # Text with punctuation and numbers
-        tokens2 = tokenize("Chapter 2.3: Advanced Topics (Part A)")
-        expected2 = ["chapter", "advanced", "topics", "part"]
-        assert tokens2 == expected2
-
-        # Empty/None inputs
-        assert tokenize("") == []
-        assert tokenize(None) == []
-        assert tokenize("   ") == []
-
-        # Special characters only
-        assert tokenize("!@#$%^&*()") == []
 
     def test_relation_for_content_type(self):
         """
@@ -152,17 +115,7 @@ class TestDiscoverContentLinks:
 
     def test_build_lo_metadata(self):
         """
-        Tests LO metadata preparation with tokenization.
-        
-        Args:
-            lo_df: DataFrame with LO data
-            
-        Returns:
-            DataFrame with added lo_tokens column
-            
-        Behavior:
-            - Adds tokenized learning objectives as lo_tokens
-            - Handles various text formats in learning_objective column
+        Tests LO metadata preparation (normalization only).
         """
         lo_df = pd.DataFrame({
             "lo_id": ["100", "101", "102"],
@@ -177,11 +130,9 @@ class TestDiscoverContentLinks:
         })
         
         lo_meta = build_lo_metadata(lo_df)
-        
-        assert "lo_tokens" in lo_meta.columns
-        assert lo_meta.loc[0, "lo_tokens"] == ["solving", "linear", "equations"]
-        assert lo_meta.loc[1, "lo_tokens"] == ["graphing", "functions"]
-        assert lo_meta.loc[2, "lo_tokens"] == ["advanced", "calculus", "topics"]
+        # Columns preserved and learning_objective normalized to str
+        assert set(["lo_id", "learning_objective", "unit", "chapter", "book"]).issubset(lo_meta.columns)
+        assert isinstance(lo_meta.loc[0, "learning_objective"], str)
 
     def test_generate_candidates_for_row_same_unit(self):
         """
@@ -204,12 +155,6 @@ class TestDiscoverContentLinks:
             "learning_objective": ["Linear Equations", "Quadratic Functions", "Trigonometry", "Linear Systems"],
             "unit": ["Algebra", "Algebra", "Trigonometry", "Algebra"],
             "chapter": ["1", "1", "2", "1"],
-            "lo_tokens": [
-                ["linear", "equations"],
-                ["quadratic", "functions"],
-                ["trigonometry"],
-                ["linear", "systems"]
-            ]
         })
         
         content_row = pd.Series({
@@ -220,7 +165,7 @@ class TestDiscoverContentLinks:
             "text": "Linear equations are fundamental to algebra"
         })
         
-        config = DiscoveryConfig(restrict_same_unit=True, lexical_top_k=3)
+        config = DiscoveryConfig(restrict_same_unit=True)
         candidates = generate_candidates_for_row(content_row, lo_meta, config)
         
         # Should get same-unit LOs (100, 101, 103) plus lexical matches
@@ -228,55 +173,8 @@ class TestDiscoverContentLinks:
         assert "100" in lo_ids  # same unit
         assert "101" in lo_ids  # same unit
         assert "103" in lo_ids  # same unit
-        assert "102" not in lo_ids  # different unit, but might appear as lexical
+        assert "102" not in lo_ids  # different unit
 
-    def test_generate_candidates_for_row_lexical(self):
-        """
-        Tests lexical candidate generation based on keyword overlap.
-        
-        Args:
-            content_row: Content with specific keywords
-            lo_meta: LOs with overlapping keywords
-            config: Config with lexical matching enabled
-            
-        Returns:
-            List including lexical matches with high overlap
-            
-        Behavior:
-            - Finds LOs with keyword overlap above threshold
-            - Ranks by overlap count and takes top-K
-        """
-        lo_meta = pd.DataFrame({
-            "lo_id": ["100", "101", "102"],
-            "learning_objective": ["Trigonometric Functions", "Linear Algebra", "Solving Equations"],
-            "unit": ["Math", "Math", "Math"],
-            "chapter": ["1", "2", "3"],
-            "lo_tokens": [
-                ["trigonometric", "functions"],
-                ["linear", "algebra"],
-                ["solving", "equations"]
-            ]
-        })
-        
-        content_row = pd.Series({
-            "content_id": "test_content",
-            "content_type": "concept",
-            "unit": "Math",
-            "chapter": "1",
-            "text": "Solving trigonometric equations requires understanding functions"
-        })
-        
-        config = DiscoveryConfig(
-            restrict_same_unit=False,
-            lexical_top_k=2,
-            lexical_min_overlap=1
-        )
-        candidates = generate_candidates_for_row(content_row, lo_meta, config)
-        
-        # Should prioritize LO 100 (trigonometric, functions) and LO 102 (solving, equations)
-        lo_ids = [c[0] for c in candidates]
-        assert "100" in lo_ids  # trigonometric + functions overlap
-        assert "102" in lo_ids  # solving + equations overlap
 
     def test_write_candidates(self):
         """
@@ -308,7 +206,6 @@ class TestDiscoverContentLinks:
             "learning_objective": ["Linear Equations", "Quadratic Functions"],
             "unit": ["Algebra", "Algebra"],
             "chapter": ["1", "1"],
-            "lo_tokens": [["linear", "equations"], ["quadratic", "functions"]]
         })
         
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -316,7 +213,6 @@ class TestDiscoverContentLinks:
             config = DiscoveryConfig(
                 output_candidates=output_path,
                 restrict_same_unit=True,
-                lexical_top_k=0  # disable lexical for simpler test
             )
             
             result_df = write_candidates(content_df, lo_meta, config)
@@ -379,7 +275,7 @@ class TestDiscoverContentLinks:
         })
         
         lo_meta = build_lo_metadata(lo_df)
-        config = DiscoveryConfig(restrict_same_unit=True, lexical_top_k=2)
+        config = DiscoveryConfig(restrict_same_unit=True)
         
         with tempfile.TemporaryDirectory() as tmp_dir:
             output_path = os.path.join(tmp_dir, "test_candidates.csv")
