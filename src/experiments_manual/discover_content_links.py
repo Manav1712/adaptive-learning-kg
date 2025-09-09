@@ -20,42 +20,22 @@ Candidate strategy:
 This module can both prepare candidates and (optionally) score them using an LLM
 or a deterministic dry-run heuristic.
 """
-
 from __future__ import annotations
-
-import argparse
 import json
 import os
-import re
-from dataclasses import dataclass
-from typing import Dict, Iterable, List, Optional, Set, Tuple
-import zlib
 import time
-
-# Load environment variables from .env file
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass  # dotenv not available, use system environment
-
-try:
-    import yaml  # type: ignore
-except Exception:  # pragma: no cover - optional
-    yaml = None
-
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple
+from dotenv import load_dotenv
+import yaml
 import pandas as pd
+from openai import OpenAI
 
-try:  # Optional import; only required for real LLM scoring
-    from openai import OpenAI  # type: ignore
-except Exception:  # pragma: no cover - soft dependency
-    OpenAI = None  # type: ignore
-
+load_dotenv()
 
 # ----------------------------
 # Configuration
 # ----------------------------
-
 
 @dataclass
 class DiscoveryConfig:
@@ -68,8 +48,6 @@ class DiscoveryConfig:
     - output_candidates: Path to write candidate pairs CSV
     - restrict_same_unit: If True, only consider LOs in same unit
     - restrict_same_chapter: If True, only consider LOs in same chapter
-    - lexical_top_k: Limit of lexical matches to add per content (0 to disable)
-    - lexical_min_overlap: Minimum keyword overlap to consider as lexical match
     """
 
     input_lo_index: str = "data/processed/lo_index.csv"
@@ -78,9 +56,6 @@ class DiscoveryConfig:
 
     restrict_same_unit: bool = True
     restrict_same_chapter: bool = False
-
-    lexical_top_k: int = 5
-    lexical_min_overlap: int = 1
 
     # Relation mapping by content type
     relation_concept: str = "explained_by"
@@ -93,11 +68,8 @@ class DiscoveryConfig:
     temperature: float = 0.0
     max_targets_per_call: int = 8
     max_retries: int = 3
-    score_mode: str = "score"  # "score" | "yes_no"
     score_threshold: float = 0.6
     output_edges: str = "data/processed/edges_content.csv"
-    # Progress logging
-    progress_path: str = "data/processed/progress_links.jsonl"
 
 
 def load_config(config_path: Optional[str]) -> DiscoveryConfig:
@@ -116,21 +88,20 @@ def load_config(config_path: Optional[str]) -> DiscoveryConfig:
     """
     if not config_path or not os.path.exists(config_path) or yaml is None:
         return DiscoveryConfig()
+  
     with open(config_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    inputs = data.get("output_paths", {})  # prior config.yaml used output_paths for processed files
-    # fallback to input_paths names as well (either is fine)
+    inputs = data.get("output_paths", {})  # Check old config key first
     inputs_alt = data.get("input_paths", {})
     pruning = data.get("pruning", {})
     relations = data.get("relations", {})
+
     cfg = DiscoveryConfig(
         input_lo_index=inputs.get("lo_index", inputs_alt.get("lo_index", "data/processed/lo_index.csv")),
         input_content_items=inputs.get("content_items", inputs_alt.get("content_items", "data/processed/content_items.csv")),
         output_candidates=data.get("output_candidates", "data/processed/content_link_candidates.csv"),
         restrict_same_unit=bool(pruning.get("same_unit", True)),
         restrict_same_chapter=bool(pruning.get("same_chapter", False)),
-        lexical_top_k=int(pruning.get("lexical_top_k", 5)),
-        lexical_min_overlap=int(pruning.get("lexical_min_overlap", 1)),
         relation_concept=relations.get("concept", "explained_by"),
         relation_example=relations.get("example", "exemplified_by"),
         relation_try_it=relations.get("try_it", "practiced_by"),
@@ -144,7 +115,6 @@ def load_config(config_path: Optional[str]) -> DiscoveryConfig:
         cfg.modality = modality
     scoring = data.get("scoring", {})
     if isinstance(scoring, dict):
-        cfg.score_mode = scoring.get("mode", cfg.score_mode)
         cfg.score_threshold = float(scoring.get("threshold", cfg.score_threshold))
     runtime = data.get("runtime", {})
     if isinstance(runtime, dict):
@@ -159,24 +129,6 @@ def load_config(config_path: Optional[str]) -> DiscoveryConfig:
 # ----------------------------
 # Utilities
 # ----------------------------
-
-
-_WORD_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9_]+")
-
-
-def tokenize(text: str) -> List[str]:
-    """
-    Tokenizes text into lowercase keywords (simple heuristic).
-
-    Args:
-        text: Input string
-
-    Returns:
-        List of lowercase tokens (alphanumeric words)
-    """
-    if not isinstance(text, str) or not text:
-        return []
-    return [m.group(0).lower() for m in _WORD_PATTERN.finditer(text)]
 
 
 def _chapter_to_int(val: object) -> Optional[int]:
@@ -194,14 +146,13 @@ def _ctype_order(value: object) -> int:
     return mapping.get(str(value).lower(), 99)
 
 
-def select_diverse_chronological_content(df: pd.DataFrame, limit: int) -> pd.DataFrame:
+def select_chronological_content(df: pd.DataFrame, limit: int) -> pd.DataFrame:
     """
-    Select a diverse, chronologically ordered subset of content items.
+    Select a chronologically ordered subset of content items.
 
     Strategy:
     - Sort by (book, unit, chapter_num, content_type order, content_id)
-    - Build round-robin buckets per (book, unit) to maximize diversity
-    - Pick up to `limit` rows in round robin order preserving chronology within buckets
+    - Take first `limit` rows in chronological order
     """
     if limit is None or limit <= 0 or len(df) <= limit:
         return df
@@ -211,25 +162,8 @@ def select_diverse_chronological_content(df: pd.DataFrame, limit: int) -> pd.Dat
     tmp["_ctype_ord"] = tmp.get("content_type", None).map(_ctype_order)
     tmp.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"], inplace=True)
 
-    # Build buckets by (book, unit)
-    buckets: Dict[Tuple[str, str], List[int]] = {}
-    for idx, r in tmp.iterrows():
-        key = (str(r.get("book") or ""), str(r.get("unit") or ""))
-        buckets.setdefault(key, []).append(idx)
-
-    selected_indices: List[int] = []
-    # Round-robin selection across buckets
-    while len(selected_indices) < limit and any(buckets.values()):
-        for key in list(buckets.keys()):
-            if buckets[key]:
-                selected_indices.append(buckets[key].pop(0))
-                if len(selected_indices) >= limit:
-                    break
-            else:
-                buckets.pop(key, None)
-
-    out = tmp.loc[selected_indices]
-    out.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"], inplace=True)
+    # Take first `limit` rows (chronologically ordered)
+    out = tmp.head(limit)
     # Drop helper cols
     return out.drop(columns=[c for c in ["_chapter_num", "_ctype_ord"] if c in out.columns])
 
@@ -274,7 +208,20 @@ def build_prompt_for_content(
 
     system = (
         "You are a precise educational graph builder. Given a content item and candidate learning objectives, "
-        "decide if the content directly supports the LO. Output JSON: {results:[{lo_id, verdict|score, rationale}]}."
+        "decide if the content directly supports the LO.\n\n"
+        "EDGE CRITERIA:\n"
+        "- Content teaches concepts/skills needed for the LO\n"
+        "- Content provides examples/practice for LO objectives\n"
+        "- Content prepares students for LO assessment\n\n"
+        "SCORING:\n"
+        "- score ∈ [-1, 1]; positive means the content supports the LO, negative means it does not\n"
+        "- confidence ∈ [0, 1]; your certainty in the assigned score\n\n"
+        "EXAMPLES:\n"
+        "✓ Derivative definition → LO: Apply derivative rules (score: 0.9, confidence: 0.85)\n"
+        "✓ Chain rule worked example → LO: Use chain rule (score: 0.8, confidence: 0.8)\n"
+        "✗ Algebra review → LO: Calculus concepts (score: -0.8, confidence: 0.9)\n"
+        "✗ Advanced multivariable topic → LO: Basic single-variable prerequisites (score: -0.7, confidence: 0.75)\n\n"
+        "Output JSON: {results:[{lo_id, score, confidence, rationale}]}"
     )
 
     user_blocks: List[Dict[str, object]] = []
@@ -290,28 +237,9 @@ def build_prompt_for_content(
         })
 
     # Returning a generic payload; the LLM client will adapt as needed
-    return {"system": system, "user": user_blocks, "mode": config.score_mode}
+    return {"system": system, "user": user_blocks}
 
 
-def heuristic_score(content_text: str, lo_text: str) -> float:
-    """
-    Simple deterministic similarity heuristic for dry-run mode.
-
-    Args:
-        content_text: Text of the content item
-        lo_text: Learning objective text
-
-    Returns:
-        Float score between 0 and 1 based on token overlap
-    """
-    ctoks = set(tokenize(content_text))
-    ltoks = set(tokenize(lo_text))
-    if not ctoks or not ltoks:
-        return 0.0
-    overlap = len(ctoks.intersection(ltoks))
-    # Normalize by LO token count to measure "how much of LO is covered by content"
-    denom = max(1, len(ltoks))
-    return overlap / float(denom)
 
 
 def score_candidates(
@@ -319,21 +247,19 @@ def score_candidates(
     content_df: pd.DataFrame,
     lo_df: pd.DataFrame,
     config: DiscoveryConfig,
-    dry_run: bool = False,
 ) -> pd.DataFrame:
     """
-    Scores candidate content→LO pairs using LLM or heuristic fallback.
+    Scores candidate content→LO pairs using LLM.
 
     Args:
         candidates_df: DataFrame of candidate pairs
         content_df: DataFrame with content details (text, images)
         lo_df: DataFrame with LO details
         config: Scoring configuration
-        dry_run: If True, use heuristic instead of LLM
 
     Returns:
         DataFrame of filtered edges with columns:
-        source_lo_id, target_content_id, relation, score, rationale, modality, run_id
+        source_lo_id, target_content_id, relation, score, confidence, rationale, modality, run_id
     """
     # Build quick lookups
     lo_lookup: Dict[str, Dict[str, str]] = {
@@ -353,14 +279,6 @@ def score_candidates(
     total_groups = int(getattr(grouped, "ngroups", 0) or 0)
     processed_groups = 0
     started_at = time.time()
-    progress_path = getattr(config, "progress_path", "data/processed/progress_links.jsonl")
-    # Initialize/clear progress log
-    try:
-        ensure_parent_directory(progress_path)
-        with open(progress_path, "w", encoding="utf-8") as _f:
-            pass
-    except Exception:
-        pass
 
     for content_id, group in grouped:
         processed_groups += 1
@@ -372,52 +290,10 @@ def score_candidates(
         ctext = str(content_row.get("text") or "")
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
 
-        if dry_run:
-            # Heuristic scoring
-            for lo_id, _reason in candidate_list:
-                lo_text = lo_lookup.get(lo_id, {}).get("learning_objective", "")
-                score = heuristic_score(ctext, lo_text)
-                if config.score_mode == "yes_no":
-                    keep = score >= config.score_threshold
-                    verdict = "YES" if keep else "NO"
-                else:
-                    keep = score >= config.score_threshold
-                    verdict = f"{score:.2f}"
-                if keep:
-                    relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
-                    rows.append(
-                        {
-                            "source_lo_id": lo_id,
-                            "target_content_id": content_id,
-                            "relation": relation,
-                            "score": score,
-                            "rationale": "heuristic token overlap",
-                            "modality": config.modality,
-                            "run_id": config.model,
-                        }
-                    )
-            continue
-
         # Real LLM integration (if OPENAI_API_KEY is set and OpenAI client available)
         use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
         if not use_llm:
-            # Fallback to heuristic if LLM not available
-            for lo_id, _reason in candidate_list:
-                lo_text = lo_lookup.get(lo_id, {}).get("learning_objective", "")
-                score = heuristic_score(ctext, lo_text)
-                if score >= config.score_threshold:
-                    relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
-                    rows.append(
-                        {
-                            "source_lo_id": lo_id,
-                            "target_content_id": content_id,
-                            "relation": relation,
-                            "score": score,
-                            "rationale": "heuristic token overlap (no OPENAI_API_KEY)",
-                            "modality": config.modality,
-                            "run_id": config.model,
-                        }
-                    )
+            # Skip if no LLM available
             continue
 
         # Prepare LO lookup for prompt chunks of size max_targets_per_call
@@ -447,8 +323,8 @@ def score_candidates(
             # Ask model to output strict JSON
             instruction = (
                 "Respond ONLY with JSON in this schema: {\n"
-                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"rationale\": string } ]\n"
-                "} where score in [0,1]."
+                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
+                "} where score in [-1,1] and confidence in [0,1]."
             )
             content_blocks.append({"type": "text", "text": instruction})
 
@@ -473,6 +349,11 @@ def score_candidates(
                     for item in results:
                         lo_id = str(item.get("lo_id", ""))
                         score = float(item.get("score", 0.0))
+                        confidence = item.get("confidence", None)
+                        try:
+                            confidence = float(confidence) if confidence is not None else None
+                        except Exception:
+                            confidence = None
                         rationale = str(item.get("rationale", ""))
                         if score >= config.score_threshold:
                             relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
@@ -482,6 +363,7 @@ def score_candidates(
                                     "target_content_id": content_id,
                                     "relation": relation,
                                     "score": score,
+                                    "confidence": confidence,
                                     "rationale": rationale or "LLM decision",
                                     "modality": config.modality,
                                     "run_id": config.model,
@@ -491,53 +373,14 @@ def score_candidates(
                 except Exception as e:  # rate limits, network, etc.
                     last_err = e
                     time.sleep(2 ** attempt)
-            # If all retries failed, fall back to heuristic for this chunk
+            # If all retries failed, skip this chunk
             if last_err is not None and not results:
-                for lo_id, _reason in chunk:
-                    lo_text = lo_lookup.get(lo_id, {}).get("learning_objective", "")
-                    score = heuristic_score(ctext, lo_text)
-                    if score >= config.score_threshold:
-                        relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
-                        rows.append(
-                            {
-                                "source_lo_id": lo_id,
-                                "target_content_id": content_id,
-                                "relation": relation,
-                                "score": score,
-                                "rationale": f"heuristic fallback after error: {type(last_err).__name__}",
-                                "modality": config.modality,
-                                "run_id": config.model,
-                            }
-                        )
+                continue
 
         # Per-content progress logging
-        try:
-            len_after = len(rows)
-            kept_for_content = max(0, len_after - len_before)
-            elapsed = max(0.0, time.time() - started_at)
-            rate = (processed_groups / elapsed) if elapsed > 0 else 0.0
-            remaining = max(0, total_groups - processed_groups)
-            eta_sec = int(remaining / rate) if rate > 0 else 0
-            print(
-                f"[score] {processed_groups}/{total_groups} content | +{kept_for_content} edges (total {len_after}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m",
-                flush=True,
-            )
-            # Append JSONL record
-            rec = {
-                "content_id": str(content_id),
-                "num_candidates": int(len(group)),
-                "num_kept": int(kept_for_content),
-                "edges_total": int(len_after),
-                "processed": int(processed_groups),
-                "total": int(total_groups),
-                "elapsed_sec": round(elapsed, 1),
-                "eta_sec": int(eta_sec),
-            }
-            with open(progress_path, "a", encoding="utf-8") as f:
-                f.write(json.dumps(rec) + "\n")
-        except Exception:
-            # Best-effort logging; never fail the run due to progress issues
-            pass
+        len_after = len(rows)
+        kept_for_content = max(0, len_after - len_before)
+        log_progress(processed_groups, total_groups, kept_for_content, len_after, started_at)
 
     return pd.DataFrame(rows)
 
@@ -576,40 +419,38 @@ def ensure_parent_directory(path: str) -> None:
         os.makedirs(directory, exist_ok=True)
 
 
-def _add_suffix_to_path(path: str, suffix: str) -> str:
+def log_progress(processed: int, total: int, edges_added: int, total_edges: int, started_at: float) -> None:
     """
-    Inserts a suffix before the file extension. If no extension, appends suffix.
-
-    example: edges.csv + .shard0-of-4 => edges.shard0-of-4.csv
+    Log progress with simple timing information.
+    
+    Args:
+        processed: Number of content items processed
+        total: Total number of content items
+        edges_added: Edges added in this batch
+        total_edges: Total edges so far
+        started_at: Start time timestamp
     """
-    base = os.path.basename(path)
-    parent = os.path.dirname(path)
-    if "." in base:
-        name, ext = base.rsplit(".", 1)
-        new_base = f"{name}{suffix}.{ext}"
-    else:
-        new_base = f"{base}{suffix}"
-    return os.path.join(parent, new_base)
-
+    elapsed = max(0.0, time.time() - started_at)
+    rate = (processed / elapsed) if elapsed > 0 else 0.0
+    eta_sec = int((total - processed) / rate) if rate > 0 else 0
+    print(f"[score] {processed}/{total} content | +{edges_added} edges (total {total_edges}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m", flush=True)
 
 # ----------------------------
 # Candidate generation
 # ----------------------------
 
-
 def build_lo_metadata(lo_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Prepares LO metadata including tokenized learning objectives.
+    Prepares LO metadata.
 
     Args:
         lo_df: DataFrame with columns lo_id, learning_objective, unit, chapter, book
 
     Returns:
-        DataFrame with added 'lo_tokens' list column
+        DataFrame with normalized learning objectives
     """
     lo_copy = lo_df.copy()
     lo_copy["learning_objective"] = lo_copy["learning_objective"].astype(str)
-    lo_copy["lo_tokens"] = lo_copy["learning_objective"].map(tokenize)
     return lo_copy
 
 
@@ -634,8 +475,6 @@ def generate_candidates_for_row(
 
     parent_unit = str(content_row.get("unit") or "")
     parent_chapter = str(content_row.get("chapter") or "")
-    content_text = str(content_row.get("text") or "")
-    content_tokens: Set[str] = set(tokenize(content_text))
 
     # Same unit/chapter filtering
     pool = lo_meta
@@ -648,19 +487,7 @@ def generate_candidates_for_row(
     for lo_id in pool["lo_id"].astype(str).tolist():
         candidates.append((lo_id, "unit" if config.restrict_same_unit else "chapter"))
 
-    # Lexical shortlist across the full LO set to catch cross-unit links
-    if config.lexical_top_k and len(content_tokens) > 0:
-        overlaps: List[Tuple[str, int]] = []
-        for _, lo_row in lo_meta.iterrows():
-            lo_id = str(lo_row["lo_id"])  # type: ignore
-            lo_tokens: Set[str] = set(lo_row.get("lo_tokens") or [])
-            overlap = len(content_tokens.intersection(lo_tokens))
-            if overlap >= config.lexical_min_overlap:
-                overlaps.append((lo_id, overlap))
-        # Sort by overlap desc and take top_k
-        overlaps.sort(key=lambda t: t[1], reverse=True)
-        for lo_id, _score in overlaps[: config.lexical_top_k]:
-            candidates.append((lo_id, "lexical"))
+    # Note: Lexical matching removed - only unit/chapter filtering used
 
     # Deduplicate keeping earliest reason
     seen: set = set()
@@ -735,12 +562,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml (optional)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of content items for a smoke run")
     parser.add_argument("--mode", type=str, default="candidates", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
-    parser.add_argument("--dry-run", action="store_true", help="Use deterministic heuristic scoring instead of LLM")
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
-    # Sharding flags for parallel processing
-    parser.add_argument("--num-shards", type=int, default=1, help="Number of parallel shards")
-    parser.add_argument("--shard-index", type=int, default=0, help="This shard index (0-based)")
-    parser.add_argument("--no-suffix-outputs", action="store_true", help="Do not suffix output/progress paths with shard info")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     config = load_config(args.config)
@@ -757,33 +579,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 return []
         content_df["image_urls"] = content_df["image_urls"].astype(str).map(_safe_parse)
 
-    # Apply sharding on content_ids deterministically (CRC32)
-    num_shards = max(1, int(args.num_shards))
-    shard_index = int(args.shard_index)
-    if shard_index < 0 or shard_index >= num_shards:
-        raise SystemExit(f"Invalid --shard-index {shard_index}; must be in [0,{num_shards-1}]")
-    if num_shards > 1:
-        def _belongs_to_shard(cid: str) -> bool:
-            try:
-                key = str(cid).encode("utf-8")
-                return (zlib.crc32(key) % num_shards) == shard_index
-            except Exception:
-                return False
-        before = len(content_df)
-        content_df = content_df[content_df["content_id"].astype(str).map(_belongs_to_shard)].copy()
-        after = len(content_df)
-        print(f"Shard {shard_index}/{num_shards}: content items {after}/{before}")
-
-        # Auto-suffix outputs/progress unless disabled
-        if not args.no_suffix_outputs:
-            suffix = f".shard{shard_index}-of-{num_shards}"
-            config.output_candidates = _add_suffix_to_path(config.output_candidates, suffix)
-            config.output_edges = _add_suffix_to_path(config.output_edges, suffix)
-            config.progress_path = _add_suffix_to_path(getattr(config, "progress_path", "data/processed/progress_links.jsonl"), suffix)
 
     if args.limit is not None and args.limit > 0:
-        # Use diverse, chronologically ordered selection instead of head()
-        content_df = select_diverse_chronological_content(content_df, int(args.limit)).copy()
+        # Use chronologically ordered selection
+        content_df = select_chronological_content(content_df, int(args.limit)).copy()
 
     lo_meta = build_lo_metadata(lo_df)
     # Allow CLI to override score threshold
@@ -805,16 +604,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         else:
             out_df = pd.read_csv(cand_path)
 
-        # Initialize progress log file
-        try:
-            ensure_parent_directory(getattr(config, "progress_path", "data/processed/progress_links.jsonl"))
-            if os.path.exists(config.progress_path):
-                os.remove(config.progress_path)
-            print(f"Progress log: {config.progress_path}")
-        except Exception:
-            pass
 
-        edges_df = score_candidates(out_df, content_df, lo_meta, config, dry_run=args.dry_run)
+        edges_df = score_candidates(out_df, content_df, lo_meta, config)
         ensure_parent_directory(config.output_edges)
         edges_df.to_csv(config.output_edges, index=False)
         print(f"Wrote {config.output_edges} ({len(edges_df)} rows)")
