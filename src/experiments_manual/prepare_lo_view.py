@@ -268,6 +268,11 @@ def read_csvs_by_glob(glob_pattern: str) -> List[pd.DataFrame]:
     for file_path in file_paths:
         try:
             df = pd.read_csv(file_path)
+            # Annotate provenance to enable chronological ordering later
+            df = df.copy()
+            df["_source_file"] = os.path.basename(file_path)
+            # Preserve row order within a source file as a chronological hint
+            df["_source_row"] = range(1, len(df) + 1)
             dataframes.append(df)
         except Exception:
             # Skip unreadable files
@@ -328,6 +333,22 @@ def load_raw_frames(config: PrepareConfig) -> pd.DataFrame:
         return text_value or "unknown"
 
     unified["content_type"] = unified["type"].map(map_content_type)
+
+    # Derive a numeric chapter ordering key if possible
+    def _to_int(val: object) -> Optional[int]:
+        try:
+            s = str(val).strip()
+            # Accept formats like "Ch1", "1", "02"
+            digits = "".join([c for c in s if c.isdigit()])
+            return int(digits) if digits else int(s)
+        except Exception:
+            return None
+
+    unified["_chapter_num"] = unified["chapter"].map(_to_int)
+    # Stable content_type ordering for chronological export within LO
+    type_order = {"concept": 0, "example": 1, "try_it": 2}
+    unified["_ctype_ord"] = unified["content_type"].map(lambda t: type_order.get(str(t).lower(), 99))
+
     return unified
 
 
@@ -354,9 +375,36 @@ def apply_sampling(
         return df
     sampled = df
     if max_los is not None:
-        # Sample by lo_id deterministically (sort then head)
-        lo_ids = sorted(sampled["lo_id"].dropna().unique())[: max_los]
-        sampled = sampled[sampled["lo_id"].isin(lo_ids)].copy()
+        # Diverse, chronological LO selection across units via round-robin
+        lo_meta = (
+            sampled[["lo_id", "book", "unit", "chapter", "_chapter_num"]]
+            .drop_duplicates(subset=["lo_id"])
+            .copy()
+        )
+        # Sort within unit by chapter_num then lo_id
+        lo_meta.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
+        # Build buckets per unit for round-robin
+        buckets: Dict[str, List[str]] = {}
+        for _, r in lo_meta.iterrows():
+            unit_key = f"{str(r.get('book') or '')}::${str(r.get('unit') or '')}"
+            buckets.setdefault(unit_key, []).append(str(r["lo_id"]))
+
+        selected: List[str] = []
+        # Round-robin picking to maximize diversity across units
+        while len(selected) < int(max_los) and any(buckets.values()):
+            for key in list(buckets.keys()):
+                if buckets[key]:
+                    selected.append(buckets[key].pop(0))
+                    if len(selected) >= int(max_los):
+                        break
+                else:
+                    # Remove empty buckets
+                    buckets.pop(key, None)
+        # Fallback if buckets empty somehow
+        if not selected:
+            selected = sorted(sampled["lo_id"].dropna().astype(str).unique())[: int(max_los)]
+
+        sampled = sampled[sampled["lo_id"].astype(str).isin(set(selected))].copy()
     if max_content_per_lo is not None:
         sampled = (
             sampled.sort_values(["lo_id", "content_type"]).groupby(["lo_id", "content_type"], as_index=False)
@@ -380,12 +428,30 @@ def generate_content_ids(df: pd.DataFrame) -> pd.Series:
         - Generates IDs like "100_concept_1", "100_concept_2", "100_example_1"
         - Ensures stable, predictable ID generation
     """
-    # Sequence within (lo_id, content_type)
+    # Sequence within (lo_id, content_type) with chronological ordering if available
     df = df.copy()
-    df["_seq"] = (
-        df.sort_values(["lo_id", "content_type"]).groupby(["lo_id", "content_type"]).cumcount() + 1
+    sort_cols: List[str] = []
+    # Global chronological hints
+    if "book" in df.columns:
+        sort_cols.append("book")
+    if "unit" in df.columns:
+        sort_cols.append("unit")
+    if "_chapter_num" in df.columns:
+        sort_cols.append("_chapter_num")
+    # Within-LO content order
+    if "_ctype_ord" in df.columns:
+        sort_cols.append("_ctype_ord")
+    if "_source_row" in df.columns:
+        sort_cols.append("_source_row")
+
+    if not sort_cols:
+        sort_cols = ["lo_id", "content_type"]
+
+    ordered = df.sort_values(sort_cols)
+    ordered["_seq"] = (
+        ordered.groupby(["lo_id", "content_type"]).cumcount() + 1
     )
-    return df.apply(lambda r: f"{r['lo_id']}_{r['content_type']}_{int(r['_seq'])}", axis=1)
+    return ordered.apply(lambda r: f"{r['lo_id']}_{r['content_type']}_{int(r['_seq'])}", axis=1)
 
 
 def build_outputs(unified: pd.DataFrame, config: PrepareConfig) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -420,10 +486,25 @@ def build_outputs(unified: pd.DataFrame, config: PrepareConfig) -> Tuple[pd.Data
     content_df["text"] = texts
     content_df["image_urls"] = [json.dumps(urls) for urls in images_list]
 
-    # Generate content_id
+    # Generate content_id (uses chronological ordering if available)
     content_df["content_id"] = generate_content_ids(content_df)
 
     # Select content_items columns
+    # Chronologically sort content prior to selecting columns for output
+    sort_cols: List[str] = []
+    if "book" in content_df.columns:
+        sort_cols.append("book")
+    if "unit" in content_df.columns:
+        sort_cols.append("unit")
+    if "_chapter_num" in content_df.columns:
+        sort_cols.append("_chapter_num")
+    if "_ctype_ord" in content_df.columns:
+        sort_cols.append("_ctype_ord")
+    if "_source_row" in content_df.columns:
+        sort_cols.append("_source_row")
+    if sort_cols:
+        content_df.sort_values(sort_cols, inplace=True)
+
     content_items = content_df[[
         "content_id",
         "content_type",
@@ -438,10 +519,13 @@ def build_outputs(unified: pd.DataFrame, config: PrepareConfig) -> Tuple[pd.Data
 
     # Build lo_index
     lo_index = (
-        unified_sampled[["lo_id", "learning_objective", "unit", "chapter", "book"]]
+        unified_sampled[["lo_id", "learning_objective", "unit", "chapter", "book", "_chapter_num"]]
         .drop_duplicates(subset=["lo_id"])
         .rename(columns={"lo_id": "lo_id"})
     )
+    # Chronological sort of LO index
+    lo_index.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
+    lo_index = lo_index[["lo_id", "learning_objective", "unit", "chapter", "book"]]
 
     return lo_index, content_items
 

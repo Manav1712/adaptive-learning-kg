@@ -20,8 +20,6 @@ Approach:
   source_lo_id, target_lo_id, relation, score, rationale, modality, run_id
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -160,6 +158,51 @@ def tokenize(text: str) -> List[str]:
     return [t.lower() for t in TOKEN_RE.findall(text or "")]
 
 
+def _chapter_to_int(val: object) -> Optional[int]:
+    try:
+        s = str(val).strip()
+        digits = "".join(c for c in s if c.isdigit())
+        return int(digits) if digits else int(s)
+    except Exception:
+        return None
+
+
+def select_diverse_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
+    """
+    Select a diverse, chronologically ordered subset of target LOs when limiting.
+    - Sort by (book, unit, chapter_num, lo_id)
+    - Build round-robin buckets per (book, unit)
+    - Pick up to limit LOs in round-robin order
+
+    """
+    if limit is None or limit <= 0 or len(lo_meta) <= limit:
+        return lo_meta
+
+    tmp = lo_meta.copy()
+    tmp["_chapter_num"] = tmp.get("chapter", None).map(_chapter_to_int)
+    tmp.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
+
+    # Build buckets by (book, unit)
+    buckets: Dict[Tuple[str, str], List[int]] = {}
+    for idx, r in tmp.iterrows():
+        key = (str(r.get("book") or ""), str(r.get("unit") or ""))
+        buckets.setdefault(key, []).append(idx)
+
+    selected_indices: List[int] = []
+    while len(selected_indices) < limit and any(buckets.values()):
+        for key in list(buckets.keys()):
+            if buckets[key]:
+                selected_indices.append(buckets[key].pop(0))
+                if len(selected_indices) >= limit:
+                    break
+            else:
+                buckets.pop(key, None)
+
+    out = tmp.loc[selected_indices]
+    out.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
+    return out.drop(columns=[c for c in ["_chapter_num"] if c in out.columns])
+
+
 def unique(seq: Iterable[str]) -> List[str]:
     seen: Set[str] = set()
     out: List[str] = []
@@ -182,12 +225,6 @@ def safe_parse_image_urls(val: object) -> List[str]:
     except Exception:
         return []
 
-
-# TODO: Add LO view aggregation functions
-# TODO: Add candidate generation functions  
-# TODO: Add heuristic and prompting functions
-# TODO: Add scoring functions
-# TODO: Add CLI functions
 
 
 # ----------------------------
@@ -224,20 +261,24 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
             images_by_lo.setdefault(lo_id, []).extend([str(u) for u in imgs])
 
     records: List[Dict[str, object]] = []
+    
     for _, r in lo_df.iterrows():
         lo_id = str(r.get("lo_id") or "")
         lo_text = str(r.get("learning_objective") or "")
         unit = str(r.get("unit") or "")
         chapter = str(r.get("chapter") or "")
+        book = str(r.get("book") or "")
         pieces = [lo_text] + texts_by_lo.get(lo_id, [])
         agg_text = "\n\n".join([p for p in pieces if p])
         imgs = unique(images_by_lo.get(lo_id, []))
+
         records.append(
             {
                 "lo_id": lo_id,
                 "learning_objective": lo_text,
                 "unit": unit,
                 "chapter": chapter,
+                "book": book,
                 "aggregate_text": agg_text,
                 "image_urls": imgs,
             }
@@ -728,9 +769,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             config.progress_path = _add_suffix_to_path(getattr(config, "progress_path", "data/processed/progress_prereqs.jsonl"), suffix)
 
     if args.limit is not None and args.limit > 0:
-        # Limit target LOs only
-        keep_ids = set(str(x) for x in lo_meta.head(args.limit)["lo_id"].tolist())
-        lo_meta = lo_meta[lo_meta["lo_id"].astype(str).isin(keep_ids)].copy()
+        # Limit target LOs using diverse, chronological selection
+        lo_meta = select_diverse_chronological_los(lo_meta, int(args.limit)).copy()
 
     if args.mode in {"candidates", "both"}:
         out_df = write_candidates(lo_meta, config)

@@ -179,6 +179,61 @@ def tokenize(text: str) -> List[str]:
     return [m.group(0).lower() for m in _WORD_PATTERN.finditer(text)]
 
 
+def _chapter_to_int(val: object) -> Optional[int]:
+    """Attempt to parse chapter identifiers into integers for chronological ordering."""
+    try:
+        s = str(val).strip()
+        digits = "".join(c for c in s if c.isdigit())
+        return int(digits) if digits else int(s)
+    except Exception:
+        return None
+
+
+def _ctype_order(value: object) -> int:
+    mapping = {"concept": 0, "example": 1, "try_it": 2}
+    return mapping.get(str(value).lower(), 99)
+
+
+def select_diverse_chronological_content(df: pd.DataFrame, limit: int) -> pd.DataFrame:
+    """
+    Select a diverse, chronologically ordered subset of content items.
+
+    Strategy:
+    - Sort by (book, unit, chapter_num, content_type order, content_id)
+    - Build round-robin buckets per (book, unit) to maximize diversity
+    - Pick up to `limit` rows in round robin order preserving chronology within buckets
+    """
+    if limit is None or limit <= 0 or len(df) <= limit:
+        return df
+
+    tmp = df.copy()
+    tmp["_chapter_num"] = tmp.get("chapter", None).map(_chapter_to_int)
+    tmp["_ctype_ord"] = tmp.get("content_type", None).map(_ctype_order)
+    tmp.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"], inplace=True)
+
+    # Build buckets by (book, unit)
+    buckets: Dict[Tuple[str, str], List[int]] = {}
+    for idx, r in tmp.iterrows():
+        key = (str(r.get("book") or ""), str(r.get("unit") or ""))
+        buckets.setdefault(key, []).append(idx)
+
+    selected_indices: List[int] = []
+    # Round-robin selection across buckets
+    while len(selected_indices) < limit and any(buckets.values()):
+        for key in list(buckets.keys()):
+            if buckets[key]:
+                selected_indices.append(buckets[key].pop(0))
+                if len(selected_indices) >= limit:
+                    break
+            else:
+                buckets.pop(key, None)
+
+    out = tmp.loc[selected_indices]
+    out.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"], inplace=True)
+    # Drop helper cols
+    return out.drop(columns=[c for c in ["_chapter_num", "_ctype_ord"] if c in out.columns])
+
+
 def build_prompt_for_content(
     content_row: pd.Series,
     candidate_los: List[Tuple[str, str]],
@@ -727,7 +782,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             config.progress_path = _add_suffix_to_path(getattr(config, "progress_path", "data/processed/progress_links.jsonl"), suffix)
 
     if args.limit is not None and args.limit > 0:
-        content_df = content_df.head(args.limit).copy()
+        # Use diverse, chronologically ordered selection instead of head()
+        content_df = select_diverse_chronological_content(content_df, int(args.limit)).copy()
 
     lo_meta = build_lo_metadata(lo_df)
     # Allow CLI to override score threshold
