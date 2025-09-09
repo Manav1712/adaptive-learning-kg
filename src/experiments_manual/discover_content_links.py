@@ -21,6 +21,7 @@ This module can both prepare candidates and (optionally) score them using an LLM
 or a deterministic dry-run heuristic.
 """
 from __future__ import annotations
+import argparse
 import json
 import os
 import time

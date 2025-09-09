@@ -2,7 +2,7 @@
 Discover LO → LO Prerequisite Edges (Coach Graph)
 
 This module compares Learning Objectives (LOs) to infer prerequisite
-relationships using an LLM (with a deterministic fallback heuristic).
+relationships using an LLM.
 
 Inputs (from prepare step):
 - data/processed/lo_index.csv
@@ -14,8 +14,8 @@ Outputs:
 
 Approach:
 - Aggregate content per LO into a consolidated view (text + images)
-- Generate candidate LO→LO pairs (restrict by unit/chapter, lexical shortlist)
-- Score each candidate pair using LLM; fallback to heuristic if needed
+- Generate candidate LO→LO pairs (restrict by unit/chapter)
+- Score each candidate pair using LLM
 - Write filtered edges with columns:
   source_lo_id, target_lo_id, relation, score, rationale, modality, run_id
 """
@@ -23,12 +23,9 @@ Approach:
 import argparse
 import json
 import os
-import re
 import time
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
-import os
-import zlib
 
 # Load environment variables from .env file if present
 try:
@@ -69,9 +66,6 @@ class PrereqConfig:
     restrict_same_unit: bool = True
     restrict_same_chapter: bool = False
 
-    lexical_top_k: int = 10
-    lexical_min_overlap: int = 1
-
     model: str = "gpt-4o-mini"
     modality: str = "text_only"  # "text_only" | "multimodal"
     temperature: float = 0.0
@@ -79,8 +73,6 @@ class PrereqConfig:
     max_retries: int = 3
     score_mode: str = "score"
     score_threshold: float = 0.6
-
-    progress_path: str = "data/processed/progress_prereqs.jsonl"
 
 
 def load_config(config_path: Optional[str]) -> PrereqConfig:
@@ -109,8 +101,6 @@ def load_config(config_path: Optional[str]) -> PrereqConfig:
     pruning = data.get("pruning", {})
     cfg.restrict_same_unit = bool(pruning.get("restrict_same_unit", cfg.restrict_same_unit))
     cfg.restrict_same_chapter = bool(pruning.get("restrict_same_chapter", cfg.restrict_same_chapter))
-    cfg.lexical_top_k = int(pruning.get("lexical_top_k", cfg.lexical_top_k))
-    cfg.lexical_min_overlap = int(pruning.get("lexical_min_overlap", cfg.lexical_min_overlap))
 
     llm = data.get("llm", {})
     cfg.model = str(llm.get("model", cfg.model))
@@ -121,8 +111,6 @@ def load_config(config_path: Optional[str]) -> PrereqConfig:
     cfg.score_mode = str(llm.get("score_mode", cfg.score_mode))
     cfg.score_threshold = float(llm.get("score_threshold", cfg.score_threshold))
 
-    out_misc = data.get("progress", {})
-    cfg.progress_path = str(out_misc.get("prereqs_progress", cfg.progress_path))
 
     return cfg
 
@@ -139,23 +127,22 @@ def ensure_parent_directory(path: str) -> None:
         os.makedirs(directory, exist_ok=True)
 
 
-def _add_suffix_to_path(path: str, suffix: str) -> str:
-    base = os.path.basename(path)
-    parent = os.path.dirname(path)
-    if "." in base:
-        name, ext = base.rsplit(".", 1)
-        new_base = f"{name}{suffix}.{ext}"
-    else:
-        new_base = f"{base}{suffix}"
-    return os.path.join(parent, new_base)
+def log_prereq_progress(processed: int, total: int, edges_added: int, total_edges: int, started_at: float) -> None:
+    """
+    Log progress with simple timing information for prerequisite discovery.
+    
+    Args:
+        processed: Number of target LOs processed
+        total: Total number of target LOs
+        edges_added: Edges added in this batch
+        total_edges: Total edges so far
+        started_at: Start time timestamp
+    """
+    elapsed = max(0.0, time.time() - started_at)
+    rate = (processed / elapsed) if elapsed > 0 else 0.0
+    eta_sec = int((total - processed) / rate) if rate > 0 else 0
+    print(f"[prereq] {processed}/{total} targets | +{edges_added} edges (total {total_edges}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m", flush=True)
 
-
-TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
-
-
-def tokenize(text: str) -> List[str]:
-    """Simple alphanumeric tokenizer, lowercased."""
-    return [t.lower() for t in TOKEN_RE.findall(text or "")]
 
 
 def _chapter_to_int(val: object) -> Optional[int]:
@@ -167,13 +154,11 @@ def _chapter_to_int(val: object) -> Optional[int]:
         return None
 
 
-def select_diverse_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
+def select_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
     """
-    Select a diverse, chronologically ordered subset of target LOs when limiting.
+    Select a chronologically ordered subset of target LOs when limiting.
     - Sort by (book, unit, chapter_num, lo_id)
-    - Build round-robin buckets per (book, unit)
-    - Pick up to limit LOs in round-robin order
-
+    - Take first `limit` rows in chronological order
     """
     if limit is None or limit <= 0 or len(lo_meta) <= limit:
         return lo_meta
@@ -182,24 +167,9 @@ def select_diverse_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.Da
     tmp["_chapter_num"] = tmp.get("chapter", None).map(_chapter_to_int)
     tmp.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
 
-    # Build buckets by (book, unit)
-    buckets: Dict[Tuple[str, str], List[int]] = {}
-    for idx, r in tmp.iterrows():
-        key = (str(r.get("book") or ""), str(r.get("unit") or ""))
-        buckets.setdefault(key, []).append(idx)
-
-    selected_indices: List[int] = []
-    while len(selected_indices) < limit and any(buckets.values()):
-        for key in list(buckets.keys()):
-            if buckets[key]:
-                selected_indices.append(buckets[key].pop(0))
-                if len(selected_indices) >= limit:
-                    break
-            else:
-                buckets.pop(key, None)
-
-    out = tmp.loc[selected_indices]
-    out.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
+    # Take first `limit` rows (chronologically ordered)
+    out = tmp.head(limit)
+    # Drop helper cols
     return out.drop(columns=[c for c in ["_chapter_num"] if c in out.columns])
 
 
@@ -292,12 +262,6 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
 # ----------------------------
 
 
-def build_lo_metadata(lo_views: pd.DataFrame) -> pd.DataFrame:
-    """Adds token columns to support lexical shortlist heuristics."""
-    df = lo_views.copy()
-    df["tokens"] = df["learning_objective"].astype(str).map(tokenize)
-    df["token_set"] = df["tokens"].map(set)
-    return df
 
 
 def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> pd.DataFrame:
@@ -306,52 +270,33 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
 
     Strategy:
     - For each target LO B, consider sources A in same unit/chapter
-    - Rank A by lexical overlap with B (tokens of A ∩ tokens of B)
-    - Keep top-K per target
+    - Uses unit/chapter filtering only (lexical matching removed)
     """
     rows: List[Dict[str, str]] = []
-
-    # Index by unit/chapter for quick filtering
-    by_unit: Dict[str, List[Tuple[str, Set[str]]]] = {}
-    by_unit_chapter: Dict[Tuple[str, str], List[Tuple[str, Set[str]]]] = {}
-    for _, r in lo_meta.iterrows():
-        lo_id = str(r["lo_id"])  # type: ignore
-        unit = str(r.get("unit") or "")
-        chapter = str(r.get("chapter") or "")
-        tset: Set[str] = set(r.get("tokens") or [])
-        by_unit.setdefault(unit, []).append((lo_id, tset))
-        by_unit_chapter.setdefault((unit, chapter), []).append((lo_id, tset))
 
     for _, target in lo_meta.iterrows():
         target_id = str(target["lo_id"])  # type: ignore
         unit = str(target.get("unit") or "")
         chapter = str(target.get("chapter") or "")
-        target_tokens: Set[str] = set(target.get("tokens") or [])
 
         # Candidate pool based on structure restrictions
         if config.restrict_same_chapter:
-            pool = by_unit_chapter.get((unit, chapter), [])
+            pool = lo_meta[(lo_meta["unit"].astype(str) == unit) & (lo_meta["chapter"].astype(str) == chapter)]
         elif config.restrict_same_unit:
-            pool = by_unit.get(unit, [])
+            pool = lo_meta[lo_meta["unit"].astype(str) == unit]
         else:
-            pool = [(str(r["lo_id"]), set(r.get("tokens") or [])) for _, r in lo_meta.iterrows()]
+            pool = lo_meta
 
-        scored: List[Tuple[str, int]] = []
-        for cand_id, cand_tokens in pool:
+        for _, cand in pool.iterrows():
+            cand_id = str(cand["lo_id"])
             if cand_id == target_id:
                 continue
-            overlap = len(target_tokens.intersection(cand_tokens))
-            if overlap >= int(config.lexical_min_overlap):
-                scored.append((cand_id, overlap))
-
-        scored.sort(key=lambda x: x[1], reverse=True)
-        top = scored[: int(config.lexical_top_k)] if int(config.lexical_top_k) > 0 else scored
-        for cand_id, ov in top:
+            
             rows.append(
                 {
                     "source_lo_id": cand_id,
                     "target_lo_id": target_id,
-                    "reason": f"lexical_overlap={ov}",
+                    "reason": "unit" if config.restrict_same_unit else "chapter",
                 }
             )
 
@@ -363,18 +308,6 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
 # ----------------------------
 
 
-def heuristic_prereq_score(source_text: str, target_text: str) -> float:
-    """
-    Directional token-overlap heuristic: how much of the target appears in the source.
-
-    score = |tokens(source) ∩ tokens(target)| / max(1, |tokens(target)|)
-    """
-    stoks = set(tokenize(source_text))
-    ttoks = set(tokenize(target_text))
-    if not stoks or not ttoks:
-        return 0.0
-    overlap = len(stoks.intersection(ttoks))
-    return overlap / float(max(1, len(ttoks)))
 
 
 def build_prompt_for_prereq(
@@ -444,10 +377,9 @@ def score_prereq_candidates(
     candidates_df: pd.DataFrame,
     lo_views: pd.DataFrame,
     config: PrereqConfig,
-    dry_run: bool = False,
 ) -> pd.DataFrame:
     """
-    Scores candidate LO→LO pairs using LLM or heuristic fallback.
+    Scores candidate LO→LO pairs using LLM.
     """
     # Prepare lookup by lo_id
     lo_lookup: Dict[str, Dict[str, object]] = {
@@ -467,13 +399,6 @@ def score_prereq_candidates(
     total_groups = int(getattr(grouped, "ngroups", 0) or 0)
     processed_groups = 0
     started_at = time.time()
-    progress_path = getattr(config, "progress_path", "data/processed/progress_prereqs.jsonl")
-    try:
-        ensure_parent_directory(progress_path)
-        with open(progress_path, "w", encoding="utf-8") as _f:
-            pass
-    except Exception:
-        pass
 
     for target_id, group in grouped:
         processed_groups += 1
@@ -485,106 +410,10 @@ def score_prereq_candidates(
 
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
 
-        if dry_run:
-            for src_id, _reason in candidate_list:
-                s_text = lo_lookup.get(src_id, {}).get("aggregate_text", "")
-                t_text = lo_lookup.get(str(target_id), {}).get("aggregate_text", "")
-                score = heuristic_prereq_score(str(s_text), str(t_text))
-                keep = score >= float(config.score_threshold)
-                if keep:
-                    rows.append(
-                        {
-                            "source_lo_id": src_id,
-                            "target_lo_id": str(target_id),
-                            "relation": "prerequisite",
-                            "score": float(score),
-                            "rationale": "heuristic token overlap (prereq)",
-                            "modality": config.modality,
-                            "run_id": config.model,
-                        }
-                    )
-            # progress
-            try:
-                len_after = len(rows)
-                kept = max(0, len_after - len_before)
-                elapsed = max(0.0, time.time() - started_at)
-                rate = (processed_groups / elapsed) if elapsed > 0 else 0.0
-                remaining = max(0, total_groups - processed_groups)
-                eta_sec = int(remaining / rate) if rate > 0 else 0
-                print(
-                    f"[prereq] {processed_groups}/{total_groups} targets | +{kept} edges (total {len_after}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m",
-                    flush=True,
-                )
-                with open(progress_path, "a", encoding="utf-8") as f:
-                    f.write(
-                        json.dumps(
-                            {
-                                "target_lo_id": str(target_id),
-                                "num_candidates": int(len(group)),
-                                "num_kept": int(kept),
-                                "edges_total": int(len_after),
-                                "processed": int(processed_groups),
-                                "total": int(total_groups),
-                                "elapsed_sec": round(elapsed, 1),
-                                "eta_sec": int(eta_sec),
-                            }
-                        )
-                        + "\n"
-                    )
-            except Exception:
-                pass
-            continue
-
         # Real LLM integration
         use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
         if not use_llm:
-            # fallback to heuristic if no API key
-            for src_id, _reason in candidate_list:
-                s_text = lo_lookup.get(src_id, {}).get("aggregate_text", "")
-                t_text = lo_lookup.get(str(target_id), {}).get("aggregate_text", "")
-                score = heuristic_prereq_score(str(s_text), str(t_text))
-                if score >= float(config.score_threshold):
-                    rows.append(
-                        {
-                            "source_lo_id": src_id,
-                            "target_lo_id": str(target_id),
-                            "relation": "prerequisite",
-                            "score": float(score),
-                            "rationale": "heuristic token overlap (no OPENAI_API_KEY)",
-                            "modality": config.modality,
-                            "run_id": config.model,
-                        }
-                    )
-            # progress
-            try:
-                len_after = len(rows)
-                kept = max(0, len_after - len_before)
-                elapsed = max(0.0, time.time() - started_at)
-                rate = (processed_groups / elapsed) if elapsed > 0 else 0.0
-                remaining = max(0, total_groups - processed_groups)
-                eta_sec = int(remaining / rate) if rate > 0 else 0
-                print(
-                    f"[prereq] {processed_groups}/{total_groups} targets | +{kept} edges (total {len_after}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m",
-                    flush=True,
-                )
-                with open(progress_path, "a", encoding="utf-8") as f:
-                    f.write(
-                        json.dumps(
-                            {
-                                "target_lo_id": str(target_id),
-                                "num_candidates": int(len(group)),
-                                "num_kept": int(kept),
-                                "edges_total": int(len_after),
-                                "processed": int(processed_groups),
-                                "total": int(total_groups),
-                                "elapsed_sec": round(elapsed, 1),
-                                "eta_sec": int(eta_sec),
-                            }
-                        )
-                        + "\n"
-                    )
-            except Exception:
-                pass
+            # Skip if no LLM available
             continue
 
         # LLM scoring
@@ -653,55 +482,14 @@ def score_prereq_candidates(
                     last_err = e
                     time.sleep(2 ** attempt)
 
+            # If all retries failed, skip this chunk
             if last_err is not None and not results:
-                # Heuristic fallback for this chunk
-                for src_id, _reason in chunk:
-                    s_text = lo_lookup.get(src_id, {}).get("aggregate_text", "")
-                    t_text = lo_lookup.get(str(target_id), {}).get("aggregate_text", "")
-                    score = heuristic_prereq_score(str(s_text), str(t_text))
-                    if score >= float(config.score_threshold):
-                        rows.append(
-                            {
-                                "source_lo_id": src_id,
-                                "target_lo_id": str(target_id),
-                                "relation": "prerequisite",
-                                "score": float(score),
-                                "rationale": f"heuristic fallback after error: {type(last_err).__name__}",
-                                "modality": config.modality,
-                                "run_id": config.model,
-                            }
-                        )
+                continue
 
-        # progress
-        try:
-            len_after = len(rows)
-            kept = max(0, len_after - len_before)
-            elapsed = max(0.0, time.time() - started_at)
-            rate = (processed_groups / elapsed) if elapsed > 0 else 0.0
-            remaining = max(0, total_groups - processed_groups)
-            eta_sec = int(remaining / rate) if rate > 0 else 0
-            print(
-                f"[prereq] {processed_groups}/{total_groups} targets | +{kept} edges (total {len_after}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m",
-                flush=True,
-            )
-            with open(progress_path, "a", encoding="utf-8") as f:
-                f.write(
-                    json.dumps(
-                        {
-                            "target_lo_id": str(target_id),
-                            "num_candidates": int(len(group)),
-                            "num_kept": int(kept),
-                            "edges_total": int(len_after),
-                            "processed": int(processed_groups),
-                            "total": int(total_groups),
-                            "elapsed_sec": round(elapsed, 1),
-                            "eta_sec": int(eta_sec),
-                        }
-                    )
-                    + "\n"
-                )
-        except Exception:
-            pass
+        # Progress logging
+        len_after = len(rows)
+        kept = max(0, len_after - len_before)
+        log_prereq_progress(processed_groups, total_groups, kept, len_after, started_at)
 
     return pd.DataFrame(rows)
 
@@ -723,12 +511,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     parser.add_argument("--config", type=str, default=None, help="Path to config.yaml (optional)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of target LOs for a smoke run")
     parser.add_argument("--mode", type=str, default="both", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
-    parser.add_argument("--dry-run", action="store_true", help="Use heuristic scoring instead of LLM")
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
-    # Sharding flags for parallel processing (shard by target_lo_id)
-    parser.add_argument("--num-shards", type=int, default=1, help="Number of parallel shards")
-    parser.add_argument("--shard-index", type=int, default=0, help="This shard index (0-based)")
-    parser.add_argument("--no-suffix-outputs", action="store_true", help="Do not suffix output/progress paths with shard info")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     config = load_config(args.config)
@@ -742,35 +525,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             pass
 
     lo_views = build_lo_views(lo_df, content_df)
-    lo_meta = build_lo_metadata(lo_views)
+    lo_meta = lo_views.copy()
 
-    # Apply sharding on target LO ids (deterministic by CRC32)
-    import zlib as _zlib
-    num_shards = max(1, int(args.num_shards))
-    shard_index = int(args.shard_index)
-    if shard_index < 0 or shard_index >= num_shards:
-        raise SystemExit(f"Invalid --shard-index {shard_index}; must be in [0,{num_shards-1}]")
-    if num_shards > 1:
-        def _belongs_to_shard(lo_id: str) -> bool:
-            try:
-                return (_zlib.crc32(str(lo_id).encode("utf-8")) % num_shards) == shard_index
-            except Exception:
-                return False
-        before = len(lo_meta)
-        lo_meta = lo_meta[lo_meta["lo_id"].astype(str).map(_belongs_to_shard)].copy()
-        after = len(lo_meta)
-        print(f"Shard {shard_index}/{num_shards}: target LOs {after}/{before}")
-
-        # Auto-suffix outputs/progress unless disabled
-        if not args.no_suffix_outputs:
-            suffix = f".shard{shard_index}-of-{num_shards}"
-            config.output_candidates = _add_suffix_to_path(config.output_candidates, suffix)
-            config.output_edges = _add_suffix_to_path(config.output_edges, suffix)
-            config.progress_path = _add_suffix_to_path(getattr(config, "progress_path", "data/processed/progress_prereqs.jsonl"), suffix)
 
     if args.limit is not None and args.limit > 0:
-        # Limit target LOs using diverse, chronological selection
-        lo_meta = select_diverse_chronological_los(lo_meta, int(args.limit)).copy()
+        # Limit target LOs using chronological selection
+        lo_meta = select_chronological_los(lo_meta, int(args.limit)).copy()
 
     if args.mode in {"candidates", "both"}:
         out_df = write_candidates(lo_meta, config)
@@ -783,16 +543,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         else:
             out_df = pd.read_csv(cand_path)
 
-        # Initialize progress log
-        try:
-            ensure_parent_directory(config.progress_path)
-            if os.path.exists(config.progress_path):
-                os.remove(config.progress_path)
-            print(f"Progress log: {config.progress_path}")
-        except Exception:
-            pass
 
-        edges_df = score_prereq_candidates(out_df, lo_views, config, dry_run=args.dry_run)
+        edges_df = score_prereq_candidates(out_df, lo_views, config)
         ensure_parent_directory(config.output_edges)
         edges_df.to_csv(config.output_edges, index=False)
         print(f"Wrote {config.output_edges} ({len(edges_df)} rows)")
