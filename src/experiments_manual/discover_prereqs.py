@@ -327,8 +327,20 @@ def build_prompt_for_prereq(
 
     system = (
         "You are an expert math curriculum designer. Given a target Learning Objective (LO) and a list of "
-        "candidate source LOs, decide if each source LO is a prerequisite for the target. "
-        "Return a JSON object with results for each candidate including a confidence score in [0,1] and brief rationale."
+        "candidate source LOs, decide if each source LO is a prerequisite for the target.\n\n"
+        "PREREQUISITE CRITERIA:\n"
+        "- Source LO teaches concepts/skills needed before the target LO\n"
+        "- Source LO provides foundational knowledge for the target LO\n"
+        "- Target LO builds upon or extends concepts from the source LO\n\n"
+        "SCORING:\n"
+        "- score ∈ [-1, 1]; positive means source IS a prerequisite, negative means it is NOT\n"
+        "- confidence ∈ [0, 1]; your certainty in the assigned score\n\n"
+        "EXAMPLES:\n"
+        "✓ Basic algebra → Advanced calculus (score: 0.9, confidence: 0.95)\n"
+        "✓ Limits → Derivatives (score: 0.8, confidence: 0.9)\n"
+        "✗ Advanced integration → Basic differentiation (score: -0.9, confidence: 0.85)\n"
+        "✗ Statistics → Pure calculus concepts (score: -0.7, confidence: 0.8)\n\n"
+        "Output JSON: {results:[{lo_id, score, confidence, rationale}]}"
     )
 
     user_blocks: List[Dict[str, object]] = []
@@ -439,8 +451,8 @@ def score_prereq_candidates(
 
             instruction = (
                 "Respond ONLY with JSON in this schema: {\n"
-                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"rationale\": string } ]\n"
-                "} where score in [0,1]."
+                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
+                "} where score in [-1,1] and confidence in [0,1]."
             )
             content_blocks.append({"type": "text", "text": instruction})
 
@@ -464,6 +476,11 @@ def score_prereq_candidates(
                     for item in results:
                         src_id = str(item.get("lo_id", ""))
                         score = float(item.get("score", 0.0))
+                        confidence = item.get("confidence", None)
+                        try:
+                            confidence = float(confidence) if confidence is not None else None
+                        except Exception:
+                            confidence = None
                         rationale = str(item.get("rationale", ""))
                         if score >= float(config.score_threshold):
                             rows.append(
@@ -472,6 +489,7 @@ def score_prereq_candidates(
                                     "target_lo_id": str(target_id),
                                     "relation": "prerequisite",
                                     "score": float(score),
+                                    "confidence": confidence,
                                     "rationale": rationale or "LLM decision",
                                     "modality": config.modality,
                                     "run_id": config.model,
