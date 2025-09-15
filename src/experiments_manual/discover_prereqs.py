@@ -72,7 +72,8 @@ class PrereqConfig:
     max_targets_per_call: int = 8  # number of source LOs per API call
     max_retries: int = 3
     score_mode: str = "score"
-    score_threshold: float = 0.6
+    score_threshold: float = 0.5
+    min_confidence: float = 0.0
 
 
 def load_config(config_path: Optional[str]) -> PrereqConfig:
@@ -110,6 +111,7 @@ def load_config(config_path: Optional[str]) -> PrereqConfig:
     cfg.max_retries = int(llm.get("max_retries", cfg.max_retries))
     cfg.score_mode = str(llm.get("score_mode", cfg.score_mode))
     cfg.score_threshold = float(llm.get("score_threshold", cfg.score_threshold))
+    cfg.min_confidence = float(llm.get("min_confidence", getattr(cfg, "min_confidence", 0.7)))
 
 
     return cfg
@@ -262,6 +264,25 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
 # ----------------------------
 
 
+def create_chronological_key(row: pd.Series) -> Tuple[str, str, int, str]:
+    """
+    Creates a chronological ordering key for LOs.
+    Returns (book, unit, chapter_num, lo_id) for sorting.
+    """
+    book = str(row.get("book") or "")
+    unit = str(row.get("unit") or "")
+    chapter = str(row.get("chapter") or "")
+    lo_id = str(row.get("lo_id") or "")
+    
+    # Extract numeric chapter for proper sorting
+    try:
+        import re
+        chapter_match = re.search(r'(\d+)', chapter)
+        chapter_num = int(chapter_match.group(1)) if chapter_match else 999
+    except:
+        chapter_num = 999
+    
+    return (book, unit, chapter_num, lo_id)
 
 
 def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> pd.DataFrame:
@@ -270,12 +291,18 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
 
     Strategy:
     - For each target LO B, consider sources A in same unit/chapter
+    - Only allow chronologically forward pairs (source precedes target)
     - Uses unit/chapter filtering only (lexical matching removed)
     """
     rows: List[Dict[str, str]] = []
 
+    # Add chronological keys for sorting
+    lo_meta = lo_meta.copy()
+    lo_meta['_chrono_key'] = lo_meta.apply(create_chronological_key, axis=1)
+
     for _, target in lo_meta.iterrows():
         target_id = str(target["lo_id"])  # type: ignore
+        target_key = target['_chrono_key']
         unit = str(target.get("unit") or "")
         chapter = str(target.get("chapter") or "")
 
@@ -289,14 +316,25 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
 
         for _, cand in pool.iterrows():
             cand_id = str(cand["lo_id"])
+            cand_key = cand['_chrono_key']
+            
             if cand_id == target_id:
+                continue
+            
+            # CHRONOLOGICAL ENFORCEMENT: Only allow forward direction
+            if cand_key >= target_key:  # source must precede target
                 continue
             
             rows.append(
                 {
                     "source_lo_id": cand_id,
                     "target_lo_id": target_id,
-                    "reason": "unit" if config.restrict_same_unit else "chapter",
+                    # Tag the structural restriction used for this candidate
+                    "reason": (
+                        "chapter" if config.restrict_same_chapter else (
+                            "unit" if config.restrict_same_unit else "all"
+                        )
+                    ),
                 }
             )
 
@@ -329,17 +367,21 @@ def build_prompt_for_prereq(
         "You are an expert math curriculum designer. Given a target Learning Objective (LO) and a list of "
         "candidate source LOs, decide if each source LO is a prerequisite for the target.\n\n"
         "PREREQUISITE CRITERIA:\n"
-        "- Source LO teaches concepts/skills needed before the target LO\n"
+        "- Source LO teaches concepts/skills needed BEFORE the target LO\n"
         "- Source LO provides foundational knowledge for the target LO\n"
-        "- Target LO builds upon or extends concepts from the source LO\n\n"
+        "- Target LO builds upon or extends concepts from the source LO\n"
+        "- The prerequisite MUST be earlier in the curriculum order than the target\n\n"
+        "DIRECTION CONSTRAINT:\n"
+        "- Only output prerequisites from earlier to later in the curriculum.\n"
+        "- If the source is the same position or later than the target, return a NEGATIVE score.\n\n"
         "SCORING:\n"
         "- score ∈ [-1, 1]; positive means source IS a prerequisite, negative means it is NOT\n"
         "- confidence ∈ [0, 1]; your certainty in the assigned score\n\n"
         "EXAMPLES:\n"
-        "✓ Basic algebra → Advanced calculus (score: 0.9, confidence: 0.95)\n"
-        "✓ Limits → Derivatives (score: 0.8, confidence: 0.9)\n"
-        "✗ Advanced integration → Basic differentiation (score: -0.9, confidence: 0.85)\n"
-        "✗ Statistics → Pure calculus concepts (score: -0.7, confidence: 0.8)\n\n"
+        "✓ Function notation → Composite functions (score: 0.8, confidence: 0.85)\n"
+        "✓ Polynomial basics → Polynomial derivatives (score: 0.85, confidence: 0.8)\n"
+        "✗ Later chapter topic → Earlier chapter topic (score: -0.9, confidence: 0.95)\n"
+        "✗ Advanced integration → Basic differentiation (score: -0.9, confidence: 0.85)\n\n"
         "Output JSON: {results:[{lo_id, score, confidence, rationale}]}"
     )
 
@@ -383,6 +425,57 @@ def build_prompt_for_prereq(
 # ----------------------------
 # Scoring
 # ----------------------------
+def _tokenize(text: str) -> Set[str]:
+    """Simple tokenizer returning a set of lowercased word tokens."""
+    try:
+        import re
+        tokens = re.findall(r"[A-Za-z0-9_]+", text.lower())
+        return set(tokens)
+    except Exception:
+        return set()
+
+
+def _jaccard_similarity(a: str, b: str) -> float:
+    """Compute Jaccard similarity between two texts (token sets)."""
+    ta, tb = _tokenize(a), _tokenize(b)
+    if not ta or not tb:
+        return 0.0
+    inter = len(ta & tb)
+    union = len(ta | tb)
+    return float(inter) / float(union) if union else 0.0
+
+
+def _heuristic_score_candidates(
+    target_series: pd.Series,
+    candidate_list: List[Tuple[str, str]],
+    lo_lookup: Dict[str, Dict[str, object]],
+    config: PrereqConfig,
+) -> List[Dict[str, object]]:
+    """
+    Fallback scorer when LLM is unavailable or returns no results.
+    Scores using Jaccard token overlap between source and target aggregate_text.
+    """
+    results: List[Dict[str, object]] = []
+    target_text = str(target_series.get("aggregate_text") or target_series.get("learning_objective") or "")
+    for src_id, _reason in candidate_list:
+        src = lo_lookup.get(src_id, {})
+        src_text = str(src.get("aggregate_text") or src.get("learning_objective") or "")
+        sim = _jaccard_similarity(src_text, target_text)
+        # Use similarity directly in [0,1] as score
+        score = float(sim)
+        # Confidence heuristic: bias upward with similarity
+        confidence = max(0.0, min(1.0, float(sim) + 0.3))
+        if score >= float(getattr(config, "score_threshold", 0.0)):
+            results.append(
+                {
+                    "lo_id": src_id,
+                    "score": score,
+                    "confidence": confidence,
+                    "rationale": "heuristic_jaccard_overlap",
+                }
+            )
+    return results
+
 
 
 def score_prereq_candidates(
@@ -400,6 +493,9 @@ def score_prereq_candidates(
             "aggregate_text": str(r.get("aggregate_text") or ""),
             "unit": str(r.get("unit") or ""),
             "chapter": str(r.get("chapter") or ""),
+            # Include fields required by create_chronological_key
+            "book": str(r.get("book") or ""),
+            "lo_id": str(r.get("lo_id") or ""),
             "image_urls": list(r.get("image_urls") or []),
         }
         for _, r in lo_views.iterrows()
@@ -422,94 +518,136 @@ def score_prereq_candidates(
 
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
 
-        # Real LLM integration
+        # Real LLM integration or heuristic fallback
         use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
-        if not use_llm:
-            # Skip if no LLM available
-            continue
 
         # LLM scoring
         def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
             return [items[i : i + n] for i in range(0, len(items), n)]
 
-        client = OpenAI()
+        client = OpenAI() if use_llm else None
 
         for chunk in chunk_list(candidate_list, max(1, int(config.max_targets_per_call))):
-            prompt = build_prompt_for_prereq(target_series, chunk, lo_lookup, config)
-            system_msg = {"role": "system", "content": prompt["system"]}
-            content_blocks: List[Dict[str, object]] = []
-            for block in prompt["user"]:
-                if block.get("type") == "text":
-                    content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
-                elif block.get("type") == "image_url":
-                    url = block.get("image_url")
-                    if isinstance(url, str):
-                        content_blocks.append({"type": "image_url", "image_url": {"url": url}})
-                    elif isinstance(url, dict):
-                        content_blocks.append({"type": "image_url", "image_url": url})
-            user_msg = {"role": "user", "content": content_blocks}
-
-            instruction = (
-                "Respond ONLY with JSON in this schema: {\n"
-                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
-                "} where score in [-1,1] and confidence in [0,1]."
-            )
-            content_blocks.append({"type": "text", "text": instruction})
-
-            last_err: Optional[Exception] = None
             results: List[Dict[str, object]] = []
-            for attempt in range(int(config.max_retries) + 1):
-                try:
-                    resp = client.chat.completions.create(
-                        model=config.model,
-                        temperature=float(config.temperature),
-                        messages=[system_msg, user_msg],
-                    )
-                    text = resp.choices[0].message.content if resp.choices else "{}"
-                    try:
-                        data = json.loads(text)
-                    except Exception:
-                        start = text.find("{")
-                        end = text.rfind("}")
-                        data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
-                    results = data.get("results", []) if isinstance(data, dict) else []
-                    for item in results:
-                        src_id = str(item.get("lo_id", ""))
-                        score = float(item.get("score", 0.0))
-                        confidence = item.get("confidence", None)
-                        try:
-                            confidence = float(confidence) if confidence is not None else None
-                        except Exception:
-                            confidence = None
-                        rationale = str(item.get("rationale", ""))
-                        if score >= float(config.score_threshold):
-                            rows.append(
-                                {
-                                    "source_lo_id": src_id,
-                                    "target_lo_id": str(target_id),
-                                    "relation": "prerequisite",
-                                    "score": float(score),
-                                    "confidence": confidence,
-                                    "rationale": rationale or "LLM decision",
-                                    "modality": config.modality,
-                                    "run_id": config.model,
-                                }
-                            )
-                    break  # success
-                except Exception as e:  # rate limits, network, etc.
-                    last_err = e
-                    time.sleep(2 ** attempt)
+            last_err: Optional[Exception] = None
 
-            # If all retries failed, skip this chunk
-            if last_err is not None and not results:
-                continue
+            if use_llm and client is not None:
+                prompt = build_prompt_for_prereq(target_series, chunk, lo_lookup, config)
+                system_msg = {"role": "system", "content": prompt["system"]}
+                content_blocks: List[Dict[str, object]] = []
+                for block in prompt["user"]:
+                    if block.get("type") == "text":
+                        content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
+                    elif block.get("type") == "image_url":
+                        url = block.get("image_url")
+                        if isinstance(url, str):
+                            content_blocks.append({"type": "image_url", "image_url": {"url": url}})
+                        elif isinstance(url, dict):
+                            content_blocks.append({"type": "image_url", "image_url": url})
+                user_msg = {"role": "user", "content": content_blocks}
+
+                instruction = (
+                    "Respond ONLY with JSON in this schema: {\n"
+                    "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
+                    "} where score in [-1,1] and confidence in [0,1]."
+                )
+                content_blocks.append({"type": "text", "text": instruction})
+
+                for attempt in range(int(config.max_retries) + 1):
+                    try:
+                        resp = client.chat.completions.create(
+                            model=config.model,
+                            temperature=float(config.temperature),
+                            messages=[system_msg, user_msg],
+                        )
+                        text = resp.choices[0].message.content if resp.choices else "{}"
+                        try:
+                            data = json.loads(text)
+                        except Exception:
+                            start = text.find("{")
+                            end = text.rfind("}")
+                            data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
+                        results = data.get("results", []) if isinstance(data, dict) else []
+                        break
+                    except Exception as e:  # rate limits, network, etc.
+                        last_err = e
+                        time.sleep(2 ** attempt)
+
+            # Heuristic fallback when LLM is disabled or returned no results
+            if not results:
+                results = _heuristic_score_candidates(target_series, chunk, lo_lookup, config)
+
+            # Materialize results into edges after guards
+            for item in results:
+                src_id = str(item.get("lo_id", ""))
+                score = float(item.get("score", 0.0))
+                confidence = item.get("confidence", None)
+                try:
+                    confidence = float(confidence) if confidence is not None else None
+                except Exception:
+                    confidence = None
+                rationale = str(item.get("rationale", ""))
+
+                # POST-SCORE GUARD: Ensure chronological direction
+                src_row = lo_lookup.get(src_id, {})
+                target_row_dict = lo_lookup.get(str(target_id), {})
+                if src_row and target_row_dict:
+                    src_key = create_chronological_key(pd.Series(src_row))
+                    target_key = create_chronological_key(pd.Series(target_row_dict))
+                    if src_key >= target_key:
+                        continue
+
+                # Confidence gate
+                if config.min_confidence is not None and confidence is not None:
+                    if float(confidence) < float(config.min_confidence):
+                        continue
+
+                if score >= float(config.score_threshold):
+                    rows.append(
+                        {
+                            "source_lo_id": src_id,
+                            "target_lo_id": str(target_id),
+                            "relation": "prerequisite",
+                            "score": float(score),
+                            "confidence": confidence,
+                            "rationale": rationale or ("LLM decision" if use_llm else "heuristic"),
+                            "modality": config.modality,
+                            "run_id": config.model,
+                        }
+                    )
 
         # Progress logging
         len_after = len(rows)
         kept = max(0, len_after - len_before)
         log_prereq_progress(processed_groups, total_groups, kept, len_after, started_at)
 
-    return pd.DataFrame(rows)
+    # Remove reciprocals, keeping only forward (chronological) direction as a safety net
+    df = pd.DataFrame(rows)
+    if not df.empty:
+        # Attach chronological keys for sorting
+        lo_key_map: Dict[str, Tuple[str, str, int, str]] = {}
+        for lo_id, rec in lo_lookup.items():
+            lo_key_map[str(lo_id)] = create_chronological_key(pd.Series(rec))
+
+        def is_forward(a: str, b: str) -> bool:
+            return lo_key_map.get(a, ("", "", 0, "")) < lo_key_map.get(b, ("", "", 0, ""))
+
+        # Identify reciprocal pairs
+        pair_set: Set[Tuple[str, str]] = set(zip(df["source_lo_id"].astype(str), df["target_lo_id"].astype(str)))
+        to_drop: Set[Tuple[str, str]] = set()
+        for a, b in list(pair_set):
+            if (b, a) in pair_set:
+                # keep only forward chronological edge
+                if is_forward(a, b):
+                    to_drop.add((b, a))
+                else:
+                    to_drop.add((a, b))
+
+        if to_drop:
+            mask = df.apply(lambda r: (str(r["source_lo_id"]), str(r["target_lo_id"])) not in to_drop, axis=1)
+            df = df[mask].reset_index(drop=True)
+
+    return df
 
 
 # ----------------------------

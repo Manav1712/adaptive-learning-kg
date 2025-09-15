@@ -1,132 +1,60 @@
-# Adaptive Learning KG – Evaluation Report (Multimodal Pipeline)
+## Adaptive Learning KG – Evaluation Report (Multimodal Pipeline)
 
-This report documents the evaluation of the manual experiments pipeline that discovers Content→LO links and LO→LO prerequisites using LLM scoring with multimodal prompts. It covers methodology, quantitative results, interpretation, and next steps.
+This report summarizes the latest full-graph evaluation for the multimodal manual pipeline after recent threshold and scoring updates.
 
-## Scope and Inputs
-- **Pipeline**: `src/experiments_manual/prepare_lo_view.py`, `discover_content_links.py`, `discover_prereqs.py`, `evaluate_outputs.py`, `build_and_visualize.py`
-- **Model for scoring**: `gpt-4o-mini`
-- **Modality**: `multimodal` (text + image URLs)
+### Scope and Inputs
+- **Pipeline**: `prepare_lo_view.py`, `discover_content_links.py`, `discover_prereqs.py`, `evaluate_outputs.py`, `build_and_visualize.py`
+- **Model**: `gpt-4o-mini`
+- **Modality**: multimodal (text + image URLs)
 - **Data artifacts**:
   - `data/processed/lo_index.csv` (138 LOs)
   - `data/processed/content_items.csv` (270 content items)
-  - `data/processed/edges_content.csv` (688 content→LO edges)
-  - `data/processed/edges_prereqs.csv` (524 LO→LO prerequisite edges)
+  - `data/processed/edges_content.csv` (823 content→LO edges)
+  - `data/processed/edges_prereqs.csv` (290 LO→LO prerequisite edges)
 
-## Methodology
-- **Data preparation**: `prepare_lo_view.py` normalizes LOs and content into structured CSVs with chronological ordering and stable IDs
+### Methodology (Brief)
+- **Preparation**: `prepare_lo_view.py` consolidates LOs and content, attaches curriculum metadata (book/unit/chapter), and generates chronological keys.
 - **Candidate generation**:
-  - Content→LO: Unit/chapter-based filtering selects candidate LOs per content item
-  - LO→LO: Candidate prerequisites constrained by curriculum grouping (unit/chapter)
-- **LLM scoring (multimodal)**:
-  - Prompts include target item and batched candidates with image URLs
-  - Model: `gpt-4o-mini` with signed scoring `[-1, 1]`, confidence `[0, 1]`, and few-shot examples
-  - Score threshold: 0.6 (only positive scores ≥0.6 are kept)
-  - Sequential processing with progress logging
-- **Outputs**:
-  - Content links: `explained_by`, `exemplified_by`, `practiced_by` relations
-  - Prerequisites: `prerequisite` relation with signed scores
-- **Evaluation**: Referential integrity, coverage, curriculum consistency, structural metrics, and parsimony
+  - Content→LO: constrained by curriculum groups for candidate selection.
+  - LO→LO: prerequisites constrained to same unit/chapter; chronological guard prevents future→past edges.
+- **LLM scoring**: batched candidates with text and image URLs; score ∈ [0,1], confidence ∈ [0,1]; retries with simple backoff.
+- **Thresholding (discovery-time)**:
+  - Prereqs: `score_threshold = 0.5`, `min_confidence = 0.0`.
+  - Content links: `score_threshold = 0.3`.
+- **Evaluation (reporting-time)**: metrics computed with an evaluation threshold of `0.6` for "kept" counts only; files retain full scores.
 
-## Current Results
+### Results – Content→LO Edges (823 total)
+- **Score quality**: min 0.300, p25 0.700, p50 0.900, p75 0.900, max 1.000, mean 0.790
+- **Coverage**: 98.1% content coverage (265/270 content items linked)
+- **Relations**: `explained_by` 405, `exemplified_by` 228, `practiced_by` 190
+- **Kept at eval ≥0.6**: 691
+- **Integrity**: no missing source LOs or content
+- **Curriculum**: intra-unit 0.000, intra-chapter 0.000 (links are cross-curriculum)
+- **Parsimony**: duplicates 0; LO out-degree p95 = 15.0
 
-### Content→LO Edges (688 total)
-- **Score Quality**: 
-  - Min: 0.600, Max: 1.000, Mean: 0.852
-  - P25: 0.800, P50: 0.900, P75: 0.900
-  - 100% kept (all scores ≥ 0.6 threshold)
-- **Coverage**: 
-  - 96.3% content coverage (260/270 content items linked)
-  - 137 unique source LOs, 260 unique target content items
-- **Relations Distribution**:
-  - `explained_by`: 320 edges (46.5%)
-  - `exemplified_by`: 206 edges (29.9%)
-  - `practiced_by`: 162 edges (23.6%)
-- **Integrity**: Perfect - no missing source LOs or content references
-- **Curriculum**: 0% intra-unit, 0% intra-chapter (cross-curriculum linking)
-- **Parsimony**: No duplicates, LO out-degree P95 = 13.0
+### Results – LO→LO Prerequisites (290 total)
+- **Score quality**: min 0.400, p25 0.800, p50 0.850, p75 0.900, max 0.950, mean 0.835
+- **Incoming coverage**: 76.1% of LOs have at least one prerequisite (105/138)
+- **Structure**: DAG = True, cycles = 0, longest path = 8
+- **Curriculum alignment**: intra-unit 1.000, intra-chapter 1.000
+- **Kept at eval ≥0.6**: 287
+- **Parsimony**: duplicates 0, redundancy 0.610, out-degree p95 6.0, in-degree p95 6.0
 
-**Top Quality Examples**:
-- `1870 → 1870_example_2` (exemplified_by, score=1.0): "Content explicitly teaches symmetry in functions by determining if they are even, odd, or neither"
-- `976 → 976_concept_1` (explained_by, score=1.0): "Content specifically focused on solving equations involving a single trigonometric function"
-- `1870 → 1870_try_it_1` (practiced_by, score=1.0): "Content explicitly addresses symmetry of functions by evaluating whether they are even or odd"
+### Interpretation
+- **Strengths**
+  - High scoring quality across both edge types with clear rationales
+  - Strong content coverage (98%) and solid LO coverage (76% incoming)
+  - Prerequisite graph is acyclic and well-structured (DAG, longest path 8)
+  - Semantically rich content relations with balanced distribution
+- **Areas to improve**
+  - Prereq redundancy (0.61) suggests benefit from transitive reduction
+  - Optional: tune curriculum preferences for content links if more locality is desired
 
-### LO→LO Prerequisite Edges (524 total)
-- **Score Quality**:
-  - Min: 0.600, Max: 1.000, Mean: 0.789
-  - P25: 0.700, P50: 0.800, P75: 0.900
-  - 100% kept (all scores ≥ 0.6 threshold)
-- **Coverage**: 
-  - 99.3% incoming coverage (137/138 LOs have prerequisites)
-  - 132 unique source LOs, 137 unique target LOs
-- **Structure**: 
-  - **⚠️ CRITICAL**: Not a DAG - contains 1000 cycles
-  - Reciprocal pairs: High number of bidirectional dependencies
-  - Longest path: Cannot be computed due to cycles
-- **Curriculum**: 100% intra-unit, 100% intra-chapter (all edges within same curriculum groups)
-- **Parsimony**: 
-  - No duplicates
-  - **High redundancy**: 96.6% (most edges inferable via 2-hop paths)
-  - Out-degree P95 = 8.0, In-degree P95 = 8.0
-
-**Top Quality Examples**:
-- `1056 → 1053` (score=1.0): "Writing complex numbers in polar form is directly related to the target LO"
-- `1041 → 1040` (score=1.0): "Solving applied problems using Law of Cosines builds upon understanding for target LO"
-- `1237 → 1235` (score=1.0): "Create a Function by Composition directly aligns with composing functions"
-
-## Interpretation
-
-### Strengths
-- **High Coverage**: 96.3% content linking, 99.3% LO prerequisite coverage
-- **Quality Scoring**: Mean scores of 0.852 (content) and 0.789 (prereqs) indicate good LLM confidence
-- **Perfect Integrity**: No missing references or duplicates
-- **Diverse Relations**: Content links properly categorized into explained/exemplified/practiced
-- **Bounded Degrees**: Reasonable out-degree distribution (P95 = 13 max)
-
-### Critical Issues
-1. **Cyclic Prerequisites**: 1000 cycles violate prerequisite logic - students cannot have circular learning dependencies
-2. **High Redundancy**: 96.6% of prerequisite edges are redundant (inferable via 2-hop paths)
-3. **Cross-Curriculum Content Links**: 0% intra-unit/chapter suggests content linking ignores curriculum structure
-4. **Reciprocal Dependencies**: Many bidirectional prerequisite relationships
-
-### Moderate Concerns
-- **Score Distribution**: Content scores cluster at high values (P75=0.9) - may indicate overconfident LLM outputs
-- **Curriculum Alignment**: Content links don't respect unit/chapter boundaries
-
-## Recommendations
-
-### Immediate (High Priority)
-1. **Break Prerequisite Cycles**:
-   - Implement cycle detection and removal algorithm
-   - Enforce DAG structure by removing minimal edge set
-   - Consider temporal/curriculum ordering constraints
-
-2. **Apply Transitive Reduction**:
-   - Remove ~96% redundant prerequisite edges
-   - Keep only direct dependencies, remove inferable 2-hop paths
-   - Maintain learning progression semantics
-
-3. **Fix Reciprocal Dependencies**:
-   - Remove bidirectional prerequisite relationships
-   - Enforce unidirectional learning progression
-
-### Medium Priority
-4. **Improve Content-Curriculum Alignment**:
-   - Add intra-unit/chapter preference in candidate generation
-   - Modify prompts to encourage curriculum-aware linking
-   - Verify unit/chapter metadata accuracy
-
-5. **Score Calibration**:
-   - Introduce contrastive negatives in prompts
-   - Add confidence penalty for over-linking
-   - Consider raising threshold above 0.6 for stricter filtering
-
-### Long-term
-6. **Human Validation**:
-   - Spot-check high-confidence edges for accuracy
-   - Validate cycle-breaking decisions with domain experts
-   - Create gold standard for evaluation metrics
-
-## Technical Implementation Notes
+### Recommendations
+1. Apply transitive reduction on prerequisites to remove inferable 2-hop edges while preserving reachability.
+2. Maintain chronological and curriculum guards to keep the prereq graph acyclic.
+3. Optionally calibrate content-link prompting/filters if intra-unit alignment becomes a requirement.
+4. Run targeted human spot-checks on highest-impact edges.
 
 ### Current Pipeline Flow
 ```bash
@@ -134,38 +62,32 @@ This report documents the evaluation of the manual experiments pipeline that dis
 python src/experiments_manual/prepare_lo_view.py
 
 # Edge discovery
-python src/experiments_manual/discover_content_links.py --config config.yaml --mode both
-python src/experiments_manual/discover_prereqs.py --config config.yaml --mode both
+python src/experiments_manual/discover_content_links.py --config src/experiments_manual/config.yaml --mode both
+python src/experiments_manual/discover_prereqs.py --config src/experiments_manual/config.yaml --mode both
 
 # Evaluation
-python src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv
-python src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv
+python src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv --top-n 10
+python src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv --top-n 10
 
 # Visualization
 python src/experiments_manual/build_and_visualize.py --out data/processed/graph_preview.html
 ```
 
-### Configuration
-- Model: `gpt-4o-mini`
-- Score threshold: 0.6
-- Modality: multimodal (text + images)
-- Signed scoring: `[-1, 1]` with confidence `[0, 1]`
+### Configuration Snapshot
+- **Model**: `gpt-4o-mini`
+- **Modality**: multimodal (text + images)
+- **Discovery thresholds**:
+  - Prereqs: score ≥ 0.5, confidence ≥ 0.0
+  - Content links: score ≥ 0.3
+- **Evaluation display threshold**: 0.6 (for kept-count reporting only)
 
-## Summary Statistics
-- **Total Edges**: 1,212 (688 content→LO + 524 LO→LO)
-- **Nodes**: 138 LOs + 270 content items = 408 total
-- **Edge Density**: ~2.97% (1,212 / (408 × 408))
-- **Processing**: ~15 minutes total (content discovery + prerequisite discovery)
-- **Cost**: ~$15-20 in GPT-4o-mini API calls
+### Summary
+- Nodes: 408 (138 LOs + 270 content)
+- Edges: 1,113 (823 content→LO + 290 LO→LO)
+- The graph exhibits high coverage and quality, a clean DAG structure for prerequisites, and actionable next steps (transitive reduction and optional alignment tuning) to further improve parsimony and curriculum locality.
 
-## Next Steps
-1. Implement cycle-breaking algorithm for prerequisites
-2. Apply transitive reduction to eliminate redundancy
-3. Validate curriculum metadata and improve content-curriculum alignment
-4. Run human spot-checks on high-confidence edges
-5. Generate final clean knowledge graph for adaptive learning applications
+—
+Report date: September 2025  
+Pipeline: Phase 2 Manual (Multimodal)
 
----
-*Report generated: December 2024*  
-*Pipeline version: Phase 2 Manual Ingestion*  
-*Model: gpt-4o-mini with multimodal prompts*
+

@@ -530,7 +530,7 @@ def build_outputs(unified: pd.DataFrame, config: PrepareConfig) -> Tuple[pd.Data
     return lo_index, content_items
 
 
-def main(argv: Optional[Iterable[str]] = None) -> int:
+def main(argv: Optional[`Iterable`[str]] = None) -> int:
     """
     Main entry point for the prepare_lo_view script.
     
