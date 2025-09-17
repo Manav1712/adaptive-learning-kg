@@ -32,6 +32,28 @@ See the [architecture/](architecture/) folder for detailed design documents:
   - LLM-driven edge discovery (multimodal) to build a Retriever graph with LO→LO and content↔LO edges
 - Decide on production direction based on quality, effort, and cost
 
+### Recent Progress (Sept 2025)
+
+- Tightened content discovery: threshold 0.85; pruning `same_unit=true`, `same_chapter=true`.
+- Added strict LLM evaluator (`src/experiments_manual/evaluate_with_llm.py`): JSON-only, retries, progress; 3-labels for prereqs and content.
+- Regenerated and evaluated content links with 0% JSON parse errors.
+
+Run:
+
+```bash
+# Prerequisites (LO→LO)
+python3 src/experiments_manual/evaluate_with_llm.py \
+  --edges-in data/processed/edges_prereqs.csv \
+  --jsonl-out data/processed/llm_edge_checks.jsonl \
+  --summary-out data/processed/llm_edge_checks_summary.json
+
+# Content links (LO→Content)
+python3 src/experiments_manual/evaluate_with_llm.py \
+  --edges-in data/processed/edges_content.csv \
+  --jsonl-out data/processed/llm_edge_checks_content_final.jsonl \
+  --summary-out data/processed/llm_edge_checks_content_final_summary.json
+```
+
 ### Phase 2: Manual LLM-based Graph (experiments_manual) — Status
 
 - **Scope**: Offline pipeline to discover edges using an LLM with multimodal prompts (text + image URLs)
