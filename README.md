@@ -1,12 +1,16 @@
 # Adaptive Learning Knowledge Graph Platform
 
-A local-first adaptive learning system that uses Zep's automated knowledge graph construction to provide personalized tutoring, built on OpenStax content with GPT-4 agents.
+A local-first adaptive learning system that manually generates knowledge graph nodes and edges from OpenStax content, leverages Zep's temporal layer for conversation memory, and provides personalized tutoring through a RAG system with Retriever, Coach Generator, and Tutor agents.
 
 ## Project Overview
 
 This platform creates an adaptive learning system that:
-- Builds a knowledge graph from OpenStax mathematics content
-- Provides personalized tutoring through multiple AI agents
+- **Manually generates** knowledge graph nodes (Learning Objectives, Content Items) and edges (prerequisites, content relationships)
+- **Uses Zep's temporal layer** for conversation memory and context management
+- **Implements a RAG system** with three specialized agents:
+  - **Retriever**: Finds relevant content and learning paths
+  - **Coach Generator**: Creates personalized learning strategies
+  - **Tutor**: Provides interactive tutoring sessions
 - Tracks student progress and adapts content accordingly
 - Uses local-first architecture for privacy and portability
 
@@ -27,10 +31,10 @@ See the [architecture/](architecture/) folder for detailed design documents:
 
 ### Current Focus
 
-- Compare two approaches on the same subset:
-  - Zep automated ingestion with constrained ontology (Coach/Retriever baselines)
-  - LLM-driven edge discovery (multimodal) to build a Retriever graph with LO→LO and content↔LO edges
-- Decide on production direction based on quality, effort, and cost
+- **Manual Knowledge Graph Construction**: Using LLM-driven edge discovery to build high-quality relationships
+- **Graph Validation**: Comprehensive evaluation of edge quality through structural analysis and semantic LLM validation
+- **RAG System Development**: Building Retriever, Coach Generator, and Tutor agents that leverage the manually constructed knowledge graph
+- **Zep Integration**: Utilizing Zep's temporal layer for conversation memory and context management
 
 ### Recent Progress (Sept 2025)
 
@@ -54,47 +58,74 @@ python3 src/experiments_manual/evaluate_with_llm.py \
   --summary-out data/processed/llm_edge_checks_content_final_summary.json
 ```
 
-### Phase 2: Manual LLM-based Graph (experiments_manual) — Status
+### Phase 2: Manual Knowledge Graph Construction — Status
 
-- **Scope**: Offline pipeline to discover edges using an LLM with multimodal prompts (text + image URLs)
+- **Scope**: Offline pipeline to manually generate high-quality knowledge graph nodes and edges
+- **Node Generation**: Learning Objectives and Content Items extracted from OpenStax mathematics content
+- **Edge Discovery**: LLM-driven discovery of relationships using multimodal prompts (text + image URLs)
+  - **Prerequisites**: LO → LO relationships (learning dependencies)
+  - **Content Links**: LO → Content relationships (explained_by, exemplified_by, practiced_by)
 - **Inputs**: `data/processed/lo_index.csv`, `data/processed/content_items.csv` (from `src/experiments_manual/prepare_lo_view.py`)
 - **Config**: `src/experiments_manual/config.yaml`
-  - **model**: `gpt-4o-mini`, **modality**: `multimodal`, **threshold**: `0.6`, **batch**: `8`, **retries**: `3`
-- **Discovery scripts**:
+  - **model**: `gpt-4o-mini`, **modality**: `multimodal`, **threshold**: `0.85`, **batch**: `8`, **retries**: `3`
+- **Discovery Scripts**:
   - Content → LO: `src/experiments_manual/discover_content_links.py`
   - LO → LO prerequisites: `src/experiments_manual/discover_prereqs.py`
-  - Both support: sharding via `--num-shards N --shard-index i`, progress logs (`progress_links.jsonl`, `progress_prereqs.jsonl`), heuristic fallback
-- **Evaluation**: `src/experiments_manual/evaluate_outputs.py` (edge counts, score stats, integrity, coverage, top-N)
-- **Visualization**: `src/experiments_manual/build_and_visualize.py` → `data/processed/graph_preview.html` (labeled nodes/edges + legend)
-- **Report**: `src/experiments_manual/report_offline_multimodal_sample100.md` (sample-100 multimodal run summary)
+  - Both support: sharding via `--num-shards N --shard-index i`, progress logs, heuristic fallback
+- **Evaluation Pipeline**:
+  - **Structural Analysis**: `src/experiments_manual/evaluate_outputs.py` (integrity, cycles, coverage, graph stats)
+  - **Semantic Validation**: `src/experiments_manual/evaluate_with_llm.py` (LLM-based edge correctness)
+- **Visualization**: `src/experiments_manual/build_and_visualize.py` → `data/processed/graph_preview.html`
 
-#### Repro (offline, multimodal)
+#### Knowledge Graph Construction Pipeline
 
 ```bash
-# Prepare processed inputs (LO index + content items)
+# 1. Prepare processed inputs (LO index + content items)
 python3 src/experiments_manual/prepare_lo_view.py
 
-# Content → LO: candidates + scoring (sample via --limit)
+# 2. Discover Content → LO relationships
 python3 src/experiments_manual/discover_content_links.py \
-  --config src/experiments_manual/config.yaml --mode both --limit 100
+  --config src/experiments_manual/config.yaml --mode both
 
-# LO → LO prerequisites: candidates + scoring (sample via --limit)
+# 3. Discover LO → LO prerequisite relationships  
 python3 src/experiments_manual/discover_prereqs.py \
-  --config src/experiments_manual/config.yaml --mode both --limit 100
+  --config src/experiments_manual/config.yaml --mode both
 
-# Evaluate (human-readable summary; add --json-out for machine output)
-python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv --top-n 5
-python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv --top-n 5
+# 4. Structural validation (integrity, cycles, coverage)
+python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv
+python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv
 
-# Build interactive HTML preview
+# 5. Semantic validation (LLM-based edge correctness)
+python3 src/experiments_manual/evaluate_with_llm.py \
+  --edges-in data/processed/edges_prereqs.csv \
+  --jsonl-out data/processed/llm_edge_checks.jsonl \
+  --summary-out data/processed/llm_edge_checks_summary.json
+
+python3 src/experiments_manual/evaluate_with_llm.py \
+  --edges-in data/processed/edges_content.csv \
+  --jsonl-out data/processed/llm_edge_checks_content_final.jsonl \
+  --summary-out data/processed/llm_edge_checks_content_final_summary.json
+
+# 6. Build interactive HTML visualization
 python3 src/experiments_manual/build_and_visualize.py --out data/processed/graph_preview.html
 ```
 
-#### Notes
+#### Key Features
 
-- Multimodal prompts include image URLs when available; JSON-only responses are enforced.
-- Sharding deterministically splits work (CRC32) and auto-suffixes output/progress paths per shard.
-- Heuristic scoring provides deterministic fallback when LLM calls are unavailable or fail.
+- **Multimodal Discovery**: LLM prompts include both text content and image URLs when available
+- **Strict Validation**: JSON-only responses enforced with robust parsing and retry logic
+- **Scalable Processing**: Sharding support for large-scale edge discovery with deterministic work splitting
+- **Comprehensive Evaluation**: Two-tier validation (structural + semantic) ensures high-quality relationships
+- **Production Ready**: Heuristic fallbacks and error handling for reliable operation
+
+#### Next Steps: RAG System Development
+
+The manually constructed knowledge graph serves as the foundation for the RAG system:
+
+1. **Retriever Agent**: Uses the knowledge graph to find relevant content and learning paths
+2. **Coach Generator**: Creates personalized learning strategies based on student progress and graph relationships  
+3. **Tutor Agent**: Provides interactive tutoring sessions with context from Zep's temporal layer
+4. **Integration**: All agents leverage the validated knowledge graph for accurate, contextual responses
 
 ## Development Setup
 
@@ -141,10 +172,11 @@ architecture/            # Design documents and specifications
 ## Technology Stack
 
 - **Language**: Python 3.11+
-- **LLM**: OpenAI GPT-4
-- **Knowledge Graph**: Zep (automated construction)
-- **Storage**: Local JSON + SQLite (extensible to Zep cloud)
+- **LLM**: OpenAI GPT-4 (GPT-4o-mini for edge discovery and validation)
+- **Knowledge Graph**: Manually constructed nodes and edges from OpenStax content
+- **Temporal Memory**: Zep's temporal layer for conversation context and memory
+- **Storage**: Local JSON + CSV (extensible to Zep cloud)
 - **Vector Search**: Sentence-transformers + FAISS
 - **Frontend**: Vanilla JS + D3.js
-- **Architecture**: Multi-agent system with Zep integration
+- **Architecture**: Multi-agent RAG system with Retriever, Coach Generator, and Tutor agents
  
