@@ -2,10 +2,15 @@
 model: gpt-4o-mini
 modality: multimodal
 scoring:
-  threshold: 0.3
+  threshold: 0.85
 runtime:
   max_targets_per_call: 8
   max_retries: 3
+
+# Discovery pruning (used by discover_content_links.py)
+pruning:
+  same_unit: true
+  same_chapter: true
 
 # For discover_prereqs.py loader keys
 llm:

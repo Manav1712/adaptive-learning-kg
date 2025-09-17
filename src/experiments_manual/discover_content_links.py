@@ -218,10 +218,10 @@ def build_prompt_for_content(
         "- score ∈ [-1, 1]; positive means the content supports the LO, negative means it does not\n"
         "- confidence ∈ [0, 1]; your certainty in the assigned score\n\n"
         "EXAMPLES:\n"
-        "✓ Derivative definition → LO: Apply derivative rules (score: 0.9, confidence: 0.85)\n"
-        "✓ Chain rule worked example → LO: Use chain rule (score: 0.8, confidence: 0.8)\n"
-        "✗ Algebra review → LO: Calculus concepts (score: -0.8, confidence: 0.9)\n"
-        "✗ Advanced multivariable topic → LO: Basic single-variable prerequisites (score: -0.7, confidence: 0.75)\n\n"
+        "Derivative definition → LO: Apply derivative rules (score: 0.9, confidence: 0.85)\n"
+        "Chain rule worked example → LO: Use chain rule (score: 0.8, confidence: 0.8)\n"
+        "Algebra review → LO: Calculus concepts (score: -0.8, confidence: 0.9)\n"
+        "Advanced multivariable topic → LO: Basic single-variable prerequisites (score: -0.7, confidence: 0.75)\n\n"
         "Output JSON: {results:[{lo_id, score, confidence, rationale}]}"
     )
 

@@ -19,8 +19,8 @@ This report summarizes the latest full-graph evaluation for the multimodal manua
   - LO→LO: prerequisites constrained to same unit/chapter; chronological guard prevents future→past edges.
 - **LLM scoring**: batched candidates with text and image URLs; score ∈ [0,1], confidence ∈ [0,1]; retries with simple backoff.
 - **Thresholding (discovery-time)**:
-  - Prereqs: `score_threshold = 0.5`, `min_confidence = 0.0`.
-  - Content links: `score_threshold = 0.3`.
+  - Prereqs: `score_threshold = 0.6`, `min_confidence = 0.0`.
+  - Content links: `score_threshold = 0.6`.
 - **Evaluation (reporting-time)**: metrics computed with an evaluation threshold of `0.6` for "kept" counts only; files retain full scores.
 
 ### Results – Content→LO Edges (823 total)
@@ -46,6 +46,7 @@ This report summarizes the latest full-graph evaluation for the multimodal manua
   - Strong content coverage (98%) and solid LO coverage (76% incoming)
   - Prerequisite graph is acyclic and well-structured (DAG, longest path 8)
   - Semantically rich content relations with balanced distribution
+
 - **Areas to improve**
   - Prereq redundancy (0.61) suggests benefit from transitive reduction
   - Optional: tune curriculum preferences for content links if more locality is desired
@@ -56,22 +57,6 @@ This report summarizes the latest full-graph evaluation for the multimodal manua
 3. Optionally calibrate content-link prompting/filters if intra-unit alignment becomes a requirement.
 4. Run targeted human spot-checks on highest-impact edges.
 
-### Current Pipeline Flow
-```bash
-# Data preparation
-python src/experiments_manual/prepare_lo_view.py
-
-# Edge discovery
-python src/experiments_manual/discover_content_links.py --config src/experiments_manual/config.yaml --mode both
-python src/experiments_manual/discover_prereqs.py --config src/experiments_manual/config.yaml --mode both
-
-# Evaluation
-python src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv --top-n 10
-python src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv --top-n 10
-
-# Visualization
-python src/experiments_manual/build_and_visualize.py --out data/processed/graph_preview.html
-```
 
 ### Configuration Snapshot
 - **Model**: `gpt-4o-mini`
@@ -91,3 +76,11 @@ Report date: September 2025
 Pipeline: Phase 2 Manual (Multimodal)
 
 
+
+
+
+1. eval notes - tell llm and check for use case
+2. a - b, b - a cannot exist, c can't also go back to b
+3. evaluation, g10 on what we did and why we think it works - asked llm, checked for cycles
+4. PROMPT TUNING - EVALUATION - EVAL SUCCESSFUL - GRAPH SOMEWHAT REPRODUCABLE, COST ANALYSIS, PRESENT - READY TO SCALE
+5. 
