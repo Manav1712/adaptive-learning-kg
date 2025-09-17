@@ -1,0 +1,29 @@
+- Accuracy
+  - Edges reflect real relationships (few wrong links).
+  - Content truly supports its linked LO.
+- Directionality and structure
+  - Prerequisite edges point the right way.
+  - No cycles in LO→LO prerequisites (forms a sensible order).
+- Coverage
+  - Most important LOs have at least one incoming prerequisite.
+  - Most content items are linked to at least one relevant LO.
+- Coherence of learning paths
+  - Sequences of LOs feel pedagogically natural and progressive.
+  - No sudden jumps in difficulty without prerequisites.
+- Consistency with curriculum
+  - Links generally respect unit/chapter organization.
+  - Cross-unit links exist only when clearly justified.
+- Parsimony (signal over noise)
+  - Minimal redundant or low-value edges.
+  - Avoid overly dense clusters that don’t add clarity.
+- Interpretability
+  - Clear labels, rationales, and tooltips explain why edges exist.
+  - Easy to understand node types and relationship meanings.
+- Stability
+  - Results are consistent across reruns (small variance).
+  - Small data changes don’t wildly change the graph.
+- Utility
+  - Helps retrieve the right content for a given LO.
+  - Supports building reasonable study plans and diagnostics.
+- Multimodal benefit
+  - Image information adds value where present (not just noise).
