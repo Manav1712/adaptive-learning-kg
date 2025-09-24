@@ -87,8 +87,9 @@ def load_config(config_path: Optional[str]) -> PrereqConfig:
         data = yaml.safe_load(f) or {}
 
     cfg = PrereqConfig()
-    inputs = data.get("output_paths", {})
-    inputs_alt = data.get("input_paths", {})
+    # Prefer new input_paths; fallback to legacy output_paths
+    inputs = data.get("input_paths", {})
+    inputs_alt = data.get("output_paths", {})
 
     cfg.input_lo_index = str(inputs.get("lo_index", inputs_alt.get("lo_index", cfg.input_lo_index)))
     cfg.input_content_items = str(
@@ -100,8 +101,8 @@ def load_config(config_path: Optional[str]) -> PrereqConfig:
     cfg.output_edges = str(out.get("edges_prereqs", cfg.output_edges))
 
     pruning = data.get("pruning", {})
-    cfg.restrict_same_unit = bool(pruning.get("restrict_same_unit", cfg.restrict_same_unit))
-    cfg.restrict_same_chapter = bool(pruning.get("restrict_same_chapter", cfg.restrict_same_chapter))
+    cfg.restrict_same_unit = bool(pruning.get("same_unit", pruning.get("restrict_same_unit", cfg.restrict_same_unit)))
+    cfg.restrict_same_chapter = bool(pruning.get("same_chapter", pruning.get("restrict_same_chapter", cfg.restrict_same_chapter)))
 
     llm = data.get("llm", {})
     cfg.model = str(llm.get("model", cfg.model))
@@ -218,11 +219,11 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
         content_df = content_df.copy()
         content_df["image_urls"] = content_df["image_urls"].map(safe_parse_image_urls)
 
-    # Group content by lo_id
+    # Group content by LO, accepting either lo_id or lo_id_parent as source key
     texts_by_lo: Dict[str, List[str]] = {}
     images_by_lo: Dict[str, List[str]] = {}
     for _, row in content_df.iterrows():
-        lo_id = str(row.get("lo_id") or "")
+        lo_id = str(row.get("lo_id") or row.get("lo_id_parent") or "")
         if not lo_id:
             continue
         txt = str(row.get("text") or "")
@@ -559,6 +560,8 @@ def score_prereq_candidates(
                             model=config.model,
                             temperature=float(config.temperature),
                             messages=[system_msg, user_msg],
+                            max_tokens=300,
+                            response_format={"type": "json_object"},
                         )
                         text = resp.choices[0].message.content if resp.choices else "{}"
                         try:

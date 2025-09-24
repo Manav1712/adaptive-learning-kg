@@ -217,7 +217,6 @@ def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str
 
 	Returns (label, reason) with defaults on any error.
 	"""
-	import time
 	client = OpenAI()
 
 	messages = [

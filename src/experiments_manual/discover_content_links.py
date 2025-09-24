@@ -26,7 +26,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Iterable
 from dotenv import load_dotenv
 import yaml
 import pandas as pd
@@ -92,8 +92,9 @@ def load_config(config_path: Optional[str]) -> DiscoveryConfig:
   
     with open(config_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    inputs = data.get("output_paths", {})  # Check old config key first
-    inputs_alt = data.get("input_paths", {})
+    # Prefer new input_paths; fallback to legacy output_paths for backwards compatibility
+    inputs = data.get("input_paths", {})
+    inputs_alt = data.get("output_paths", {})
     pruning = data.get("pruning", {})
     relations = data.get("relations", {})
 
@@ -281,6 +282,10 @@ def score_candidates(
     processed_groups = 0
     started_at = time.time()
 
+    # Decide once whether LLM scoring is available; warn once if not
+    use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
+    warned_no_llm = False
+
     for content_id, group in grouped:
         processed_groups += 1
         len_before = len(rows)
@@ -292,9 +297,10 @@ def score_candidates(
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
 
         # Real LLM integration (if OPENAI_API_KEY is set and OpenAI client available)
-        use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
         if not use_llm:
-            # Skip if no LLM available
+            if not warned_no_llm:
+                print("[score] Skipping LLM scoring: OPENAI_API_KEY not set. No content edges will be produced.")
+                warned_no_llm = True
             continue
 
         # Prepare LO lookup for prompt chunks of size max_targets_per_call
@@ -331,12 +337,15 @@ def score_candidates(
 
             # Retry with exponential backoff
             last_err: Optional[Exception] = None
+            results: List[Dict[str, object]] = []
             for attempt in range(int(config.max_retries) + 1):
                 try:
                     resp = client.chat.completions.create(
                         model=config.model,
                         temperature=float(config.temperature),
                         messages=[system_msg, user_msg],
+                        max_tokens=300,
+                        response_format={"type": "json_object"},
                     )
                     text = resp.choices[0].message.content if resp.choices else "{}"
                     try:
