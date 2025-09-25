@@ -67,6 +67,11 @@ class EvalConfig:
 # Prompt builders (minimal)
 # ----------------------------
 
+def _clip(text: object, max_chars: int = 4000) -> str:
+	"""Return full text by default; clip only if it exceeds max_chars."""
+	s = str(text or "")
+	return s if len(s) <= max_chars else s[:max_chars]
+
 
 def build_prereq_prompt(src: dict, tgt: dict) -> str:
     return (
@@ -78,9 +83,9 @@ def build_prereq_prompt(src: dict, tgt: dict) -> str:
         "- incorrect: the source is unrelated, equivalent, or part-of the target.\n\n"
         "Respond with strict JSON only: {\"label\":\"prerequisite|supports|incorrect\",\"reason\":\"<=200 chars\"}\n\n"
         f"Source LO title: {src.get('learning_objective','')}\n"
-        f"Source summary: {str(src.get('aggregate_text',''))[:800]}\n\n"
+        f"Source summary: {_clip(src.get('aggregate_text',''))}\n\n"
         f"Target LO title: {tgt.get('learning_objective','')}\n"
-        f"Target summary: {str(tgt.get('aggregate_text',''))[:800]}\n"
+        f"Target summary: {_clip(tgt.get('aggregate_text',''))}\n"
     )
 
 
@@ -100,9 +105,9 @@ def build_content_prompt(rel: str, lo: dict, content: dict) -> str:
 		"Only mark as incorrect if the content is truly irrelevant or would confuse learners.\n\n"
 		"Respond with strict JSON only (no code fences, no extra text): {\"label\":\"correct|supports|incorrect\",\"reason\":\"<=200 chars, avoid double quotes in the text\"}\n\n"
 		f"LO title: {lo.get('learning_objective','')}\n"
-		f"LO summary: {str(lo.get('aggregate_text',''))[:800]}\n\n"
+		f"LO summary: {_clip(lo.get('aggregate_text',''))}\n\n"
 		f"Content title: {content.get('title','')}\n"
-		f"Content summary: {str(content.get('aggregate_text',''))[:800]}\n"
+		f"Content summary: {_clip(content.get('aggregate_text',''))}\n"
 	)
 
 
