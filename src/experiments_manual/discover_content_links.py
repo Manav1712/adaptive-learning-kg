@@ -28,10 +28,8 @@ import time
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Iterable
 from dotenv import load_dotenv
-import yaml
 import pandas as pd
 from openai import OpenAI
-
 load_dotenv()
 
 # ----------------------------
@@ -47,16 +45,14 @@ class DiscoveryConfig:
     - input_lo_index: Path to LO index CSV
     - input_content_items: Path to content items CSV
     - output_candidates: Path to write candidate pairs CSV
-    - restrict_same_unit: If True, only consider LOs in same unit
-    - restrict_same_chapter: If True, only consider LOs in same chapter
+    - Candidate scope is global (cross-unit/chapter); no structural restriction
     """
 
     input_lo_index: str = "data/processed/lo_index.csv"
     input_content_items: str = "data/processed/content_items.csv"
     output_candidates: str = "data/processed/content_link_candidates.csv"
 
-    restrict_same_unit: bool = True
-    restrict_same_chapter: bool = False
+    # No structural restriction; pool is global
 
     # Relation mapping by content type
     relation_concept: str = "explained_by"
@@ -69,69 +65,19 @@ class DiscoveryConfig:
     temperature: float = 0.0
     max_targets_per_call: int = 8
     max_retries: int = 3
-    score_threshold: float = 0.6
+    score_threshold: float = 0.8
     output_edges: str = "data/processed/edges_content.csv"
 
 
-def load_config(config_path: Optional[str]) -> DiscoveryConfig:
+def load_config() -> DiscoveryConfig:
     """
-    Loads candidate-generation configuration from YAML or returns defaults.
-
-    Args:
-        config_path: Path to config.yaml or None
-
-    Returns:
-        DiscoveryConfig populated from file or defaults
-
-    Behavior:
-        - Uses keys under output_paths/input_paths/pruning/relations if present
-        - Falls back to defaults on missing file or missing YAML
+    Returns in-code defaults defined by DiscoveryConfig.
     """
-    if not config_path or not os.path.exists(config_path) or yaml is None:
-        return DiscoveryConfig()
-  
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    # Prefer new input_paths; fallback to legacy output_paths for backwards compatibility
-    inputs = data.get("input_paths", {})
-    inputs_alt = data.get("output_paths", {})
-    pruning = data.get("pruning", {})
-    relations = data.get("relations", {})
-
-    cfg = DiscoveryConfig(
-        input_lo_index=inputs.get("lo_index", inputs_alt.get("lo_index", "data/processed/lo_index.csv")),
-        input_content_items=inputs.get("content_items", inputs_alt.get("content_items", "data/processed/content_items.csv")),
-        output_candidates=data.get("output_candidates", "data/processed/content_link_candidates.csv"),
-        restrict_same_unit=bool(pruning.get("same_unit", True)),
-        restrict_same_chapter=bool(pruning.get("same_chapter", False)),
-        relation_concept=relations.get("concept", "explained_by"),
-        relation_example=relations.get("example", "exemplified_by"),
-        relation_try_it=relations.get("try_it", "practiced_by"),
-    )
-    # Scoring/LLM params (optional)
-    model = data.get("model")
-    if isinstance(model, str):
-        cfg.model = model
-    modality = data.get("modality")
-    if modality in {"text_only", "multimodal"}:
-        cfg.modality = modality
-    scoring = data.get("scoring", {})
-    if isinstance(scoring, dict):
-        cfg.score_threshold = float(scoring.get("threshold", cfg.score_threshold))
-    runtime = data.get("runtime", {})
-    if isinstance(runtime, dict):
-        cfg.max_targets_per_call = int(runtime.get("max_targets_per_call", cfg.max_targets_per_call))
-        cfg.max_retries = int(runtime.get("max_retries", cfg.max_retries))
-    outputs = data.get("output_paths", {})
-    if isinstance(outputs, dict):
-        cfg.output_edges = outputs.get("edges_content", cfg.output_edges)
-    return cfg
-
+    return DiscoveryConfig()
 
 # ----------------------------
 # Utilities
 # ----------------------------
-
 
 def _chapter_to_int(val: object) -> Optional[int]:
     """Attempt to parse chapter identifiers into integers for chronological ordering."""
@@ -142,11 +88,9 @@ def _chapter_to_int(val: object) -> Optional[int]:
     except Exception:
         return None
 
-
 def _ctype_order(value: object) -> int:
     mapping = {"concept": 0, "example": 1, "try_it": 2}
     return mapping.get(str(value).lower(), 99)
-
 
 def select_chronological_content(df: pd.DataFrame, limit: int) -> pd.DataFrame:
     """
@@ -240,8 +184,6 @@ def build_prompt_for_content(
 
     # Returning a generic payload; the LLM client will adapt as needed
     return {"system": system, "user": user_blocks}
-
-
 
 
 def score_candidates(
@@ -479,26 +421,17 @@ def generate_candidates_for_row(
 
     Returns:
         List of tuples (candidate_lo_id, reason_tag)
-        - reason_tag ∈ {"unit", "chapter", "lexical"}
+        - reason_tag = "all" (global pool; no unit/chapter/lexical restriction)
     """
     candidates: List[Tuple[str, str]] = []
 
-    parent_unit = str(content_row.get("unit") or "")
-    parent_chapter = str(content_row.get("chapter") or "")
-
-    # Same unit/chapter filtering
+    # Global pool (cross-unit/chapter)
     pool = lo_meta
-    if config.restrict_same_unit:
-        pool = pool[pool["unit"].astype(str) == parent_unit]
-    if config.restrict_same_chapter:
-        pool = pool[pool["chapter"].astype(str) == parent_chapter]
 
     # Add unit/chapter matches
     for lo_id in pool["lo_id"].astype(str).tolist():
-        candidates.append((lo_id, "unit" if config.restrict_same_unit else "chapter"))
-
-    # Note: Lexical matching removed - only unit/chapter filtering used
-
+        candidates.append((lo_id, "all"))
+        
     # Deduplicate keeping earliest reason
     seen: set = set()
     unique: List[Tuple[str, str]] = []
@@ -569,13 +502,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         Exit code 0 on success
     """
     parser = argparse.ArgumentParser(description="Generate and/or score content→LO links")
-    parser.add_argument("--config", type=str, default=None, help="Path to config.yaml (optional)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of content items for a smoke run")
     parser.add_argument("--mode", type=str, default="candidates", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    config = load_config(args.config)
+    config = load_config()
     lo_df = pd.read_csv(config.input_lo_index)
     content_df = pd.read_csv(config.input_content_items)
 
