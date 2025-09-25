@@ -4,7 +4,7 @@ Discover LO → LO Prerequisite Edges (Coach Graph)
 This module compares Learning Objectives (LOs) to infer prerequisite
 relationships using an LLM.
 
-Inputs (from prepare step):
+Inputs (from prepare step; configured in-code via PrereqConfig):
 - data/processed/lo_index.csv
 - data/processed/content_items.csv
 
@@ -14,7 +14,7 @@ Outputs:
 
 Approach:
 - Aggregate content per LO into a consolidated view (text + images)
-- Generate candidate LO→LO pairs (restrict by unit/chapter)
+- Generate candidate LO→LO pairs by considering all earlier LOs (cross-chapter/unit/book)
 - Score each candidate pair using LLM
 - Write filtered edges with columns:
   source_lo_id, target_lo_id, relation, score, rationale, modality, run_id
@@ -26,32 +26,14 @@ import os
 import time
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
-
-# Load environment variables from .env file if present
-try:
-    from dotenv import load_dotenv  # type: ignore
-    load_dotenv()
-except Exception:  # pragma: no cover - optional
-    pass
-
-try:
-    import yaml  # type: ignore
-except Exception:  # pragma: no cover - optional
-    yaml = None
-
+from dotenv import load_dotenv  # type: ignore
 import pandas as pd
-
-try:  # Optional import; only required for real LLM scoring
-    from openai import OpenAI  # type: ignore
-except Exception:  # pragma: no cover - soft dependency
-    OpenAI = None  # type: ignore
-
+from openai import OpenAI  # type: ignore
 
 # ----------------------------
 # Configuration
 # ----------------------------
-
-
+load_dotenv()
 @dataclass
 class PrereqConfig:
     """
@@ -63,72 +45,43 @@ class PrereqConfig:
     output_candidates: str = "data/processed/prereq_link_candidates.csv"
     output_edges: str = "data/processed/edges_prereqs.csv"
 
-    restrict_same_unit: bool = True
+    restrict_same_unit: bool = False
     restrict_same_chapter: bool = False
 
     model: str = "gpt-4o-mini"
-    modality: str = "text_only"  # "text_only" | "multimodal"
+    modality: str = "multimodal"  # "text_only" | "multimodal"
     temperature: float = 0.0
     max_targets_per_call: int = 8  # number of source LOs per API call
     max_retries: int = 3
     score_mode: str = "score"
-    score_threshold: float = 0.5
-    min_confidence: float = 0.0
+    score_threshold: float = 0.7
+    min_confidence: float = 0.6
 
 
-def load_config(config_path: Optional[str]) -> PrereqConfig:
+def load_config() -> PrereqConfig:
     """
-    Loads config from YAML or returns sane defaults.
+    Returns in-code defaults defined by PrereqConfig.
     """
-    if not config_path or not os.path.exists(config_path) or yaml is None:
-        return PrereqConfig()
-    
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    cfg = PrereqConfig()
-    # Prefer new input_paths; fallback to legacy output_paths
-    inputs = data.get("input_paths", {})
-    inputs_alt = data.get("output_paths", {})
-
-    cfg.input_lo_index = str(inputs.get("lo_index", inputs_alt.get("lo_index", cfg.input_lo_index)))
-    cfg.input_content_items = str(
-        inputs.get("content_items", inputs_alt.get("content_items", cfg.input_content_items))
-    )
-
-    out = data.get("output_paths", {})
-    cfg.output_candidates = str(out.get("prereq_candidates", cfg.output_candidates))
-    cfg.output_edges = str(out.get("edges_prereqs", cfg.output_edges))
-
-    pruning = data.get("pruning", {})
-    cfg.restrict_same_unit = bool(pruning.get("same_unit", pruning.get("restrict_same_unit", cfg.restrict_same_unit)))
-    cfg.restrict_same_chapter = bool(pruning.get("same_chapter", pruning.get("restrict_same_chapter", cfg.restrict_same_chapter)))
-
-    llm = data.get("llm", {})
-    cfg.model = str(llm.get("model", cfg.model))
-    cfg.modality = str(llm.get("modality", cfg.modality))
-    cfg.temperature = float(llm.get("temperature", cfg.temperature))
-    cfg.max_targets_per_call = int(llm.get("max_targets_per_call", cfg.max_targets_per_call))
-    cfg.max_retries = int(llm.get("max_retries", cfg.max_retries))
-    cfg.score_mode = str(llm.get("score_mode", cfg.score_mode))
-    cfg.score_threshold = float(llm.get("score_threshold", cfg.score_threshold))
-    cfg.min_confidence = float(llm.get("min_confidence", getattr(cfg, "min_confidence", 0.7)))
-
-
-    return cfg
+    return PrereqConfig()
 
 
 # ----------------------------
 # Utilities
 # ----------------------------
 
-
+def _first_int_or_raise(val: object) -> int:
+    """Extracts the first integer from a value or raises if none found."""
+    import re
+    m = re.search(r"(\d+)", str(val or ""))
+    if not m:
+        raise ValueError(f"no integer in: {val}")
+    return int(m.group(1))
+    
 def ensure_parent_directory(path: str) -> None:
     """Ensures parent directory exists for a file path."""
     directory = os.path.dirname(os.path.abspath(path))
     if directory and not os.path.exists(directory):
         os.makedirs(directory, exist_ok=True)
-
 
 def log_prereq_progress(processed: int, total: int, edges_added: int, total_edges: int, started_at: float) -> None:
     """
@@ -147,16 +100,6 @@ def log_prereq_progress(processed: int, total: int, edges_added: int, total_edge
     print(f"[prereq] {processed}/{total} targets | +{edges_added} edges (total {total_edges}) | elapsed {elapsed:.1f}s | ETA {eta_sec/60:.1f}m", flush=True)
 
 
-
-def _chapter_to_int(val: object) -> Optional[int]:
-    try:
-        s = str(val).strip()
-        digits = "".join(c for c in s if c.isdigit())
-        return int(digits) if digits else int(s)
-    except Exception:
-        return None
-
-
 def select_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
     """
     Select a chronologically ordered subset of target LOs when limiting.
@@ -167,7 +110,16 @@ def select_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
         return lo_meta
 
     tmp = lo_meta.copy()
-    tmp["_chapter_num"] = tmp.get("chapter", None).map(_chapter_to_int)
+    def _safe_chapter(v: object) -> Optional[int]:
+        try:
+            return _first_int_or_raise(v)
+        except Exception:
+            return None
+    tmp["_chapter_num"] = tmp.get("chapter", None).map(_safe_chapter)
+    bad = int(tmp["_chapter_num"].isnull().sum())
+    if bad:
+        print(f"[prereq] Skipped {bad} LOs in --limit due to unparsable chapter.", flush=True)
+        tmp = tmp[tmp["_chapter_num"].notnull()].copy()
     tmp.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
 
     # Take first `limit` rows (chronologically ordered)
@@ -275,13 +227,8 @@ def create_chronological_key(row: pd.Series) -> Tuple[str, str, int, str]:
     chapter = str(row.get("chapter") or "")
     lo_id = str(row.get("lo_id") or "")
     
-    # Extract numeric chapter for proper sorting
-    try:
-        import re
-        chapter_match = re.search(r'(\d+)', chapter)
-        chapter_num = int(chapter_match.group(1)) if chapter_match else 999
-    except:
-        chapter_num = 999
+    # Extract numeric chapter for proper sorting; raise if missing
+    chapter_num = _first_int_or_raise(chapter)
     
     return (book, unit, chapter_num, lo_id)
 
@@ -291,29 +238,35 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
     Generates candidate LO→LO pairs for scoring.
 
     Strategy:
-    - For each target LO B, consider sources A in same unit/chapter
-    - Only allow chronologically forward pairs (source precedes target)
-    - Uses unit/chapter filtering only (lexical matching removed)
+    - For each target LO B, consider all earlier sources A across chapters/units/books
+    - Enforce chronologically forward pairs only (source precedes target) via `_chrono_key`
+    - Candidate pool always spans the entire set (cross-chapter/unit/book)
     """
     rows: List[Dict[str, str]] = []
 
-    # Add chronological keys for sorting
+    # Add chronological keys for sorting, skipping rows that can't be parsed
     lo_meta = lo_meta.copy()
-    lo_meta['_chrono_key'] = lo_meta.apply(create_chronological_key, axis=1)
+    broken_los: List[Tuple[str, str, str]] = []
+    def _safe_key(r: pd.Series) -> Optional[Tuple[str, str, int, str]]:
+        try:
+            return create_chronological_key(r)
+        except Exception:
+            broken_los.append((str(r.get("lo_id") or ""), str(r.get("unit") or ""), str(r.get("chapter") or "")))
+            return None
+    lo_meta['_chrono_key'] = lo_meta.apply(_safe_key, axis=1)
+    bad = int(lo_meta['_chrono_key'].isnull().sum())
+    if bad:
+        examples = list({t for t in broken_los})[:5]
+        print(f"[prereq] Skipped {bad} LOs with unparsable unit/chapter. Examples: {examples}", flush=True)
+        lo_meta = lo_meta[lo_meta['_chrono_key'].notnull()].copy()
 
+    # Candidate generation with chronological constraint:
+    # - Always allow cross-chapter/unit/book by using the full pool
+    # - For each target, only consider sources that precede it by _chrono_key (forward-only prerequisites)
     for _, target in lo_meta.iterrows():
         target_id = str(target["lo_id"])  # type: ignore
         target_key = target['_chrono_key']
-        unit = str(target.get("unit") or "")
-        chapter = str(target.get("chapter") or "")
-
-        # Candidate pool based on structure restrictions
-        if config.restrict_same_chapter:
-            pool = lo_meta[(lo_meta["unit"].astype(str) == unit) & (lo_meta["chapter"].astype(str) == chapter)]
-        elif config.restrict_same_unit:
-            pool = lo_meta[lo_meta["unit"].astype(str) == unit]
-        else:
-            pool = lo_meta
+        pool = lo_meta
 
         for _, cand in pool.iterrows():
             cand_id = str(cand["lo_id"])
@@ -330,24 +283,16 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
                 {
                     "source_lo_id": cand_id,
                     "target_lo_id": target_id,
-                    # Tag the structural restriction used for this candidate
-                    "reason": (
-                        "chapter" if config.restrict_same_chapter else (
-                            "unit" if config.restrict_same_unit else "all"
-                        )
-                    ),
+                    # Tag reason uniformly since pool is global
+                    "reason": "all",
                 }
             )
-
     return pd.DataFrame(rows)
 
 
 # ----------------------------
-# Heuristic and Prompting
+# Prompting
 # ----------------------------
-
-
-
 
 def build_prompt_for_prereq(
     target_row: pd.Series,
@@ -371,6 +316,7 @@ def build_prompt_for_prereq(
         "- Source LO teaches concepts/skills needed BEFORE the target LO\n"
         "- Source LO provides foundational knowledge for the target LO\n"
         "- Target LO builds upon or extends concepts from the source LO\n"
+        "- Cross-chapter, cross-unit, and cross-book prerequisites ARE allowed if the source precedes the target in the curriculum order\n"
         "- The prerequisite MUST be earlier in the curriculum order than the target\n\n"
         "DIRECTION CONSTRAINT:\n"
         "- Only output prerequisites from earlier to later in the curriculum.\n"
@@ -379,10 +325,10 @@ def build_prompt_for_prereq(
         "- score ∈ [-1, 1]; positive means source IS a prerequisite, negative means it is NOT\n"
         "- confidence ∈ [0, 1]; your certainty in the assigned score\n\n"
         "EXAMPLES:\n"
-        "✓ Function notation → Composite functions (score: 0.8, confidence: 0.85)\n"
-        "✓ Polynomial basics → Polynomial derivatives (score: 0.85, confidence: 0.8)\n"
-        "✗ Later chapter topic → Earlier chapter topic (score: -0.9, confidence: 0.95)\n"
-        "✗ Advanced integration → Basic differentiation (score: -0.9, confidence: 0.85)\n\n"
+        "Positive Example: Function notation → Composite functions (score: 0.8, confidence: 0.85)\n"
+        "Positive Example: Polynomial basics → Polynomial derivatives (score: 0.85, confidence: 0.8)\n"
+        " Negative Example: Later chapter topic → Earlier chapter topic (score: -0.9, confidence: 0.95)\n"
+        "Negative Example: Advanced integration → Basic differentiation (score: -0.9, confidence: 0.85)\n\n"
         "Output JSON: {results:[{lo_id, score, confidence, rationale}]}"
     )
 
@@ -426,58 +372,7 @@ def build_prompt_for_prereq(
 # ----------------------------
 # Scoring
 # ----------------------------
-def _tokenize(text: str) -> Set[str]:
-    """Simple tokenizer returning a set of lowercased word tokens."""
-    try:
-        import re
-        tokens = re.findall(r"[A-Za-z0-9_]+", text.lower())
-        return set(tokens)
-    except Exception:
-        return set()
-
-
-def _jaccard_similarity(a: str, b: str) -> float:
-    """Compute Jaccard similarity between two texts (token sets)."""
-    ta, tb = _tokenize(a), _tokenize(b)
-    if not ta or not tb:
-        return 0.0
-    inter = len(ta & tb)
-    union = len(ta | tb)
-    return float(inter) / float(union) if union else 0.0
-
-
-def _heuristic_score_candidates(
-    target_series: pd.Series,
-    candidate_list: List[Tuple[str, str]],
-    lo_lookup: Dict[str, Dict[str, object]],
-    config: PrereqConfig,
-) -> List[Dict[str, object]]:
-    """
-    Fallback scorer when LLM is unavailable or returns no results.
-    Scores using Jaccard token overlap between source and target aggregate_text.
-    """
-    results: List[Dict[str, object]] = []
-    target_text = str(target_series.get("aggregate_text") or target_series.get("learning_objective") or "")
-    for src_id, _reason in candidate_list:
-        src = lo_lookup.get(src_id, {})
-        src_text = str(src.get("aggregate_text") or src.get("learning_objective") or "")
-        sim = _jaccard_similarity(src_text, target_text)
-        # Use similarity directly in [0,1] as score
-        score = float(sim)
-        # Confidence heuristic: bias upward with similarity
-        confidence = max(0.0, min(1.0, float(sim) + 0.3))
-        if score >= float(getattr(config, "score_threshold", 0.0)):
-            results.append(
-                {
-                    "lo_id": src_id,
-                    "score": score,
-                    "confidence": confidence,
-                    "rationale": "heuristic_jaccard_overlap",
-                }
-            )
-    return results
-
-
+ 
 
 def score_prereq_candidates(
     candidates_df: pd.DataFrame,
@@ -519,8 +414,10 @@ def score_prereq_candidates(
 
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
 
-        # Real LLM integration or heuristic fallback
+        # LLM scoring only
         use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
+        if not use_llm:
+            raise RuntimeError("LLM scoring is required (heuristic disabled). Please set OPENAI_API_KEY.")
 
         # LLM scoring
         def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
@@ -576,10 +473,6 @@ def score_prereq_candidates(
                         last_err = e
                         time.sleep(2 ** attempt)
 
-            # Heuristic fallback when LLM is disabled or returned no results
-            if not results:
-                results = _heuristic_score_candidates(target_series, chunk, lo_lookup, config)
-
             # Materialize results into edges after guards
             for item in results:
                 src_id = str(item.get("lo_id", ""))
@@ -613,7 +506,7 @@ def score_prereq_candidates(
                             "relation": "prerequisite",
                             "score": float(score),
                             "confidence": confidence,
-                            "rationale": rationale or ("LLM decision" if use_llm else "heuristic"),
+                            "rationale": rationale or "LLM decision",
                             "modality": config.modality,
                             "run_id": config.model,
                         }
@@ -657,7 +550,6 @@ def score_prereq_candidates(
 # CLI
 # ----------------------------
 
-
 def write_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> pd.DataFrame:
     out_df = generate_prereq_candidates(lo_meta, config)
     ensure_parent_directory(config.output_candidates)
@@ -667,13 +559,12 @@ def write_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> pd.DataFram
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Discover LO→LO prerequisites")
-    parser.add_argument("--config", type=str, default=None, help="Path to config.yaml (optional)")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of target LOs for a smoke run")
     parser.add_argument("--mode", type=str, default="both", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    config = load_config(args.config)
+    config = load_config()
     lo_df = pd.read_csv(config.input_lo_index)
     content_df = pd.read_csv(config.input_content_items)
 

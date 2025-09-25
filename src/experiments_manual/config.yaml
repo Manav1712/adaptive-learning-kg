@@ -9,8 +9,8 @@ runtime:
 
 # Discovery pruning (used by discover_content_links.py)
 pruning:
-  same_unit: true
-  same_chapter: true
+  same_unit: false
+  same_chapter: false
 
 # For discover_prereqs.py loader keys
 llm:
@@ -20,5 +20,5 @@ llm:
   max_targets_per_call: 8
   max_retries: 3
   score_mode: score
-  score_threshold: 0.5
-  min_confidence: 0.3
+  score_threshold: 0.7
+  min_confidence: 0.6
