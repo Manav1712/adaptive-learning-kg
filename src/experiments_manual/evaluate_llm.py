@@ -35,18 +35,14 @@ from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Tuple
 import re
 import random
-
 import pandas as pd
 from dotenv import load_dotenv
 from openai import OpenAI
-
 load_dotenv()
-
 
 # ----------------------------
 # Config
 # ----------------------------
-
 
 @dataclass
 class EvalConfig:
@@ -267,7 +263,7 @@ def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str
 
 			# Validate object
 			label = str(obj.get("label", "incorrect")).strip().lower()
-			reason = str(obj.get("reason", ""))[:200]
+			reason = str(obj.get("reason", ""))
 			# Replace any stray newlines and double quotes inside reason to be safe
 			reason = reason.replace('"', "'").replace("\n", " ").strip()
 			
