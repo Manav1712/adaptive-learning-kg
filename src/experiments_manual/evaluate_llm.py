@@ -17,12 +17,12 @@ Outputs:
 - --summary-out: JSON file with aggregate metrics per relation
 
 Behavior:
-- System prompt requires strict JSON only: {"label":"correct|incorrect","reason":"<=200 chars"}
+- System prompt requires strict JSON only: {"label":"prerequisite|correct|supports|incorrect","reason":"<=200 chars"}
 - Temperature 0.0, no scores/confidence
-- Prompts send only compact summaries (title + short aggregate_text slices)
+- Prompts include titles plus full summaries; text is clipped only if excessively long
 - On any parse or API error, default to incorrect with short reason
 - Unknown relations default to incorrect with reason "unsupported relation"
-- Acceptance policy: label == "correct"
+- This tool only evaluates and reports; downstream code decides any acceptance policy
 """
 
 from __future__ import annotations
@@ -111,10 +111,8 @@ def build_content_prompt(rel: str, lo: dict, content: dict) -> str:
 # Data loading and lookups
 # ----------------------------
 
-
 def load_lo_lookup(path: str, content_items_df: pd.DataFrame) -> Dict[str, dict]:
 	"""Build LO lookup with an aggregate_text from any content rows that reference the LO.
-
 	Inputs: lo_index.csv and content_items dataframe (lo_id_parent, text)
 	Output: dict lo_id -> {learning_objective, aggregate_text, unit, chapter, book}
 	"""
@@ -144,7 +142,7 @@ def load_lo_lookup(path: str, content_items_df: pd.DataFrame) -> Dict[str, dict]
 
 
 def load_content_lookup(path: str) -> Dict[str, dict]:
-	"""Build content lookup with compact summaries.
+	"""Build content lookup with full text summaries (clipped only if very long).
 
 	Output: content_id -> {title, aggregate_text, content_type, lo_id_parent}
 	"""
@@ -215,7 +213,6 @@ def _sanitize_and_extract_json(text: str) -> Optional[dict]:
 
 def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str, str]:
 	"""Call the chat model with strict JSON-only system instruction.
-
 	Returns (label, reason) with defaults on any error.
 	"""
 	client = OpenAI()
@@ -264,6 +261,7 @@ def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str
 			# Validate object
 			label = str(obj.get("label", "incorrect")).strip().lower()
 			reason = str(obj.get("reason", ""))
+
 			# Replace any stray newlines and double quotes inside reason to be safe
 			reason = reason.replace('"', "'").replace("\n", " ").strip()
 			
@@ -292,7 +290,6 @@ def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str
 # ----------------------------
 # Progress reporting
 # ----------------------------
-
 
 def log_progress(processed: int, total: int, stats: Dict[str, int], started_at: float, is_prereq_mode: bool = False) -> None:
 	"""Log progress with timing and accuracy info."""
@@ -421,7 +418,6 @@ def judge_edges(edges_df: pd.DataFrame, lo_lookup: Dict[str, dict], content_look
 # Summary
 # ----------------------------
 
-
 def summarize(results: List[dict]) -> Dict[str, dict]:
 	"""Compute minimal summary per relation: n, correct, incorrect, p_correct."""
 	from collections import defaultdict
@@ -450,11 +446,8 @@ def summarize(results: List[dict]) -> Dict[str, dict]:
 # ----------------------------
 # IO helpers
 # ----------------------------
-
-
 def ensure_parent(path: str) -> None:
 	os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-
 
 def read_edges_csv(path: str) -> pd.DataFrame:
 	# tolerate both prereq and content schemas
@@ -466,7 +459,6 @@ def read_edges_csv(path: str) -> pd.DataFrame:
 	if not any(req.issubset(set(df.columns)) for req in needed_any):
 		raise ValueError("edges-in CSV missing required columns")
 	return df
-
 
 def write_jsonl(path: str, rows: List[dict]) -> None:
 	ensure_parent(path)
