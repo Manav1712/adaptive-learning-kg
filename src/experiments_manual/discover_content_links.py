@@ -17,9 +17,10 @@ Candidate strategy:
 - Start with LOs in the same unit and/or chapter as the content's parent LO
 - Optionally add lexical shortlist by overlapping keywords with LO text
 
-This module can both prepare candidates and (optionally) score them using an LLM
+This module can both prepare candidates and score them using an LLM
 or a deterministic dry-run heuristic.
 """
+
 from __future__ import annotations
 import argparse
 import json
@@ -336,7 +337,6 @@ def score_candidates(
 
     return pd.DataFrame(rows)
 
-
 def relation_for_content_type(content_type: str, config: DiscoveryConfig) -> str:
     """
     Maps content_type to the proposed relation name.
@@ -421,7 +421,6 @@ def generate_candidates_for_row(
 
     Returns:
         List of tuples (candidate_lo_id, reason_tag)
-        - reason_tag = "all" (global pool; no unit/chapter/lexical restriction)
     """
     candidates: List[Tuple[str, str]] = []
 
@@ -431,7 +430,7 @@ def generate_candidates_for_row(
     # Add unit/chapter matches
     for lo_id in pool["lo_id"].astype(str).tolist():
         candidates.append((lo_id, "all"))
-        
+
     # Deduplicate keeping earliest reason
     seen: set = set()
     unique: List[Tuple[str, str]] = []

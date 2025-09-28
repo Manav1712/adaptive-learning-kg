@@ -26,7 +26,6 @@ Behavior:
 """
 
 from __future__ import annotations
-
 import argparse
 import json
 import os
@@ -62,12 +61,10 @@ class EvalConfig:
 # ----------------------------
 # Prompt builders (minimal)
 # ----------------------------
-
 def _clip(text: object, max_chars: int = 4000) -> str:
 	"""Return full text by default; clip only if it exceeds max_chars."""
 	s = str(text or "")
 	return s if len(s) <= max_chars else s[:max_chars]
-
 
 def build_prereq_prompt(src: dict, tgt: dict) -> str:
     return (
@@ -105,7 +102,6 @@ def build_content_prompt(rel: str, lo: dict, content: dict) -> str:
 		f"Content title: {content.get('title','')}\n"
 		f"Content summary: {_clip(content.get('aggregate_text',''))}\n"
 	)
-
 
 # ----------------------------
 # Data loading and lookups
@@ -159,11 +155,9 @@ def load_content_lookup(path: str) -> Dict[str, dict]:
 		}
 	return lookup
 
-
 # ----------------------------
 # LLM call and strict parse
 # ----------------------------
-
 
 def _sanitize_and_extract_json(text: str) -> Optional[dict]:
 	"""Attempt to coerce non-JSON-ish outputs into a JSON object.
@@ -229,7 +223,6 @@ def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str
 	
 	# Add small base delay between API calls to avoid rate limits
 	time.sleep(0.25)
-	
 	text: str = "{}"
 	max_retries = max(4, int(cfg.max_retries))  # Ensure at least 4 attempts total
 	
@@ -304,6 +297,7 @@ def log_progress(processed: int, total: int, stats: Dict[str, int], started_at: 
 		incorrect = stats.get("incorrect", 0)
 		pct_prereq = (prereq / max(1, processed)) * 100
 		print(f"[eval] {processed}/{total} edges | {prereq}prereq {supports}supports {incorrect}✗ ({pct_prereq:.1f}% prereq) | {elapsed:.1f}s elapsed | ETA {eta_sec//60}:{eta_sec%60:02d}", flush=True)
+
 	else:
 		# Content mode: show correct, supports, incorrect
 		correct = stats.get("correct", 0)
@@ -312,11 +306,9 @@ def log_progress(processed: int, total: int, stats: Dict[str, int], started_at: 
 		pct_correct = (correct / max(1, processed)) * 100
 		print(f"[eval] {processed}/{total} edges | {correct}✓ {supports}supports {incorrect}✗ ({pct_correct:.1f}% correct) | {elapsed:.1f}s elapsed | ETA {eta_sec//60}:{eta_sec%60:02d}", flush=True)
 
-
 # ----------------------------
 # Edge judging
 # ----------------------------
-
 
 def judge_edges(edges_df: pd.DataFrame, lo_lookup: Dict[str, dict], content_lookup: Dict[str, dict], cfg: EvalConfig) -> List[dict]:
 	"""Judge edges with relation-specific prompts. Defaults to incorrect on any issue."""
@@ -466,11 +458,9 @@ def write_jsonl(path: str, rows: List[dict]) -> None:
 		for row in rows:
 			f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
-
 # ----------------------------
 # CLI
 # ----------------------------
-
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
 	parser = argparse.ArgumentParser(description="Strict LLM edge evaluator (binary)")

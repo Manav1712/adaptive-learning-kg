@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Knowledge Graph Visualization</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f8f9fa;
+            overflow: hidden;
+        }
+        .container { width: 100%; height: 100vh; }
+        h1 { color: #333; text-align: center; margin-bottom: 20px; margin-top: 0; }
+        #graph { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); height: calc(100vh - 80px); }
+        .node { cursor: pointer; }
+        .node:hover { stroke-width: 3px; }
+        .link { stroke: #999; stroke-opacity: 0.6; cursor: pointer; stroke-width: 3px; }
+        .link:hover { stroke-opacity: 1; stroke-width: 5px; }
+        .node-label { font-size: 11px; font-weight: 500; pointer-events: none; }
+        .tooltip { position: absolute; background: rgba(0,0,0,0.9); color: white; padding: 10px 15px; border-radius: 6px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s; max-width: 300px; z-index: 1000; }
+        .legend-panel { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+            z-index: 1002; 
+            max-width: 280px;
+            font-size: 13px;
+        }
+        .legend-panel h3 { 
+            margin: 0 0 15px 0; 
+                color: #333;
+            font-size: 16px; 
+            border-bottom: 2px solid #007bff; 
+            padding-bottom: 8px; 
+        }
+        .legend-section { 
+            margin-bottom: 20px; 
+        }
+        .legend-section h4 { 
+            margin: 0 0 10px 0; 
+            color: #555; 
+            font-size: 14px; 
+            font-weight: 600; 
+        }
+        .legend-item { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 8px; 
+        }
+        .legend-node { 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-right: 10px; 
+            border: 2px solid #fff; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
+        }
+        .legend-line { 
+            width: 20px; 
+            height: 3px; 
+            margin-right: 10px; 
+        }
+        .legend-line.dashed { 
+            background-image: repeating-linear-gradient(to right, #dc3545 0, #dc3545 6px, transparent 6px, transparent 10px); 
+            background-color: transparent !important; 
+        }
+        .legend-text { 
+            color: #666; 
+            font-size: 12px; 
+        }
+        .back-button{ position:absolute; top:15px; right:15px; background:none; border:none; color:#666; cursor:pointer; font-size:18px; }
+        .data-section{ margin-bottom:20px; }
+        .data-section h4{ margin:0 0 10px 0; font-size:14px; color:#333; border-bottom:1px solid #eee; padding-bottom:5px; }
+        .data-content{ font-size:12px; color:#666; line-height:1.4; max-height:200px; overflow-y:auto; border:1px solid #eee; padding:10px; border-radius:4px; background:#f9f9f9; }
+        .judge-section{ margin-bottom:20px; padding:15px; background:white; border-radius:6px; border-left:4px solid #28a745; }
+        .summary-stats{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap:15px; margin-bottom:20px; }
+        .stat-card{ background:white; padding:15px; border-radius:6px; border-left:4px solid #007bff; box-shadow:0 2px 4px rgba(0,0,0,0.1); }
+        .stat-value{ font-size:24px; font-weight:bold; color:#007bff; }
+        .stat-label{ font-size:12px; color:#666; margin-top:5px; }
+        .evaluation-item{ margin-bottom:20px; padding:15px; background:white; border-radius:6px; border-left:4px solid #28a745; }
+        .evaluation-item.score-high{ border-left-color:#28a745; } .evaluation-item.score-medium{ border-left-color:#ffc107; } .evaluation-item.score-low{ border-left-color:#dc3545; }
+        .score-badge{ display:inline-block; padding:4px 8px; border-radius:12px; font-size:12px; font-weight:bold; color:white; margin-left:10px; }
+        .score-badge.high{ background:#28a745; } .score-badge.medium{ background:#ffc107; } .score-badge.low{ background:#dc3545; }
+        </style>
+    </head>
+    <body>
+    <div class="container">
+        <h1></h1>
+        <div id="graph"></div>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <div class="legend-panel">
+        <h3>Legend</h3>
+        
+        <div class="legend-section">
+            <h4>Node Types</h4>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #4F86F7;"></span>
+                <span>Learning Objectives (LO)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #28a745;"></span>
+                <span>Concepts</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #ffc107;"></span>
+                <span>Examples</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #4ECDC4;"></span>
+                <span>Try It Activities</span>
+            </div>
+            </div>
+
+        <div class="legend-section">
+            <h4>Node Size</h4>
+            <div class="legend-item">
+                <span class="legend-text">Larger nodes = More connections</span>
+              </div>
+            <div class="legend-item">
+                <span class="legend-text">Smaller nodes = Fewer connections</span>
+            </div>
+        </div>
+
+        <div class="legend-section">
+            <h4>Edge Types</h4>
+            <div class="legend-item">
+                <span class="legend-line solid" style="background: #999;"></span>
+                <span>Explained By (LO ↔ Content)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-line dashed" style="background: #dc3545;"></span>
+                <span>Prerequisite (LO → LO)</span>
+            </div>
+        </div>
+
+        <div class="legend-section">
+            <h4>Edge Thickness</h4>
+            <div class="legend-item">
+                <span class="legend-text">Thicker lines = Higher confidence</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-text">Thinner lines = Lower confidence</span>
+            </div>
+        </div>
+
+        <div class="legend-section">
+            <h4>Interactions</h4>
+            <div class="legend-item">
+                <span class="legend-text">• Hover nodes for details</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-text">• Click edges for relationship info</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-text">• Drag nodes to reposition</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-text">• Scroll to zoom in/out</span>
+                </div>
+              </div>
+            </div>
+        
+        
+    <script>
+        const width = window.innerWidth - 40;
+        const height = window.innerHeight - 100;
+        const svg = d3.select('#graph').append('svg').attr('width', width).attr('height', height);
+        const zoom = d3.zoom().on('zoom', (event)=>{ svg.select('g').attr('transform', event.transform); });
+        svg.call(zoom);
+        const g = svg.append('g');
+        const tooltip = d3.select('#tooltip');
+
+        const typeToColor = d3.scaleOrdinal()
+            .domain(['LO','concept','example','exercise','try_it','other'])
+            .range(['#4F86F7','#28a745','#ffc107','#FF6B6B','#4ECDC4','#6c757d']);
+
+        Promise.all([
+            d3.csv('lo_index.csv'),
+            d3.csv('content_items.csv'),
+            d3.csv('edges_content.csv'),
+            d3.csv('edges_prereqs.csv')
+        ]).then(([loRows, contentRows, contentEdgesRows, prereqEdgesRows]) => {
+            const nodesById = new Map();
+            const nodes = []; const links = [];
+
+            loRows.forEach(lo => { const id=`lo:${lo.lo_id}`; const n={ id, title:`LO ${lo.lo_id}`, type:'LO', degree:0, meta:lo }; nodesById.set(id,n); nodes.push(n); });
+            contentRows.forEach(c => { const id=`content:${c.content_id}`; const n={ id, title:`${c.content_type} ${c.content_id}`, type:(c.content_type||'other').toLowerCase(), degree:0, meta:c }; nodesById.set(id,n); nodes.push(n); });
+
+            contentEdgesRows.forEach(e => { const s=`lo:${e.source_lo_id}`, t=`content:${e.target_content_id}`; if(nodesById.has(s)&&nodesById.has(t)){ links.push({source:s,target:t,relation:e.relation||'explained_by',weight:+e.score||1,description:e.rationale||''}); nodesById.get(s).degree++; nodesById.get(t).degree++; }});
+            prereqEdgesRows.forEach(e => { const s=`lo:${e.source_lo_id}`, t=`lo:${e.target_lo_id}`; if(nodesById.has(s)&&nodesById.has(t)){ links.push({source:s,target:t,relation:e.relation||'prerequisite',weight:+e.score||1,description:e.rationale||''}); nodesById.get(s).degree++; nodesById.get(t).degree++; }});
+
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d=>d.id).distance(175))
+                .force('charge', d3.forceManyBody().strength(-25))
+                .force('center', d3.forceCenter(width/2, height/2))
+                .force('collision', d3.forceCollide().radius(d=>Math.max(8, Math.min(15, (d.degree||1)*1.2))));
+
+            const link = g.append('g').selectAll('line').data(links).enter().append('line')
+                .attr('class','link')
+                .attr('stroke', d=> d.relation==='prerequisite' ? '#dc3545' : '#999')
+                .attr('stroke-dasharray', d=> d.relation==='prerequisite' ? '6,4' : null)
+                .attr('stroke-width', d=> Math.max(3, Math.sqrt(d.weight)))
+                .on('click', (event,d)=>{ const s=typeof d.source==='object'?d.source:nodesById.get(d.source); const t=typeof d.target==='object'?d.target:nodesById.get(d.target); showRelationshipModal(s,t,d); });
+
+            const node = g.append('g').selectAll('circle').data(nodes).enter().append('circle')
+                .attr('class','node')
+                .attr('r', d=> Math.max(6, Math.min(14, (d.degree||1)*1.3)))
+                .attr('fill', d=> typeToColor(d.type))
+                .attr('stroke','#fff').attr('stroke-width',2)
+                .on('mouseover', (event,d)=>{
+                    const meta=d.meta||{}; const details = d.type==='LO' ? `Objective: ${meta.learning_objective||''}<br/>Unit: ${meta.unit||''}<br/>Chapter: ${meta.chapter||''}<br/>Book: ${meta.book||''}` : `Type: ${d.type}<br/>Parent LO: ${meta.lo_id_parent||''}<br/>Text: ${(meta.text||'').slice(0,140)}${(meta.text||'').length>140?'…':''}`;
+                    tooltip.transition().duration(200).style('opacity',.9);
+                    tooltip.html(`<strong>${d.title}</strong><br/>Degree: ${d.degree}<br/>${details}`)
+                        .style('left', (event.pageX+10)+'px').style('top',(event.pageY-10)+'px');
+                })
+                .on('mouseout', ()=> tooltip.transition().duration(300).style('opacity',0));
+
+            const label = g.append('g').selectAll('text').data(nodes).enter().append('text')
+                .attr('class','node-label').attr('dx',10).attr('dy','.35em').text(d=>d.title);
+
+            simulation.on('tick', ()=>{
+                link.attr('x1', d=>d.source.x).attr('y1', d=>d.source.y).attr('x2', d=>d.target.x).attr('y2', d=>d.target.y);
+                node.attr('cx', d=>d.x).attr('cy', d=>d.y);
+                label.attr('x', d=>d.x).attr('y', d=>d.y);
+            });
+
+            node.call(d3.drag().on('start', dragstarted).on('drag', dragged).on('end', dragended));
+            function dragstarted(event,d){ if(!event.active) simulation.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; }
+            function dragged(event,d){ d.fx=event.x; d.fy=event.y; }
+            function dragended(event,d){ if(!event.active) simulation.alphaTarget(0); d.fx=null; d.fy=null; }
+
+            function showRelationshipModal(sourceNode, targetNode, link){
+                let modal=document.getElementById('relationship-modal');
+                if(!modal){ modal=document.createElement('div'); modal.id='relationship-modal'; modal.innerHTML=`<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;" onclick="closeRelationshipModal()"></div><div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:20px;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:1001;max-width:400px;width:90%;"><span style="position:absolute;top:10px;right:15px;cursor:pointer;font-size:20px;color:#666;" onclick="closeRelationshipModal()">&times;</span><h3 id="modal-title" style="margin-top:0;color:#333;"></h3><p id="modal-description" style="color:#666;line-height:1.4;"></p><div id="modal-details" style="font-size:14px;color:#888;"></div></div>`; document.body.appendChild(modal); }
+                document.getElementById('modal-title').textContent = `${sourceNode.title} → ${targetNode.title}`;
+                document.getElementById('modal-description').textContent = link.description || 'No description available';
+                document.getElementById('modal-details').innerHTML = `<p><strong>Relation:</strong> ${link.relation}</p><p><strong>Weight:</strong> ${link.weight}</p>`;
+                modal.style.display='block';
+            }
+            window.closeRelationshipModal = function(){ const m=document.getElementById('relationship-modal'); if(m) m.style.display='none'; };
+
+        }).catch(err=>{ console.error('Failed to load CSVs:', err); });
+        </script>
+    </body>
+</html>
+

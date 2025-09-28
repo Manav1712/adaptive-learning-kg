@@ -1,17 +1,15 @@
 # Adaptive Learning Knowledge Graph Platform
 
-A local-first adaptive learning system that manually generates knowledge graph nodes and edges from OpenStax content, leverages Zep's temporal layer for conversation memory, and provides personalized tutoring through a RAG system with Retriever, Coach Generator, and Tutor agents.
+A local-first adaptive learning system that constructs high-quality knowledge graphs from OpenStax content using LLM-driven edge discovery, provides comprehensive evaluation pipelines, and offers interactive D3.js visualizations for exploring learning relationships.
 
 ## Project Overview
 
-This platform creates an adaptive learning system that:
-- **Manually generates** knowledge graph nodes (Learning Objectives, Content Items) and edges (prerequisites, content relationships)
-- **Uses Zep's temporal layer** for conversation memory and context management
-- **Implements a RAG system** with three specialized agents:
-  - **Retriever**: Finds relevant content and learning paths
-  - **Coach Generator**: Creates personalized learning strategies
-  - **Tutor**: Provides interactive tutoring sessions
-- Tracks student progress and adapts content accordingly
+This platform creates an adaptive learning knowledge graph system that:
+- **Constructs Knowledge Graphs**: Extracts Learning Objectives (LOs) and Content Items from OpenStax materials
+- **Discovers Relationships**: Uses multimodal LLM prompts to identify prerequisites and content relationships
+- **Validates Quality**: Implements two-tier evaluation (structural + semantic) for high-confidence edges
+- **Visualizes Interactively**: Provides D3.js-based graph visualization with legend and interaction controls
+- **Supports Scalability**: Includes sharding, batching, and retry mechanisms for large-scale processing
 - Uses local-first architecture for privacy and portability
 
 ## Architecture
@@ -36,46 +34,6 @@ See the [architecture/](architecture/) folder for detailed design documents:
 - **RAG System Development**: Building Retriever, Coach Generator, and Tutor agents that leverage the manually constructed knowledge graph
 - **Zep Integration**: Utilizing Zep's temporal layer for conversation memory and context management
 
-### Recent Progress (Sept 2025)
-
-- Tightened content discovery: threshold 0.85; pruning `same_unit=true`, `same_chapter=true`.
-- Added strict LLM evaluator (`src/experiments_manual/evaluate_with_llm.py`): JSON-only, retries, progress; 3-labels for prereqs and content.
-- Regenerated and evaluated content links with 0% JSON parse errors.
-
-Run:
-
-```bash
-# Prerequisites (LO→LO)
-python3 src/experiments_manual/evaluate_with_llm.py \
-  --edges-in data/processed/edges_prereqs.csv \
-  --jsonl-out data/processed/llm_edge_checks.jsonl \
-  --summary-out data/processed/llm_edge_checks_summary.json
-
-# Content links (LO→Content)
-python3 src/experiments_manual/evaluate_with_llm.py \
-  --edges-in data/processed/edges_content.csv \
-  --jsonl-out data/processed/llm_edge_checks_content_final.jsonl \
-  --summary-out data/processed/llm_edge_checks_content_final_summary.json
-```
-
-### Phase 2: Manual Knowledge Graph Construction — Status
-
-- **Scope**: Offline pipeline to manually generate high-quality knowledge graph nodes and edges
-- **Node Generation**: Learning Objectives and Content Items extracted from OpenStax mathematics content
-- **Edge Discovery**: LLM-driven discovery of relationships using multimodal prompts (text + image URLs)
-  - **Prerequisites**: LO → LO relationships (learning dependencies)
-  - **Content Links**: LO → Content relationships (explained_by, exemplified_by, practiced_by)
-- **Inputs**: `data/processed/lo_index.csv`, `data/processed/content_items.csv` (from `src/experiments_manual/prepare_lo_view.py`)
-- **Config**: `src/experiments_manual/config.yaml`
-  - **model**: `gpt-4o-mini`, **modality**: `multimodal`, **threshold**: `0.85`, **batch**: `8`, **retries**: `3`
-- **Discovery Scripts**:
-  - Content → LO: `src/experiments_manual/discover_content_links.py`
-  - LO → LO prerequisites: `src/experiments_manual/discover_prereqs.py`
-  - Both support: sharding via `--num-shards N --shard-index i`, progress logs, heuristic fallback
-- **Evaluation Pipeline**:
-  - **Structural Analysis**: `src/experiments_manual/evaluate_outputs.py` (integrity, cycles, coverage, graph stats)
-  - **Semantic Validation**: `src/experiments_manual/evaluate_with_llm.py` (LLM-based edge correctness)
-- **Visualization**: `src/experiments_manual/build_and_visualize.py` → `data/processed/graph_preview.html`
 
 #### Knowledge Graph Construction Pipeline
 
@@ -127,56 +85,229 @@ The manually constructed knowledge graph serves as the foundation for the RAG sy
 3. **Tutor Agent**: Provides interactive tutoring sessions with context from Zep's temporal layer
 4. **Integration**: All agents leverage the validated knowledge graph for accurate, contextual responses
 
+## Quick Start
+
+### 1. Environment Setup
+```bash
+# Create and activate virtual environment
+python3 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment variables
+export OPENAI_API_KEY=your_key_here
+```
+
+### 2. Run Complete Pipeline
+```bash
+# Discover content→LO relationships
+python src/experiments_manual/discover_content_links.py \
+  --config src/experiments_manual/config.yaml --mode both
+
+# Discover LO→LO prerequisite relationships  
+python src/experiments_manual/discover_prereqs.py \
+  --config src/experiments_manual/config.yaml --mode both
+
+# View interactive visualization (start server)
+python -m http.server 8000
+# Then open: http://localhost:8000/vis/graph_preview.html
+```
+
+### 3. View Interactive Visualization
+```bash
+# Start local server
+python -m http.server 8000
+
+# Open in browser: http://localhost:8000/vis/graph_preview.html
+# Or use the processed version: http://localhost:8000/data/processed/graph_preview.html
+```
+
+## Core Pipeline Components
+
+### Data Flow
+```
+OpenStax Content → LO Index + Content Items → Edge Discovery → Evaluation → Visualization
+```
+
+### Key Files and Directories
+
+#### Configuration
+- **`src/experiments_manual/config.yaml`**: Main configuration file
+  - Model: `gpt-4o-mini` with multimodal support
+  - Scoring threshold: `0.85` for high-quality edges
+  - Batch size: `8` targets per LLM call
+  - Retry logic: `3` attempts with exponential backoff
+
+#### Discovery Scripts
+- **`src/experiments_manual/discover_content_links.py`**: Finds LO↔Content relationships
+  - Supports `explained_by`, `exemplified_by`, `practiced_by` relations
+  - Multimodal prompts include text + image URLs
+  - Configurable pruning (same unit/chapter filtering)
+  
+- **`src/experiments_manual/discover_prereqs.py`**: Finds LO→LO prerequisite relationships
+  - Cross-unit/chapter prerequisite discovery
+  - Aggregates content per LO for comprehensive context
+  - Temporal ordering based on curriculum structure
+
+#### Evaluation Pipeline
+- **`src/experiments_manual/evaluate_heuristic.py`**: Structural analysis
+  - Referential integrity checks
+  - Cycle detection in prerequisite graphs
+  - Coverage metrics and graph statistics
+  
+- **`src/experiments_manual/evaluate_llm.py`**: Semantic validation
+  - LLM-based edge correctness assessment
+  - JSON-only responses with retry logic
+  - Binary labels: `correct`/`incorrect` with reasoning
+
+#### Visualization
+- **`vis/graph_preview.html`**: D3.js-based interactive visualization
+  - Color-coded nodes by type (LO, Concept, Example, Try It)
+  - Edge styling by relationship type (solid/dashed)
+  - Interactive legend with node/edge explanations
+  - Hover tooltips and click interactions
+  - Reads CSV data dynamically from same directory
+
+### Data Files
+
+#### Input Data
+- **`data/processed/lo_index.csv`**: Learning Objectives metadata
+  - Columns: `lo_id`, `learning_objective`, `unit`, `chapter`, `book`
+- **`data/processed/content_items.csv`**: Content Items metadata  
+  - Columns: `content_id`, `content_type`, `lo_id_parent`, `text`, `image_urls`
+
+#### Generated Edges
+- **`data/processed/edges_content.csv`**: LO→Content relationships
+  - Columns: `source_lo_id`, `target_content_id`, `relation`, `score`, `confidence`, `rationale`
+- **`data/processed/edges_prereqs.csv`**: LO→LO prerequisite relationships
+  - Columns: `source_lo_id`, `target_lo_id`, `relation`, `score`, `confidence`, `rationale`
+
+#### Evaluation Outputs
+- **`data/processed/llm_edge_checks_*.jsonl`**: Per-edge LLM evaluations
+- **`data/processed/llm_*_summary.json`**: Aggregate evaluation metrics
+- **`data/processed/graph_quality_report.json`**: Structural analysis results
+
+
+
+### Evaluation and Quality Control
+```bash
+# Structural evaluation
+python src/experiments_manual/evaluate_heuristic.py \
+  --edges data/processed/edges_content.csv \
+  --json-out data/processed/content_eval.json
+
+# Semantic evaluation with LLM
+python src/experiments_manual/evaluate_llm.py \
+  --edges-in data/processed/edges_prereqs.csv \
+  --jsonl-out data/processed/llm_prereq_eval.jsonl \
+  --summary-out data/processed/llm_prereq_summary.json
+```
+
+## Visualization Features
+
+The interactive D3.js visualization (`vis/graph_preview.html`) provides:
+
+### Node Types
+- **Learning Objectives**: Blue circles
+- **Concepts**: Green circles  
+- **Examples**: Yellow/orange circles
+- **Try It Activities**: Teal circles
+
+### Edge Types
+- **Explained By**: Solid gray lines (LO↔Content)
+- **Prerequisites**: Dashed red lines (LO→LO)
+- **Thickness**: Represents confidence scores
+
+### Interactions
+- **Hover**: View detailed node/edge information
+- **Click edges**: See relationship details in modal
+- **Drag nodes**: Reposition for better layout
+- **Zoom/Pan**: Navigate large graphs
+- **Legend**: Always-visible explanation panel
+
+### Customization
+The visualization automatically:
+- Sizes nodes by connection degree
+- Colors edges by relationship type  
+- Provides responsive layout with force simulation
+- Includes collision detection and smooth animations
+
+## Configuration Reference
+
+### `config.yaml` Structure
+```yaml
+model: gpt-4o-mini           # LLM model for edge discovery
+modality: multimodal         # Include images in prompts
+scoring:
+  threshold: 0.85            # Minimum score for edge inclusion
+runtime:
+  max_targets_per_call: 8    # Batch size for LLM calls
+  max_retries: 3             # Retry attempts on failure
+pruning:
+  same_unit: false           # Allow cross-unit relationships
+  same_chapter: false        # Allow cross-chapter relationships
+llm:
+  temperature: 0.0           # Deterministic responses
+  score_threshold: 0.7       # Alternative threshold for prereqs
+  min_confidence: 0.6        # Minimum confidence for inclusion
+```
+
 ## Development Setup
 
-1. Create virtual environment: `python3 -m venv venv`
-2. Activate: `source venv/bin/activate`
-3. Install dependencies: `pip install -r requirements.txt`
-4. Set environment variables:
-   - `export ZEP_API_KEY=your_key_here`
-   - For notebooks/POC only: `export OPENAI_API_KEY=your_key_here` (do not hardcode in notebooks)
-5. Run experiments:
-   - Ingestion (ontology): `python src/experiments/baseline_v3/ingestion_v3.py`
-   - Evaluation (v3): `python src/experiments/baseline_v3/evaluation_v3.py`
-   - Minimal/pruned ingest (v4): `python src/experiments/baseline_v4/ingestion_v4.py`
-   - Evaluation (v4): `python src/experiments/baseline_v4/evaluation_v4.py`
+### Prerequisites
+- Python 3.9+
+- OpenAI API key
+- Virtual environment recommended
 
-## Project Structure (Phase 1)
-
-```
-src/
-├── experiments/           # Iterative experiment framework
-│   ├── baseline_v1/      # Initial KG construction (474 nodes, 493 edges)
-│   │   ├── ingestion_v1.py
-│   │   ├── evaluation_v1.py
-│   │   └── retrieval_baseline_results.md
-│   ├── baseline_v2/      # Schema hints experiment (270 episodes, 24.6% effectiveness)
-│   │   ├── ingestion_v2.py
-│   │   ├── evaluation_v2.py
-│   │   └── retrieval_baseline_v2_results.md
-│   ├── baseline_v3/      # Ontology enforcement experiment
-│   │   ├── ingestion_v3.py
-│   │   └── evaluation_v3.py
-│   └── baseline_v4/      # Minimal ingestion with light pruning
-│       ├── ingestion_v4.py
-│       └── evaluation_v4.py
-├── processing/           # Content processing utilities
-├── evaluation/           # KG evaluation utilities
-└── retrieval/            # Retrieval package scaffold
-
-data/                    # Data storage (raw/processed)
-tests/                   # Basic testing
-architecture/            # Design documents and specifications
+### Installation
+```bash
+git clone <repository>
+cd adaptive-learning-kg
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## Technology Stack
+### Environment Variables
+```bash
+export OPENAI_API_KEY=your_key_here
+# Optional for Zep integration:
+export ZEP_API_KEY=your_zep_key_here
+```
 
-- **Language**: Python 3.11+
-- **LLM**: OpenAI GPT-4 (GPT-4o-mini for edge discovery and validation)
-- **Knowledge Graph**: Manually constructed nodes and edges from OpenStax content
-- **Temporal Memory**: Zep's temporal layer for conversation context and memory
-- **Storage**: Local JSON + CSV (extensible to Zep cloud)
-- **Vector Search**: Sentence-transformers + FAISS
-- **Frontend**: Vanilla JS + D3.js
-- **Architecture**: Multi-agent RAG system with Retriever, Coach Generator, and Tutor agents
- 
+### Running Tests
+```bash
+# Run evaluation on sample data
+python src/experiments_manual/evaluate_heuristic.py \
+  --edges demo/edges_content.csv
+
+# Test visualization (copy demo data to vis folder)
+cp demo/*.csv vis/
+python -m http.server 8000
+# Open: http://localhost:8000/vis/graph_preview.html
+```
+
+## Project Structure
+```
+adaptive-learning-kg/
+├── src/experiments_manual/     # Core pipeline scripts
+│   ├── config.yaml            # Configuration file
+│   ├── discover_content_links.py  # LO↔Content discovery
+│   ├── discover_prereqs.py    # LO→LO prerequisite discovery  
+│   ├── evaluate_heuristic.py  # Structural evaluation
+│   └── evaluate_llm.py        # Semantic evaluation
+├── data/processed/            # Generated data files
+│   ├── lo_index.csv          # Learning objectives
+│   ├── content_items.csv     # Content metadata
+│   ├── edges_content.csv     # LO↔Content relationships
+│   ├── edges_prereqs.csv     # LO→LO prerequisites
+│   └── graph_preview.html    # Generated visualization (legacy)
+├── vis/                      # Self-contained visualization
+│   ├── graph_preview.html    # D3.js interactive graph
+│   └── *.csv                # Required data files
+├── demo/                     # Sample data for testing
+├── architecture/             # Design documentation
+└── requirements.txt          # Python dependencies
+```
