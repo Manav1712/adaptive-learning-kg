@@ -19,21 +19,6 @@ See the [architecture/](architecture/) folder for detailed design documents:
 - [Implementation Plan](architecture/implementation.md) - Technical implementation details
 - [Sequence Diagrams](architecture/sequence_diagrams.md) - System interactions
 
-## Progress Report
-
-### Phase 1: Static Knowledge Graph — Status
-
-- Baselines built using Zep ingestion experiments (V1–V4)
-- Ontology- and schema-guided ingestion validated (Baseline V3/V4)
-- Evaluation scripts in place to measure structure and retrieval
-
-### Current Focus
-
-- **Manual Knowledge Graph Construction**: Using LLM-driven edge discovery to build high-quality relationships
-- **Graph Validation**: Comprehensive evaluation of edge quality through structural analysis and semantic LLM validation
-- **RAG System Development**: Building Retriever, Coach Generator, and Tutor agents that leverage the manually constructed knowledge graph
-- **Zep Integration**: Utilizing Zep's temporal layer for conversation memory and context management
-
 
 #### Knowledge Graph Construction Pipeline
 
