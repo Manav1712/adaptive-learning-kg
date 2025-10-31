@@ -17,8 +17,7 @@
 3. **Retriever: Multi-stage Retrieval**
    - Stage A (Hybrid recall): dense semantic + lexical (BM25/SPLADE) over LO and content.
    - Stage B (Re-rank): cross-encoder or LLM re-rank within a tight window; apply MMR for diversity.
-   - Stage C (Graph expansion): limited-radius traversal to collect minimal 
-   prerequisites and aligned content.
+   - Stage C (Graph expansion): traversal to collect minimal prerequisites and aligned content.
    
 4. **Retriever: Context Compression**
    - Extract 3–7 bullet facts; include 1–3 content items; return citations.
@@ -39,14 +38,28 @@
   - If `needs_clarification`: ask 1 concise question; else compose tutoring response or route to Planner/Tutor.
 
 ### Retriever behavior
-- **Stage A – Hybrid recall**
-  - Dense encoder on LO titles/descriptions/summaries and content metadata; combine with lexical scores.
-  - Filters: subject, content types, difficulty; respect timeouts.
-- **Stage B – Re-ranking + diversity**
-  - Cross-encoder/LLM re-ranking on top-N; apply MMR to avoid same-node near-duplicates.
-- **Stage C – Graph-aware expansion (budgeted)**
-  - For top LO candidates, traverse `PREREQUISITE_OF` up to `depth_prereq` to assemble the minimal path to readiness.
-  - Pull `ASSESSED_BY` content aligned to those LOs; prefer examples vs exercises based on intent.
+
+**Why we use multiple stages:**
+Think of it like hiring for a job. Stage A is like posting the job broadly and getting 1000 applications (wide search). Stage B is like HR screening to the top 50 candidates (picking the best). Stage C is like checking references and related experience (finding prerequisites and supporting content). This way we don't miss good candidates, but we don't waste time interviewing everyone.
+
+- **Stage A – Hybrid recall (Cast wide net)**
+  - **Dense embeddings (FAISS)**: Convert text to numbers that capture meaning; "car" and "automobile" get similar vectors
+  - **Lexical retrieval (BM25/SPLADE)**: Find exact word matches; catches "x^2" and specific notation that meaning-based search might miss
+  - **RRF fusion**: Combine both lists intelligently - like merging recommendations from two different librarians
+  - **Optional HyDE**: Generate an "ideal answer" to boost recall for vague questions
+  - **Filters**: Apply subject, content types, difficulty constraints
+  - **Goal**: Don't miss anything relevant (high recall)
+
+- **Stage B – Re-ranking + diversity (Pick the best)**
+  - **Cross-encoder/LLM re-ranking**: Expert review of top 30-50 candidates; compares each directly to the query
+  - **MMR diversity**: Ensure variety - don't return 5 similar examples when student needs different types
+  - **Goal**: Make sure what we return is actually good (high precision)
+
+- **Stage C – Graph-aware expansion (Find related content)**
+  - **Prerequisite traversal**: Follow `PREREQUISITE_OF` edges to find what student needs to learn first
+  - **Content alignment**: Pull `ASSESSED_BY` content (examples/exercises) that teach the target LOs
+  - **Intent-based selection**: Prefer examples for tutoring, exercises for practice
+  - **Goal**: Provide complete learning context
 - **Context compression**
   - Selective extract of key sentences; generate 3–7 atomic facts; include 1–3 content items with snippets.
   - Hard token cap; drop anything not needed to answer the query.
@@ -54,32 +67,10 @@
   - No new facts beyond KG; LLM only for rewriting/reranking/compression.
   - Attribute every fact to LO IDs/content IDs.
 
-### Retrieval Mode Options
-
-#### Hybrid Mode (Recommended)
-- **Stage A**: Dense embeddings (FAISS) + lexical (BM25/SPLADE), fused via RRF
-- **Stage B**: Cross-encoder or LLM re-ranking on top 30-50 candidates
-- **Pros**: High recall, stable performance, cost-effective at scale
-- **Cons**: Requires embedding index setup
-- **Best for**: Production systems, large corpora, cost-sensitive deployments
-
-#### LLM-Only Mode (Small Scale)
-- **Stage A**: LLM ranks all items or broad candidate set directly
-- **Stage B**: Optional second-pass LLM refinement
-- **Pros**: Minimal infrastructure, handles ambiguous queries well
-- **Cons**: Higher latency/cost, less deterministic, recall fragility
-- **Best for**: Prototyping, small corpora (<500 nodes), research experiments
-
-#### Mode Selection Guidelines
-- **Current scale (138 LOs, 270 content)**: Either mode viable; hybrid preferred for production
-- **Latency budget**: <1.2s p95 for hybrid; <3s for LLM-only
-- **Cost budget**: Hybrid ~$0.01/1k queries; LLM-only ~$0.10/1k queries
-- **Fallback**: Always include lexical fallback and timeout handling
-
 ### Coach ↔ Retriever I/O contract
 
 - **Request**
-```json
+  ```json
 {
   "query": "How do I solve a quadratic equation?",
   "subject": "algebra",
@@ -98,7 +89,7 @@
 ```
 
 - **Response**
-```json
+  ```json
 {
   "can_answer": true,
   "needs_clarification": false,
@@ -252,24 +243,6 @@
 - Higher scores mean stronger/more important relationships
 - Like rating how important each prerequisite is on a scale
 
-### Evaluation Metrics
-
-**Recall@K**
-- Of all the correct answers, how many did we find in our top K results?
-- If there are 10 correct answers and we found 7 in top-10, recall@10 = 70%
-
-**MRR (Mean Reciprocal Rank)**
-- Average of 1/rank for the first correct answer found
-- If correct answer is at position 3, MRR = 1/3 = 0.33
-- Higher is better; perfect would be 1.0
-
-**Precision**
-- Of all the results we returned, how many were actually correct?
-- If we return 10 items and 8 are correct, precision = 80%
-
-**F1 Score**
-- Combines precision and recall into one number
-- Balances finding the right things (recall) with not returning wrong things (precision)
 
 ### Technical Terms
 
@@ -294,3 +267,30 @@
 **Attribution**
 - Clearly marking which source (LO or content item) each piece of information came from
 - Like footnotes in a research paper - every fact can be traced back to its source
+
+### Research Citations
+
+**HyDE (Hypothetical Document Embeddings)**
+- Gao et al., "Precise Zero-Shot Dense Retrieval without Relevance Labels (HyDE)" [arXiv:2212.10496](https://arxiv.org/abs/2212.10496)
+- Generates idealized answers to boost recall for ambiguous queries
+
+**FAISS (Vector Search)**
+- Johnson, Douze, Jégou, "Billion-scale Similarity Search with GPUs" [GitHub](https://github.com/facebookresearch/faiss)
+- Fast approximate nearest-neighbor search for semantic matching
+
+**Lexical Retrieval**
+- Robertson & Zaragoza, "The Probabilistic Relevance Framework: BM25 and Beyond" (2009) [DOI](https://doi.org/10.1561/1500000019)
+- Formal et al., "SPLADE v2" [arXiv:2109.10086](https://arxiv.org/abs/2109.10086)
+- BM25: classic term-frequency scoring; SPLADE: neural sparse retrieval
+
+**RRF (Reciprocal Rank Fusion)**
+- Cormack, Clarke, Buettcher, "Reciprocal Rank Fusion..." SIGIR 2009 [DOI](https://doi.org/10.1145/1571941.1572114)
+- Robust method to merge rankings from multiple retrievers
+
+**Cross-encoder Re-ranking**
+- Nogueira & Cho, "Passage Re-ranking with BERT" [arXiv:1901.04085](https://arxiv.org/abs/1901.04085)
+- High-precision joint scoring of query-candidate pairs
+
+**MMR (Maximal Marginal Relevance)**
+- Carbonell & Goldstein, SIGIR 1998 [DOI](https://doi.org/10.1145/290941.291025)
+- Balances relevance with diversity to avoid near-duplicates
