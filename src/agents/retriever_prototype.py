@@ -390,7 +390,7 @@ class SimpleRetrieverAgent:
         }
     
     def retrieve(self, query: str, method: str = "embedding", 
-                 k_los: int = 5, k_content: int = 5, expand: bool = False) -> dict:
+                 k_los: int = 5, k_content: int = 5, expand: bool = True) -> dict:
         """
         Retrieve top-k Learning Objectives and content items for a query.
         
