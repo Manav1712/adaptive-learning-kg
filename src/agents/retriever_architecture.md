@@ -139,6 +139,33 @@ This keeps the comparison focused on embeddings vs keyword search while using gr
 
 The better investment is manual evaluation of the embedding vs BM25 results you already have.
 
+## LLM-as-Retriever Baseline
+
+### Implementation
+Added a baseline method that uses LLM directly as retriever:
+- No embeddings or keyword search
+- LLM sees all document titles + summaries
+- LLM selects top-k most relevant documents via JSON response
+- Two API calls per query (one for LOs, one for content)
+
+### Performance Characteristics
+- **Prompt size**: ~408 documents × 200 chars = ~80K characters per prompt
+- **API calls**: 2 per query × 25 queries = 50 total API calls
+- **Estimated time**: ~2-5 seconds per call = **2-5 minutes minimum** for full evaluation
+- **Context limits**: May approach GPT-3.5-turbo context limits (~16K tokens)
+- **Cost**: ~$0.01-0.02 per query × 25 = **$0.25-0.50 per evaluation run**
+
+### Why This Baseline?
+- Shows worst-case LLM retrieval performance (no pre-filtering)
+- Demonstrates cost/latency trade-offs
+- Useful comparison point: pure LLM reasoning vs embedding-based search
+- Not scalable for production but valuable for research comparison
+
+### Comparison Methods
+1. **Modern Embeddings** (OpenAI text-embedding-3-small): Fast, scalable, semantic search
+2. **LLM Summary + Embeddings**: Pre-process docs with summaries, then embed and search
+3. **LLM-as-Retriever Baseline**: Direct LLM selection from all documents (slowest, most expensive)
+
 ## Opinions on LLM Summarization for Retrieval
 
 ### Why it's slow

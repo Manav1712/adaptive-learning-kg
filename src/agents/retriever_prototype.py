@@ -17,9 +17,12 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import faiss
-from sentence_transformers import SentenceTransformer
 from rank_bm25 import BM25Okapi
 import re
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Paths
 DATA_DIR = Path(__file__).parent.parent.parent / "data" / "processed"
@@ -220,64 +223,86 @@ def build_embedding_index(lo_corpus_df, content_corpus_df):
     """
     Build FAISS vector indexes for efficient embedding-based similarity search.
     
-    Uses sentence-transformers to encode LO and content texts into dense vectors,
+    Uses OpenAI's text-embedding-3 model to encode LO and content texts into dense vectors,
     then creates FAISS indexes for fast cosine similarity search. Processes texts
-    sequentially (one at a time) to avoid multiprocessing issues on macOS.
+    in batches via API calls.
     
     Args:
         lo_corpus_df: DataFrame with LO corpus (must have 'base_text' column)
         content_corpus_df: DataFrame with content corpus (must have 'base_text' column)
     
     Returns:
-        tuple: (embedding_model, lo_index, content_index)
-            - embedding_model: SentenceTransformer model instance
+        tuple: (embedding_client, lo_index, content_index)
+            - embedding_client: OpenAI client instance (for encoding queries)
             - lo_index: FAISS IndexFlatIP for LOs
             - content_index: FAISS IndexFlatIP for content items
     
     Note:
-        Uses 'all-MiniLM-L6-v2' model (384-dim embeddings). Vectors are L2-normalized
-        for cosine similarity via inner product. Sequential encoding avoids segfaults
-        on macOS systems with multiprocessing issues.
+        Uses OpenAI 'text-embedding-3-small' model (1536-dim embeddings). Vectors are L2-normalized
+        for cosine similarity via inner product. Requires OPENAI_API_KEY environment variable.
     """
-    import torch
-    import gc
+    import time
     
-    print("Loading embedding model...")
-    embedding_model = SentenceTransformer("all-MiniLM-L6-v2", device='cpu')
+    # Check API key
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY environment variable not set")
+    
+    client = OpenAI(api_key=api_key)
+    model = "text-embedding-3-small"  # or "text-embedding-3-large" for better quality
     
     lo_texts = lo_corpus_df["base_text"].astype(str).tolist()
     content_texts = content_corpus_df["base_text"].astype(str).tolist()
     
-    # Encode one item at a time to completely avoid multiprocessing
-    def encode_sequential(texts):
+    def encode_with_openai(texts, client, model):
         """
-        Encode texts sequentially (one at a time) to avoid multiprocessing issues.
+        Encode texts using OpenAI API in batches.
         
         Args:
             texts: List of text strings to encode
+            client: OpenAI client instance
+            model: Model name
         
         Returns:
             numpy array of shape (len(texts), embedding_dim) with float32 vectors
         """
         all_vecs = []
-        for i, text in enumerate(texts):
-            if i % 20 == 0:
+        batch_size = 100  # OpenAI allows up to 2048 texts per request, but we'll batch smaller
+        
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            if i % 200 == 0:
                 print(f"  Encoded {i}/{len(texts)}...", end='\r')
-            vec = embedding_model.encode([text], convert_to_numpy=True, show_progress_bar=False)
-            all_vecs.append(vec[0])
+            
+            try:
+                response = client.embeddings.create(
+                    model=model,
+                    input=batch
+                )
+                batch_vecs = [item.embedding for item in response.data]
+                all_vecs.extend(batch_vecs)
+                time.sleep(0.1)  # Rate limiting
+            except Exception as e:
+                print(f"  Error encoding batch {i}: {e}")
+                # Fallback: encode one at a time for this batch
+                for text in batch:
+                    try:
+                        response = client.embeddings.create(model=model, input=[text])
+                        all_vecs.append(response.data[0].embedding)
+                        time.sleep(0.1)
+                    except Exception as e2:
+                        print(f"    Error encoding single text: {e2}")
+                        # Use zero vector as fallback
+                        all_vecs.append([0.0] * 1536)
+        
         print(f"  Encoded {len(texts)}/{len(texts)}      ")
         return np.array(all_vecs).astype("float32")
     
-    print("Encoding LOs...")
-    with torch.no_grad():
-        lo_vecs = encode_sequential(lo_texts)
+    print("Encoding LOs with OpenAI text-embedding-3-small...")
+    lo_vecs = encode_with_openai(lo_texts, client, model)
     
-    print("Encoding content...")
-    with torch.no_grad():
-        content_vecs = encode_sequential(content_texts)
-    
-    # Force cleanup
-    gc.collect()
+    print("Encoding content with OpenAI text-embedding-3-small...")
+    content_vecs = encode_with_openai(content_texts, client, model)
     
     faiss.normalize_L2(lo_vecs)
     faiss.normalize_L2(content_vecs)
@@ -290,7 +315,7 @@ def build_embedding_index(lo_corpus_df, content_corpus_df):
     
     print(f"Built FAISS indexes: {lo_index.ntotal} LOs, {content_index.ntotal} content items")
     
-    return embedding_model, lo_index, content_index
+    return client, lo_index, content_index
 
 
 def build_bm25_index(lo_corpus_df, content_corpus_df):
@@ -340,7 +365,7 @@ class SimpleRetrieverAgent:
     Simple retriever agent for comparing embedding-based vs BM25 retrieval methods.
     
     Supports two retrieval strategies:
-    - Embedding: Dense semantic search using FAISS and sentence-transformers
+    - Embedding: Dense semantic search using FAISS and OpenAI text-embedding-3
     - Summary (BM25): Lexical keyword search using BM25 ranking
     
     Optional graph expansion adds related LOs (prerequisites) and content items
@@ -357,7 +382,7 @@ class SimpleRetrieverAgent:
         Args:
             lo_corpus_df: DataFrame with LO corpus (required)
             content_corpus_df: DataFrame with content corpus (required)
-            embedding_model: SentenceTransformer model (for embedding method)
+            embedding_model: OpenAI client instance (for embedding method)
             lo_index: FAISS index for LOs (for embedding method)
             content_index: FAISS index for content (for embedding method)
             bm25_index: BM25Okapi index (for BM25 method)
@@ -371,7 +396,7 @@ class SimpleRetrieverAgent:
         """
         self.lo_corpus_df = lo_corpus_df
         self.content_corpus_df = content_corpus_df
-        self.embedding_model = embedding_model
+        self.embedding_client = embedding_model  # Now OpenAI client
         self.lo_index = lo_index
         self.content_index = content_index
         self.bm25_index = bm25_index
@@ -440,7 +465,12 @@ class SimpleRetrieverAgent:
             greater semantic relevance. Separate searches are performed for LOs
             and content to maintain balanced results.
         """
-        q = self.embedding_model.encode([query], convert_to_numpy=True).astype("float32")
+        # Encode query using OpenAI
+        response = self.embedding_client.embeddings.create(
+            model="text-embedding-3-small",
+            input=[query]
+        )
+        q = np.array(response.data[0].embedding).astype("float32").reshape(1, -1)
         faiss.normalize_L2(q)
         
         D_lo, I_lo = self.lo_index.search(q, k_los)

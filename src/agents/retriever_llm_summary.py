@@ -236,6 +236,210 @@ def build_summary_embedding_index(lo_summaries_df: pd.DataFrame, content_summari
     return embedding_model, lo_index, content_index
 
 
+def llm_as_retriever(query: str, lo_summaries_df: pd.DataFrame, content_summaries_df: pd.DataFrame,
+                     client: OpenAI, model: str = "gpt-3.5-turbo", k_los: int = 5, k_content: int = 5):
+    """
+    Use LLM directly as retriever - no embeddings, just ask LLM to select relevant documents.
+    
+    This is a baseline method where we give the LLM the query and all document titles/summaries,
+    and ask it to select the most relevant ones.
+    
+    Args:
+        query: Search query string
+        lo_summaries_df: DataFrame with LO summaries
+        content_summaries_df: DataFrame with content summaries
+        client: OpenAI client instance
+        model: Model to use
+        k_los: Number of top LOs to return
+        k_content: Number of top content items to return
+    
+    Returns:
+        dict: {"los": List[dict], "content": List[dict]} with hit dictionaries
+    """
+    # Build lists of documents with IDs and summaries
+    lo_docs = []
+    for _, row in lo_summaries_df.iterrows():
+        lo_docs.append({
+            "id": row["doc_id"],
+            "lo_id": row["lo_id"],
+            "title": row["base_text"],
+            "summary": row.get("llm_summary", row["base_text"])
+        })
+    
+    content_docs = []
+    for _, row in content_summaries_df.iterrows():
+        content_docs.append({
+            "id": row["doc_id"],
+            "type": row["type"],
+            "title": row["base_text"][:100],
+            "summary": row.get("llm_summary", row["base_text"][:200])
+        })
+    
+    # Build prompt for LO selection
+    lo_prompt = f"""Given this query: "{query}"
+
+Select the {k_los} most relevant Learning Objectives from this list. Return a JSON object with a key "selected_ids" containing an array of document IDs in order of relevance (most relevant first).
+
+Learning Objectives:
+"""
+    for doc in lo_docs:
+        lo_prompt += f"- ID: {doc['id']}, Title: {doc['title']}, Summary: {doc['summary'][:150]}\n"
+    
+    lo_prompt += '\nReturn format: {"selected_ids": ["lo_123", "lo_456", ...]}'
+    
+    # Build prompt for content selection
+    content_prompt = f"""Given this query: "{query}"
+
+Select the {k_content} most relevant content items from this list. Return a JSON object with a key "selected_ids" containing an array of document IDs in order of relevance (most relevant first).
+
+Content Items:
+"""
+    for doc in content_docs:
+        content_prompt += f"- ID: {doc['id']}, Type: {doc['type']}, Title: {doc['title']}, Summary: {doc['summary'][:150]}\n"
+    
+    content_prompt += '\nReturn format: {"selected_ids": ["123_concept_1", "456_example_2", ...]}'
+    
+    # Call LLM for LO selection
+    try:
+        lo_response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a precise document retrieval system. Return ONLY valid JSON objects with a 'selected_ids' key containing an array of document IDs."},
+                {"role": "user", "content": lo_prompt}
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"}
+        )
+        lo_result = json.loads(lo_response.choices[0].message.content)
+        lo_selected_ids = lo_result.get("selected_ids", [])
+        if not isinstance(lo_selected_ids, list):
+            lo_selected_ids = []
+    except Exception as e:
+        print(f"  Error in LLM LO retrieval: {e}")
+        lo_selected_ids = []
+    
+    # Call LLM for content selection
+    try:
+        content_response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "You are a precise document retrieval system. Return ONLY valid JSON objects with a 'selected_ids' key containing an array of document IDs."},
+                {"role": "user", "content": content_prompt}
+            ],
+            temperature=0.0,
+            response_format={"type": "json_object"}
+        )
+        content_result = json.loads(content_response.choices[0].message.content)
+        content_selected_ids = content_result.get("selected_ids", [])
+        if not isinstance(content_selected_ids, list):
+            content_selected_ids = []
+    except Exception as e:
+        print(f"  Error in LLM content retrieval: {e}")
+        content_selected_ids = []
+    
+    # Build lookup maps
+    lo_map = {doc["id"]: doc for doc in lo_docs}
+    content_map = {doc["id"]: doc for doc in content_docs}
+    
+    # Format LO results
+    lo_hits = []
+    for rank, doc_id in enumerate(lo_selected_ids[:k_los], 1):
+        if doc_id in lo_map:
+            doc = lo_map[doc_id]
+            lo_hits.append({
+                "rank": rank,
+                "score": 1.0 - (rank - 1) * 0.1,  # Fake score based on rank
+                "doc_id": doc["id"],
+                "lo_id": doc["lo_id"],
+                "title": doc["title"],
+                "snippet": doc["summary"],
+                "type": "LO",
+            })
+    
+    # Format content results
+    ct_hits = []
+    for rank, doc_id in enumerate(content_selected_ids[:k_content], 1):
+        if doc_id in content_map:
+            doc = content_map[doc_id]
+            ct_hits.append({
+                "rank": rank,
+                "score": 1.0 - (rank - 1) * 0.1,  # Fake score based on rank
+                "doc_id": doc["id"],
+                "type": doc["type"],
+                "title": doc["title"],
+                "snippet": doc["summary"],
+            })
+    
+    return {"los": lo_hits, "content": ct_hits}
+
+
+def evaluate_llm_as_retriever(lo_summaries_df: pd.DataFrame, content_summaries_df: pd.DataFrame,
+                               client: OpenAI, test_queries: List[str], model: str = "gpt-3.5-turbo",
+                               output_path: Path = None):
+    """
+    Evaluate LLM-as-retriever baseline method on test queries.
+    
+    Args:
+        lo_summaries_df: DataFrame with LO summaries
+        content_summaries_df: DataFrame with content summaries
+        client: OpenAI client instance
+        test_queries: List of query strings
+        model: Model to use
+        output_path: Path to save CSV results
+    
+    Returns:
+        pd.DataFrame: Results DataFrame
+    """
+    results = []
+    
+    print(f"\nEvaluating LLM-as-retriever baseline on {len(test_queries)} queries...")
+    for intent_id, query in enumerate(test_queries, 1):
+        print(f"  Query {intent_id}/{len(test_queries)}: {query[:60]}...")
+        
+        hits = llm_as_retriever(query, lo_summaries_df, content_summaries_df, client, model, k_los=5, k_content=5)
+        
+        # Format results
+        for r in hits["los"]:
+            results.append({
+                "intent_id": intent_id,
+                "query": query,
+                "method": "llm_as_retriever",
+                "entity_type": "LO",
+                "rank": r["rank"],
+                "doc_id": r["doc_id"],
+                "lo_id": r.get("lo_id", ""),
+                "title": r["title"],
+                "snippet": r["snippet"][:200],
+                "score": r["score"],
+            })
+        
+        for r in hits["content"]:
+            results.append({
+                "intent_id": intent_id,
+                "query": query,
+                "method": "llm_as_retriever",
+                "entity_type": r["type"],
+                "rank": r["rank"],
+                "doc_id": r["doc_id"],
+                "lo_id": "",
+                "title": r["title"],
+                "snippet": r["snippet"][:200],
+                "score": r["score"],
+            })
+    
+    results_df = pd.DataFrame(results)
+    results_df["relevance_score"] = None
+    results_df["winner"] = None
+    
+    if output_path is None:
+        output_path = RESULTS_DIR / "retriever_eval_llm_as_retriever.csv"
+    
+    results_df.to_csv(output_path, index=False)
+    print(f"\nExported {len(results_df)} result rows to {output_path}")
+    
+    return results_df
+
+
 def retrieve_from_summaries(query: str, embedding_model, lo_index, content_index,
                              lo_summaries_df: pd.DataFrame, content_summaries_df: pd.DataFrame,
                              k_los: int = 5, k_content: int = 5):
@@ -410,13 +614,31 @@ def main():
         "How do I find the domain of a function?",
     ]
     
-    # Test single query
-    print("\n4. Testing retrieval...")
+    # Test LLM-as-retriever baseline
+    print("\n4. Testing LLM-as-retriever baseline...")
+    test_query = "What is a derivative?"
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY environment variable not set")
+    client = OpenAI(api_key=api_key)
+    
+    llm_results = llm_as_retriever(test_query, lo_summaries_df, content_summaries_df, client, k_los=5, k_content=5)
+    
+    print(f"\nQuery: '{test_query}' (Method: LLM-as-retriever baseline)")
+    print("\nTop LOs:")
+    for r in llm_results["los"][:5]:
+        print(f"  {r['rank']}. {r['doc_id']} (score: {r['score']:.3f}) - {r['title']}")
+    print("\nTop Content:")
+    for r in llm_results["content"][:5]:
+        print(f"  {r['rank']}. {r['doc_id']} ({r['type']}, score: {r['score']:.3f}) - {r['title']}")
+    
+    # Test summary-based retrieval
+    print("\n5. Testing summary-based retrieval...")
     test_query = "What is a derivative?"
     results = retrieve_from_summaries(test_query, embedding_model, lo_index, content_index,
                                       lo_summaries_df, content_summaries_df, k_los=5, k_content=5)
     
-    print(f"\nQuery: '{test_query}' (Method: LLM Summary)")
+    print(f"\nQuery: '{test_query}' (Method: LLM Summary + Embeddings)")
     print("\nTop LOs:")
     for r in results["los"][:5]:
         print(f"  {r['rank']}. {r['doc_id']} (score: {r['score']:.3f}) - {r['title']}")
@@ -424,8 +646,14 @@ def main():
     for r in results["content"][:5]:
         print(f"  {r['rank']}. {r['doc_id']} ({r['type']}, score: {r['score']:.3f}) - {r['title']}")
     
+    # Evaluate LLM-as-retriever baseline
+    print("\n6. Running LLM-as-retriever baseline evaluation...")
+    llm_as_retriever_results = evaluate_llm_as_retriever(
+        lo_summaries_df, content_summaries_df, client, test_queries
+    )
+    
     # Evaluate on all queries
-    print("\n5. Running evaluation...")
+    print("\n7. Running summary-based evaluation...")
     results_df = evaluate_llm_summary_method(
         lo_summaries_df, content_summaries_df,
         embedding_model, lo_index, content_index,
@@ -435,7 +663,9 @@ def main():
     print("\n" + "=" * 60)
     print("LLM Summary method complete!")
     print("=" * 60)
-    print(f"\nResults saved to: {RESULTS_DIR / 'retriever_eval_llm_summary.csv'}")
+    print(f"\nResults saved to:")
+    print(f"  - LLM-as-retriever baseline: {RESULTS_DIR / 'retriever_eval_llm_as_retriever.csv'}")
+    print(f"  - Summary-based: {RESULTS_DIR / 'retriever_eval_llm_summary.csv'}")
 
 
 if __name__ == "__main__":
