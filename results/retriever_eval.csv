@@ -1,0 +1,1811 @@
+intent_id,query,method,entity_type,rank,doc_id,lo_id,title,snippet,score,relevance_score,winner
+1,What is a derivative?,embedding,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.4541490972042084,,
+1,What is a derivative?,embedding,LO,2,lo_1217,1217,Functions and Function Notation,Functions and Function Notation,0.36777955293655396,,
+1,What is a derivative?,embedding,LO,3,lo_1872,1872,Linear Functions and Slope,Linear Functions and Slope,0.3453667461872101,,
+1,What is a derivative?,embedding,LO,4,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.30611246824264526,,
+1,What is a derivative?,embedding,LO,5,lo_1867,1867,Functions,Functions,0.29770493507385254,,
+1,What is a derivative?,embedding,concept,1,1217_concept_1,Functions and Function Notation,Functions and Function Notation,"concept
+
+# Functions and Function Notation
+
+# Learning Objectives
+In this section, you will:
+- Determine whether a relation represents a function.
+- Find the value of a function.
+- Determine whether a",0.3162050247192383,,
+1,What is a derivative?,embedding,try_it,2,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",0.29680338501930237,,
+1,What is a derivative?,embedding,concept,3,1223_concept_1,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,"# Identifying Basic Toolkit Functions
+
+In this text, we will be exploring functions—the shapes of their graphs, their unique characteristics, their algebraic formulas, and how to solve problems with t",0.29514357447624207,,
+1,What is a derivative?,embedding,concept,4,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",0.29438382387161255,,
+1,What is a derivative?,embedding,concept,5,1221_concept_1,Using the Vertical Line Test,Using the Vertical Line Test,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function using a graph. Graphs display a great many input-output pairs in a small space. The visual informati",0.28156667947769165,,
+1,What is a derivative?,summary,LO,1,lo_1220,1220,Determining Whether a Function is One-to-One,Determining Whether a Function is One-to-One,3.6899996626541434,,
+1,What is a derivative?,summary,LO,2,lo_1232,1232,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant",3.578264339289532,,
+1,What is a derivative?,summary,concept,1,1057_concept_1,Converting a Complex Number from Polar to Rectangular Form,Converting a Complex Number from Polar to Rectangular Form,"# Converting a Complex Number from Polar to Rectangular Form
+
+Converting a complex number from polar form to rectangular form is a matter of evaluating what is given and using the distributive propert",6.4127041073253706,,
+1,What is a derivative?,summary,try_it,2,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",6.339616831016085,,
+1,What is a derivative?,summary,try_it,3,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",5.983764737535175,,
+1,What is a derivative?,summary,try_it,4,1867_try_it_1,Functions,Functions,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the function we get
+
+\[f(1)=(1)^2-3(1)+5\]
+
+\[f(1)=1-3+5\]
+
+\[f(1)=3\]
+
+easy
+
+What operation is used to ",5.674694302798379,,
+1,What is a derivative?,summary,example,5,1867_example_1,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[f(-2) = 3(-2)^2 + 2(-2) - 1 \]
+
+easy
+
+What operation is performed whe",4.820548369736777,,
+1,What is a derivative?,summary,example,6,1881_example_3,Trigonometric Identities,Trigonometric Identities,"Prove the trigonometric identity \[1 + \tan^2 \theta = \sec^2 \theta.\]
+
+We start with the identity
+
+\[\sin^2\theta + \cos^2\theta = 1.\]
+
+easy
+
+What is the value of \[\sin^2\theta + \cos^2\theta\] fo",4.584528657081361,,
+1,What is a derivative?,summary,concept,7,1218_concept_1,Determining Whether a Relation Represents a Function,Determining Whether a Relation Represents a Function,"# Determining Whether a Relation Represents a Function
+
+A relation is a set of ordered pairs. The set of the first components of each ordered pair is called the **domain** and the set of the second co",3.746730140909579,,
+1,What is a derivative?,summary,concept,8,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",3.685299486090887,,
+1,What is a derivative?,summary,example,9,1867_example_2,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(\sqrt{2})\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[
+f(\sqrt{2}) = 3(\sqrt{2})^{2} + 2\sqrt{2} - 1
+\]
+
+easy
+
+What o",3.680363651355379,,
+1,What is a derivative?,summary,example,10,1868_example_8,Representing Functions,Representing Functions,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the function \[s(t) = -16t^2 + 100,\] where \[s\] is measured in feet and \[t\] is measured in seconds. The",3.586992488141514,,
+2,How do I solve a quadratic equation?,embedding,LO,1,lo_978,978,Solving Trigonometric Equations in Quadratic Form,Solving Trigonometric Equations in Quadratic Form,0.6604354381561279,,
+2,How do I solve a quadratic equation?,embedding,LO,2,lo_974,974,Solving Trigonometric Equations,Solving Trigonometric Equations,0.47382789850234985,,
+2,How do I solve a quadratic equation?,embedding,LO,3,lo_976,976,Solving Equations Involving a Single Trigonometric Function,Solving Equations Involving a Single Trigonometric Function,0.43964260816574097,,
+2,How do I solve a quadratic equation?,embedding,LO,4,lo_977,977,Solve Trigonometric Equations Using a Calculator,Solve Trigonometric Equations Using a Calculator,0.43870264291763306,,
+2,How do I solve a quadratic equation?,embedding,LO,5,lo_957,957,Solving Trigonometric Equations with Identities,Solving Trigonometric Equations with Identities,0.39754536747932434,,
+2,How do I solve a quadratic equation?,embedding,try_it,1,1873_try_it_1,Polynomials,Polynomials,"Consider the quadratic function \[f(x) = 3x^2 - 6x + 2.\] Find the zeros of \[f.\] Does the parabola open upward or downward?
+
+Given function is \[f(x) = 3x^2 - 6x + 2\]
+To find the zeros of \(f\), u",0.42350849509239197,,
+2,How do I solve a quadratic equation?,embedding,example,2,1868_example_1,Representing Functions,Representing Functions,"Consider the function \[f(x) = -4x + 2\].
+
+Find all zeros of \[f\].
+
+To find the zeros, solve \[f(x) = -4x + 2 = 0\].
+
+Subtracting \[4x\] from both the sides and dividing both the sides by \[4\]
+
+",0.37773942947387695,,
+2,How do I solve a quadratic equation?,embedding,example,3,1868_example_2,Representing Functions,Representing Functions,"Consider the function \[f(x) = -4x + 2.\]
+Find the \(y\)-intercept (if any).
+
+To find the y-intercept we will substitute \[x=0\]
+
+\[f(0)=-4(0)+2\]
+
+\[f(0)=2\]
+
+So the y-intercept is \[(0,2)\]
+
+e",0.37505632638931274,,
+2,How do I solve a quadratic equation?,embedding,example,4,1868_example_4,Representing Functions,Representing Functions,"Consider the function \[f(x) = \sqrt{x + 3} + 1.\]
+Find all zeros of \(f\).
+
+To find the zeros, solve \[\sqrt{x + 3} + 1 = 0.\] This equation implies \[\sqrt{x + 3} = -1.\] 
+
+Since \[\sqrt{x + 3} \geq",0.37471944093704224,,
+2,How do I solve a quadratic equation?,embedding,try_it,5,1868_try_it_1,Representing Functions,Representing Functions,"Find the zeros of \(f(x) = x^3 - 5x^2 + 6x.\)
+
+To find the zereos we will equate the function to \[0\] and then we will solve for \[x\]
+
+\[x^3-5x^2+6x=0\]
+
+Taking out common factor of \[x\] we get",0.35901695489883423,,
+2,How do I solve a quadratic equation?,summary,LO,1,lo_978,978,Solving Trigonometric Equations in Quadratic Form,Solving Trigonometric Equations in Quadratic Form,7.908528676583458,,
+2,How do I solve a quadratic equation?,summary,LO,2,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,6.329157662834556,,
+2,How do I solve a quadratic equation?,summary,LO,3,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,6.329157662834556,,
+2,How do I solve a quadratic equation?,summary,LO,4,lo_977,977,Solve Trigonometric Equations Using a Calculator,Solve Trigonometric Equations Using a Calculator,5.3922090266324165,,
+2,How do I solve a quadratic equation?,summary,LO,5,lo_1225,1225,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,5.390672023353135,,
+2,How do I solve a quadratic equation?,summary,concept,1,978_concept_1,Solving Trigonometric Equations in Quadratic Form,Solving Trigonometric Equations in Quadratic Form,"# Solving Trigonometric Equations in Quadratic Form
+
+Solving a quadratic equation may be more complicated, but once again, we can use algebra as we would for any quadratic equation. Look at the patter",12.519369576876297,,
+2,How do I solve a quadratic equation?,summary,concept,2,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",8.741775696009773,,
+2,How do I solve a quadratic equation?,summary,concept,3,977_concept_1,Solve Trigonometric Equations Using a Calculator,Solve Trigonometric Equations Using a Calculator,"# Solve Trigonometric Equations Using a Calculator
+
+Not all functions can be solved exactly using only the unit circle. When we must solve an equation involving an angle other than one of the special ",7.191148436615604,,
+2,How do I solve a quadratic equation?,summary,concept,4,1223_concept_1,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,"# Identifying Basic Toolkit Functions
+
+In this text, we will be exploring functions—the shapes of their graphs, their unique characteristics, their algebraic formulas, and how to solve problems with t",7.047503310551669,,
+2,How do I solve a quadratic equation?,summary,concept,5,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",5.841584731890923,,
+2,How do I solve a quadratic equation?,summary,concept,6,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",5.69242294263692,,
+2,How do I solve a quadratic equation?,summary,concept,7,1238_concept_1,Evaluating Composite Functions,Evaluating Composite Functions,"# Evaluating Composite Functions
+
+Once we compose a new function from two existing functions, we need to be able to evaluate it for any input in its domain. We will do this with specific numerical inp",5.66498319425623,,
+2,How do I solve a quadratic equation?,summary,concept,8,1045_concept_1,Converting from Polar Coordinates to Rectangular Coordinates,Converting from Polar Coordinates to Rectangular Coordinates,"# Converting from Polar Coordinates to Rectangular Coordinates
+
+When given a set of polar coordinates, we may need to convert them to rectangular coordinates. To do so, we can recall the relationships",5.584863530755899,,
+2,How do I solve a quadratic equation?,summary,concept,9,980_concept_1,Solving Trigonometric Equations with Multiple Angles,Solving Trigonometric Equations with Multiple Angles,"# Solving Trigonometric Equations with Multiple Angles
+
+Sometimes it is not possible to solve a trigonometric equation with identities that have a multiple angle, such as \[\sin(2x)\] or \[\cos(3x).\]",5.574179471939672,,
+2,How do I solve a quadratic equation?,summary,concept,10,1050_concept_1,Testing Polar Equations for Symmetry,Testing Polar Equations for Symmetry,"# Testing Polar Equations for Symmetry
+
+Just as a rectangular equation such as \[y = x^2\] describes the relationship between \(x\) and \(y\) on a Cartesian grid, a **polar equation** describes a rela",5.4836126537079934,,
+3,Explain the chain rule,embedding,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.43352019786834717,,
+3,Explain the chain rule,embedding,LO,2,lo_1872,1872,Linear Functions and Slope,Linear Functions and Slope,0.3613225817680359,,
+3,Explain the chain rule,embedding,LO,3,lo_963,963,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,0.35997140407562256,,
+3,Explain the chain rule,embedding,LO,4,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.28914377093315125,,
+3,Explain the chain rule,embedding,LO,5,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,0.2870817184448242,,
+3,Explain the chain rule,embedding,try_it,1,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",0.3140673041343689,,
+3,Explain the chain rule,embedding,concept,2,1235_concept_1,Composition of Functions,Composition of Functions,"concept
+
+# Composition of Functions
+
+### Learning Objectives
+In this section, you will:
+
+- Combine functions using algebraic operations.
+- Create a new function by composition of functions.
+- Evaluate",0.30877357721328735,,
+3,Explain the chain rule,embedding,example,3,1869_example_13,Combining Functions,Combining Functions,"A store is advertising a sale of \[20\%\] off all merchandise. Caroline has a coupon that entitles her to an additional \[15\%\] off any item, including sale merchandise. If Caroline decides to purcha",0.2977429926395416,,
+3,Explain the chain rule,embedding,concept,4,1231_concept_1,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change because it describes how an output quantity changes relative to the change in the input quantity. We c",0.28771793842315674,,
+3,Explain the chain rule,embedding,concept,5,1063_concept_1,Parameterizing a Curve,Parameterizing a Curve,"# Parameterizing a Curve
+
+When an object moves along a curve—or curvilinear path—in a given direction and in a given amount of time, the position of the object in the plane is given by the \[x\]-coord",0.2841709852218628,,
+3,Explain the chain rule,summary,LO,1,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,2.2717581194365124,,
+3,Explain the chain rule,summary,LO,2,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,2.260227739069406,,
+3,Explain the chain rule,summary,LO,3,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,2.2375145866084885,,
+3,Explain the chain rule,summary,LO,4,lo_1076,1076,Finding the Unit Vector in the Direction of v,Finding the Unit Vector in the Direction of v,2.2263283388436856,,
+3,Explain the chain rule,summary,example,1,1888_example_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})^3}{(4x^{-\frac{1}{3}})^2}\]
+
+Using the Power of a Product Rule of exponents we can write,
+
+\[\frac{",6.446486192364017,,
+3,Explain the chain rule,summary,example,2,1888_example_3,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(x^3y^{-1})^2}{(xy^2)^{-2}}\]
+
+Using the Power of a Product Rule we can write,
+
+\[\frac{{(x^3y^{-1})^2}}{{(xy^2)^{-2}}",6.332385388974776,,
+3,Explain the chain rule,summary,try_it,3,1902_try_it_1,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",6.297196819306694,,
+3,Explain the chain rule,summary,try_it,4,1888_try_it_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify \[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}.\]
+
+Using the Quotient Rule we can write,
+
+\[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}=\dfrac{x^{-3-(4)}y^{2-5}}{2}=\frac{xy^{-3}}",5.784139720669447,,
+3,Explain the chain rule,summary,example,5,1880_example_4,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,A wooden ramp is to be built with one end on the ground and the other end at the top of a short staircase. If the top of the staircase is \[4\] ft from the ground and the angle between the ground and ,2.4074526118067605,,
+3,Explain the chain rule,summary,concept,6,1040_concept_1,Using the Law of Cosines to Solve Oblique Triangles,Using the Law of Cosines to Solve Oblique Triangles,"# Using the Law of Cosines to Solve Oblique Triangles
+
+The tool we need to solve the problem of the boat’s distance from the port is the **Law of Cosines**, which defines the relationship among angle ",2.3526988515151848,,
+3,Explain the chain rule,summary,example,7,1890_example_4,Logarithmic Functions,Logarithmic Functions,"Solve each of the following equations for \(x\).
+
+\[\log_{10}\sqrt{x} + \log_{10}x = 2\]
+
+Using the product property of the logarithmic function to combine the two terms on the left-hand side of the e",2.340784553961417,,
+3,Explain the chain rule,summary,try_it,8,1894_try_it_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",2.340334435528862,,
+3,Explain the chain rule,summary,example,9,1894_example_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",2.334200834940703,,
+3,Explain the chain rule,summary,try_it,10,1880_try_it_2,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,"A house painter wants to lean a \[20\]-ft ladder against a house. If the angle between the base of the ladder and the ground is to be \[60^{\circ}\], how far from the house should she place the base o",2.31299463023211,,
+4,How do I find limits?,embedding,LO,1,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,0.721674919128418,,
+4,How do I find limits?,embedding,LO,2,lo_1904,1904,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,0.6868825554847717,,
+4,How do I find limits?,embedding,LO,3,lo_1900,1900,Infinite Limits,Infinite Limits,0.6598546504974365,,
+4,How do I find limits?,embedding,LO,4,lo_1899,1899,One-Sided Limits,One-Sided Limits,0.5897699594497681,,
+4,How do I find limits?,embedding,LO,5,lo_1915,1915,One-Sided and Infinite Limits,One-Sided and Infinite Limits,0.5384570360183716,,
+4,How do I find limits?,embedding,try_it,1,1903_try_it_1,Limits of Polynomial and Rational Functions,Limits of Polynomial and Rational Functions,"Evaluate \[\lim_{{x \to -2}} (3x^3 - 2x + 7).\]
+
+We know, if \[p(x)\] is a polynomial functions and *a* is a real number. Then,
+\[lim_{{x\to a}}p(x)=p(a)\]
+We can calculate the limit by substituting *",0.5235563516616821,,
+4,How do I find limits?,embedding,try_it,2,1904_try_it_4,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,"Evaluate \[\lim_{{x \to 3}} \left( \frac{1}{{x - 3}} - \frac{4}{{x^2 - 2x - 3}} \right).\]
+
+Both \[\frac{1}{x-3}\] and \[\frac{4}{x^2-2x-3}\] fail to have a limit at zero. Since neither of the two fun",0.5109152793884277,,
+4,How do I find limits?,embedding,try_it,3,1897_try_it_2,Intuitive Definition of a Limit,Intuitive Definition of a Limit,"Use the graph of \(h(x)\) in Figure 2.16 to evaluate \(\lim_{{x \to 2}} h(x)\), if possible.
+
+![A graph of the function h(x), which is a parabola graphed over [-2.5, 5]. There is an open circle where ",0.5063780546188354,,
+4,How do I find limits?,embedding,try_it,4,1900_try_it_4,Infinite Limits,Infinite Limits,"Evaluate each of the following limits. Identify any vertical asymptotes of the function \[f(x) = \frac{1}{(x-2)^3}\].
+
+\[\lim_{{x \to 2^-}} \frac{1}{(x-2)^3}\]
+
+
+As \[x\] approaches \[2\] from the le",0.4992857575416565,,
+4,How do I find limits?,embedding,try_it,5,1900_try_it_6,Infinite Limits,Infinite Limits,"Evaluate each of the following limits. Identify any vertical asymptotes of the function \[f(x) = \frac{1}{(x-2)^3}\].
+
+\[\lim_{{x \to 2}} \frac{1}{(x-2)^3}\]
+
+As \[x\] approaches \[2\] from the left s",0.4970431625843048,,
+4,How do I find limits?,summary,LO,1,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,5.2059972654087145,,
+4,How do I find limits?,summary,LO,2,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,5.2059972654087145,,
+4,How do I find limits?,summary,LO,3,lo_1900,1900,Infinite Limits,Infinite Limits,4.739613380984256,,
+4,How do I find limits?,summary,LO,4,lo_1903,1903,Limits of Polynomial and Rational Functions,Limits of Polynomial and Rational Functions,4.248797806263746,,
+4,How do I find limits?,summary,LO,5,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,4.195147882708492,,
+4,How do I find limits?,summary,LO,6,lo_1899,1899,One-Sided Limits,One-Sided Limits,4.168827814800185,,
+4,How do I find limits?,summary,concept,1,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",8.666303500512724,,
+4,How do I find limits?,summary,concept,2,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",5.286399648608903,,
+4,How do I find limits?,summary,concept,3,964_concept_1,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tangent functions for the sums and differences of angles, we can use them to do the same for their cofun",5.139085300567844,,
+4,How do I find limits?,summary,concept,4,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",4.8486496253402835,,
+4,How do I find limits?,summary,concept,5,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",4.685191232809838,,
+4,How do I find limits?,summary,example,6,1873_example_1,Polynomials,Polynomials,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow \pm \infty\), ii. find all zeros of \(f\), and iii. sketch a graph of \(f\).
+
+\(f(x) = -2x^2 + 4x - 1\)
+
+",4.638396284919939,,
+4,How do I find limits?,summary,example,7,1873_example_2,Polynomials,Polynomials,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow ±∞\), ii. find all zeros of \(f\), and iii. sketch a graph of \(f\).
+
+\(f(x) = x^3 - 3x^2 - 4x\)
+
+The fun",4.592526854165719,,
+4,How do I find limits?,summary,try_it,8,1899_try_it_1,One-Sided Limits,One-Sided Limits,"Use a table of functional values to estimate the following limits, if possible.
+
+\[\lim_{{x \to 2^-}} \frac{{|x^2 - 4|}}{{x - 2}}\]
+
+We will approach the \[x\] value from left side and find the functi",4.55195448774834,,
+4,How do I find limits?,summary,try_it,9,1899_try_it_2,One-Sided Limits,One-Sided Limits,"Use a table of functional values to estimate the following limits, if possible.
+
+\[\lim_{{x \to 2^+}} \frac{{|x^2 - 4|}}{{x - 2}}\]
+
+We will approach the \[x\] value from right side and find the funct",4.55195448774834,,
+4,How do I find limits?,summary,concept,10,1045_concept_1,Converting from Polar Coordinates to Rectangular Coordinates,Converting from Polar Coordinates to Rectangular Coordinates,"# Converting from Polar Coordinates to Rectangular Coordinates
+
+When given a set of polar coordinates, we may need to convert them to rectangular coordinates. To do so, we can recall the relationships",4.494697885038881,,
+5,What is continuity?,embedding,LO,1,lo_1907,1907,Continuity at a Point,Continuity at a Point,0.6920905113220215,,
+5,What is continuity?,embedding,LO,2,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,0.6291619539260864,,
+5,What is continuity?,embedding,LO,3,lo_1908,1908,Types of Discontinuities,Types of Discontinuities,0.4510502815246582,,
+5,What is continuity?,embedding,LO,4,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,0.3912770748138428,,
+5,What is continuity?,embedding,LO,5,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.37813159823417664,,
+5,What is continuity?,embedding,try_it,1,1909_try_it_1,Continuity over an Interval,Continuity over an Interval,"State the interval(s) over which the function \[f(x) = \sqrt{x + 3}\] is continuous.
+
+Calculate the limit using limit laws.
+
+For all \[a\in(-3,\infty)\],
+\[\lim_{x \to a}f(x)=\lim_{x \to a}\sqrt{(x",0.49798959493637085,,
+5,What is continuity?,embedding,try_it,2,1908_try_it_1,Types of Discontinuities,Types of Discontinuities,"For \[f(x) = \begin{cases} x^2 & \text{if } x \neq 1 \\ 3 & \text{if } x = 1 \end{cases}\], decide whether \[f\] is continuous at \[1\]. If \[f\] is not continuous at \[1\], classify the discontinuity",0.4738253355026245,,
+5,What is continuity?,embedding,try_it,3,1907_try_it_1,Continuity at a Point,Continuity at a Point,"Using the definition, determine whether the function \[f(x) = \begin{cases} 2x + 1 & \text{if } x < 1 \\ 2 & \text{if } x = 1 \\ -x + 4 & \text{if } x > 1 \end{cases}\] is continuous at \(x = 1\). If ",0.39567017555236816,,
+5,What is continuity?,embedding,try_it,4,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",0.375814825296402,,
+5,What is continuity?,embedding,example,5,1884_example_2,Existence of an Inverse Function,Existence of an Inverse Function,"For each of the following functions, use the horizontal line test to determine whether it is one-to-one.
+
+
+
+Since every horizontal line intersects the graph once (at most), this function is one-to-one",0.34611815214157104,,
+5,What is continuity?,summary,LO,1,lo_1907,1907,Continuity at a Point,Continuity at a Point,6.780893982017761,,
+5,What is continuity?,summary,LO,2,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,6.69248004389836,,
+5,What is continuity?,summary,LO,3,lo_1910,1910,Proof,Proof,6.410632645651089,,
+5,What is continuity?,summary,LO,4,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,6.01615200826348,,
+5,What is continuity?,summary,LO,5,lo_1908,1908,Types of Discontinuities,Types of Discontinuities,5.1750890067993405,,
+5,What is continuity?,summary,try_it,1,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",10.553084980372661,,
+5,What is continuity?,summary,try_it,2,1911_try_it_1,The Intermediate Value Theorem,The Intermediate Value Theorem,"Show that \[f(x) = x^{3} - x^{2} - 3x + 1\] has a zero over the interval \[[0, 1]\].
+
+Use the theorem about the continuity of rational and polynomial functions.
+
+\[f(x) = x^{3} - x^{2} - 3x + 1\] is",6.450359749747893,,
+5,What is continuity?,summary,try_it,3,1909_try_it_2,Continuity over an Interval,Continuity over an Interval,"Evaluate \[\lim_{x \to \pi} \sin(x - \pi).\]
+
+Use the composite function theorem.
+
+As \[\sin x\] is continuous for all \[x\],
+\[\lim_{x \to \pi} \sin(x - \pi) = \sin \left( {\lim_{x \to \pi}(x - \p",5.822189966914407,,
+5,What is continuity?,summary,try_it,4,1909_try_it_1,Continuity over an Interval,Continuity over an Interval,"State the interval(s) over which the function \[f(x) = \sqrt{x + 3}\] is continuous.
+
+Calculate the limit using limit laws.
+
+For all \[a\in(-3,\infty)\],
+\[\lim_{x \to a}f(x)=\lim_{x \to a}\sqrt{(x",5.694723067923479,,
+5,What is continuity?,summary,try_it,5,1908_try_it_1,Types of Discontinuities,Types of Discontinuities,"For \[f(x) = \begin{cases} x^2 & \text{if } x \neq 1 \\ 3 & \text{if } x = 1 \end{cases}\], decide whether \[f\] is continuous at \[1\]. If \[f\] is not continuous at \[1\], classify the discontinuity",4.960789058866544,,
+5,What is continuity?,summary,example,6,1867_example_1,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[f(-2) = 3(-2)^2 + 2(-2) - 1 \]
+
+easy
+
+What operation is performed whe",4.820548369736777,,
+5,What is continuity?,summary,try_it,7,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",4.72328315309457,,
+5,What is continuity?,summary,try_it,8,1867_try_it_1,Functions,Functions,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the function we get
+
+\[f(1)=(1)^2-3(1)+5\]
+
+\[f(1)=1-3+5\]
+
+\[f(1)=3\]
+
+easy
+
+What operation is used to ",4.584528657081361,,
+5,What is continuity?,summary,example,9,1881_example_3,Trigonometric Identities,Trigonometric Identities,"Prove the trigonometric identity \[1 + \tan^2 \theta = \sec^2 \theta.\]
+
+We start with the identity
+
+\[\sin^2\theta + \cos^2\theta = 1.\]
+
+easy
+
+What is the value of \[\sin^2\theta + \cos^2\theta\] fo",4.584528657081361,,
+5,What is continuity?,summary,try_it,10,1907_try_it_1,Continuity at a Point,Continuity at a Point,"Using the definition, determine whether the function \[f(x) = \begin{cases} 2x + 1 & \text{if } x < 1 \\ 2 & \text{if } x = 1 \\ -x + 4 & \text{if } x > 1 \end{cases}\] is continuous at \(x = 1\). If ",4.578416934455645,,
+6,Give me practice problems on integrals,embedding,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.6496843695640564,,
+6,Give me practice problems on integrals,embedding,LO,2,lo_1038,1038,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,0.37677299976348877,,
+6,Give me practice problems on integrals,embedding,LO,3,lo_1041,1041,Solving Applied Problems Using the Law of Cosines,Solving Applied Problems Using the Law of Cosines,0.3557976484298706,,
+6,Give me practice problems on integrals,embedding,LO,4,lo_1069,1069,Applications of Parametric Equations,Applications of Parametric Equations,0.346375048160553,,
+6,Give me practice problems on integrals,embedding,LO,5,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,0.3315976858139038,,
+6,Give me practice problems on integrals,embedding,example,1,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",0.3448607623577118,,
+6,Give me practice problems on integrals,embedding,concept,2,979_concept_1,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,"# Solving Trigonometric Equations Using Fundamental Identities
+
+While algebra can be used to solve a number of trigonometric equations, we can also use the fundamental identities because they make sol",0.2983749508857727,,
+6,Give me practice problems on integrals,embedding,concept,3,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",0.2713797688484192,,
+6,Give me practice problems on integrals,embedding,concept,4,1064_concept_1,Eliminating the Parameter,Eliminating the Parameter,"# Eliminating the Parameter
+
+In many cases, we may have a pair of parametric equations but find that it is simpler to draw a curve if the equation involves only two variables, such as \[x\] and \[y.\]",0.2695873975753784,,
+6,Give me practice problems on integrals,embedding,concept,5,1068_concept_1,Graphing Parametric Equations by Plotting Points,Graphing Parametric Equations by Plotting Points,"# Graphing Parametric Equations by Plotting Points
+
+In lieu of a graphing calculator or a computer graphing program, plotting points to represent the graph of an equation is the standard method. As lo",0.26199665665626526,,
+6,Give me practice problems on integrals,summary,LO,1,lo_981,981,Solving Right Triangle Problems,Solving Right Triangle Problems,5.677779452762624,,
+6,Give me practice problems on integrals,summary,LO,2,lo_1041,1041,Solving Applied Problems Using the Law of Cosines,Solving Applied Problems Using the Law of Cosines,4.684495417654669,,
+6,Give me practice problems on integrals,summary,LO,3,lo_1038,1038,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,4.155755362329879,,
+6,Give me practice problems on integrals,summary,LO,4,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,3.6878498727887616,,
+6,Give me practice problems on integrals,summary,LO,5,lo_1039,1039,Non-right Triangles: Law of Cosines,Non-right Triangles: Law of Cosines,3.3425471540338725,,
+6,Give me practice problems on integrals,summary,LO,6,lo_1034,1034,Non-right Triangles: Law of Sines,Non-right Triangles: Law of Sines,3.3425471540338725,,
+6,Give me practice problems on integrals,summary,LO,7,lo_1040,1040,Using the Law of Cosines to Solve Oblique Triangles,Using the Law of Cosines to Solve Oblique Triangles,3.064354318047542,,
+6,Give me practice problems on integrals,summary,LO,8,lo_1036,1036,Using The Law of Sines to Solve SSA Triangles,Using The Law of Sines to Solve SSA Triangles,3.001894060675993,,
+6,Give me practice problems on integrals,summary,LO,9,lo_1080,1080,Finding the Dot Product of Two Vectors,Finding the Dot Product of Two Vectors,2.915589479263912,,
+6,Give me practice problems on integrals,summary,LO,10,lo_1042,1042,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,2.9128362290745753,,
+6,Give me practice problems on integrals,summary,concept,1,1225_concept_1,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,"# Finding the Domain of a Function Defined by an Equation
+
+In Functions and Function Notation, we were introduced to the concepts of domain and range. In this section, we will practice determining dom",5.249308387518645,,
+6,Give me practice problems on integrals,summary,concept,2,981_concept_1,Solving Right Triangle Problems,Solving Right Triangle Problems,"# Solving Right Triangle Problems
+
+We can now use all of the methods we have learned to solve problems that involve applying the properties of right triangles and the Pythagorean Theorem. We begin wit",5.1259042948922655,,
+6,Give me practice problems on integrals,summary,concept,3,1041_concept_1,Solving Applied Problems Using the Law of Cosines,Solving Applied Problems Using the Law of Cosines,"# Solving Applied Problems Using the Law of Cosines
+
+Just as the Law of Sines provided the appropriate equations to solve a number of applications, the Law of Cosines is applicable to situations in wh",3.8564977679263586,,
+6,Give me practice problems on integrals,summary,concept,4,1038_concept_1,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,"#  Solving Applied Problems Using the Law of Sines
+
+The more we study trigonometric applications, the more we discover that the applications are countless. Some are flat, diagram-type situations, but ",3.734267721577142,,
+6,Give me practice problems on integrals,summary,example,5,1885_example_4,Finding a Function’s Inverse,Finding a Function’s Inverse,"Consider the function \[f(x) = (x + 1)^2\].
+
+Show that \(f\) is one-to-one on the restricted domain \[[-1, \infty)\]. Determine the domain and range for the inverse of \(f\) on this restricted domain ",3.60924880634142,,
+6,Give me practice problems on integrals,summary,concept,6,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",3.369838399135789,,
+6,Give me practice problems on integrals,summary,concept,7,1039_concept_1,Non-right Triangles: Law of Cosines,Non-right Triangles: Law of Cosines,"concept
+
+# Non-right Triangles: Law of Cosines
+
+# Learning Objectives
+In this section, you will:
+
+- Use the Law of Cosines to solve oblique triangles.
+- Solve applied problems using the Law of Cosines",3.0965693992153804,,
+6,Give me practice problems on integrals,summary,concept,8,1069_concept_1,Applications of Parametric Equations,Applications of Parametric Equations,"# Applications of Parametric Equations
+
+Many of the advantages of parametric equations become obvious when applied to solving real-world problems. Although rectangular equations in \[x\] and \[y\] giv",3.001894060675993,,
+6,Give me practice problems on integrals,summary,concept,9,1236_concept_1,Combining Functions Using Algebraic Operations,Combining Functions Using Algebraic Operations,"# Combining Functions Using Algebraic Operations
+
+Function composition is only one way to combine existing functions. Another way is to carry out the usual algebraic operations on functions, such as a",2.7277328265260503,,
+7,How do I use the product rule?,embedding,LO,1,lo_972,972,Expressing Products as Sums,Expressing Products as Sums,0.440629780292511,,
+7,How do I use the product rule?,embedding,LO,2,lo_971,971,Sum-to-Product and Product-to-Sum Formulas,Sum-to-Product and Product-to-Sum Formulas,0.41424494981765747,,
+7,How do I use the product rule?,embedding,LO,3,lo_969,969,Use Reduction Formulas to Simplify an Expression,Use Reduction Formulas to Simplify an Expression,0.4111883044242859,,
+7,How do I use the product rule?,embedding,LO,4,lo_973,973,Expressing Sums as Products,Expressing Sums as Products,0.3967300355434418,,
+7,How do I use the product rule?,embedding,LO,5,lo_1074,1074,Multiplying By a Scalar,Multiplying By a Scalar,0.3566928505897522,,
+7,How do I use the product rule?,embedding,try_it,1,1902_try_it_1,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",0.482740581035614,,
+7,How do I use the product rule?,embedding,try_it,2,1888_try_it_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify \[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}.\]
+
+Using the Quotient Rule we can write,
+
+\[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}=\dfrac{x^{-3-(4)}y^{2-5}}{2}=\frac{xy^{-3}}",0.3814608156681061,,
+7,How do I use the product rule?,embedding,try_it,3,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",0.3786008358001709,,
+7,How do I use the product rule?,embedding,example,4,1869_example_13,Combining Functions,Combining Functions,"A store is advertising a sale of \[20\%\] off all merchandise. Caroline has a coupon that entitles her to an additional \[15\%\] off any item, including sale merchandise. If Caroline decides to purcha",0.3780069351196289,,
+7,How do I use the product rule?,embedding,example,5,1888_example_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})^3}{(4x^{-\frac{1}{3}})^2}\]
+
+Using the Power of a Product Rule of exponents we can write,
+
+\[\frac{",0.35802263021469116,,
+7,How do I use the product rule?,summary,LO,1,lo_1080,1080,Finding the Dot Product of Two Vectors,Finding the Dot Product of Two Vectors,10.594106696600448,,
+7,How do I use the product rule?,summary,LO,2,lo_971,971,Sum-to-Product and Product-to-Sum Formulas,Sum-to-Product and Product-to-Sum Formulas,7.065551336559168,,
+7,How do I use the product rule?,summary,LO,3,lo_972,972,Expressing Products as Sums,Expressing Products as Sums,6.778659897838387,,
+7,How do I use the product rule?,summary,LO,4,lo_973,973,Expressing Sums as Products,Expressing Sums as Products,6.64377709267114,,
+7,How do I use the product rule?,summary,example,1,1888_example_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})^3}{(4x^{-\frac{1}{3}})^2}\]
+
+Using the Power of a Product Rule of exponents we can write,
+
+\[\frac{",11.719055536785252,,
+7,How do I use the product rule?,summary,example,2,1888_example_3,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(x^3y^{-1})^2}{(xy^2)^{-2}}\]
+
+Using the Power of a Product Rule we can write,
+
+\[\frac{{(x^3y^{-1})^2}}{{(xy^2)^{-2}}",11.49748477265344,,
+7,How do I use the product rule?,summary,try_it,3,1902_try_it_1,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",11.2599847348502,,
+7,How do I use the product rule?,summary,concept,4,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",9.030021920132544,,
+7,How do I use the product rule?,summary,concept,5,1080_concept_1,Finding the Dot Product of Two Vectors,Finding the Dot Product of Two Vectors,"# Finding the Dot Product of Two Vectors 
+
+As we discussed earlier in the section, scalar multiplication involves multiplying a vector by a scalar, and the result is a vector. As we have seen, multipl",8.92957878078748,,
+7,How do I use the product rule?,summary,try_it,6,1888_try_it_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify \[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}.\]
+
+Using the Quotient Rule we can write,
+
+\[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}=\dfrac{x^{-3-(4)}y^{2-5}}{2}=\frac{xy^{-3}}",7.4609865198030185,,
+7,How do I use the product rule?,summary,concept,7,971_concept_1,Sum-to-Product and Product-to-Sum Formulas,Sum-to-Product and Product-to-Sum Formulas,"concept
+
+# Sum-to-Product and Product-to-Sum Formulas
+
+### Learning Objectives
+In this section, you will:
+
+- Express products as sums.
+- Express sums as products.
+
+
+
+**Figure 1:** The UCLA marching ba",7.457306040645812,,
+7,How do I use the product rule?,summary,concept,8,964_concept_1,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tangent functions for the sums and differences of angles, we can use them to do the same for their cofun",7.287408137374068,,
+7,How do I use the product rule?,summary,concept,9,973_concept_1,Expressing Sums as Products,Expressing Sums as Products,"# Expressing Sums as Products
+
+Some problems require the reverse of the process we just used. The sum-to-product formulas allow us to express sums of sine or cosine as products. These formulas can be ",7.2045870048975145,,
+7,How do I use the product rule?,summary,concept,10,972_concept_1,Expressing Products as Sums,Expressing Products as Sums,"# Expressing Products as Sums
+
+We have already learned a number of formulas useful for expanding or simplifying trigonometric expressions, but sometimes we may need to express the product of cosine an",6.758648096896856,,
+8,What is the difference between a limit and a derivative?,embedding,LO,1,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.5937047004699707,,
+8,What is the difference between a limit and a derivative?,embedding,LO,2,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,0.4489244520664215,,
+8,What is the difference between a limit and a derivative?,embedding,LO,3,lo_1915,1915,One-Sided and Infinite Limits,One-Sided and Infinite Limits,0.40641283988952637,,
+8,What is the difference between a limit and a derivative?,embedding,LO,4,lo_1900,1900,Infinite Limits,Infinite Limits,0.3897683322429657,,
+8,What is the difference between a limit and a derivative?,embedding,LO,5,lo_1899,1899,One-Sided Limits,One-Sided Limits,0.3887510299682617,,
+8,What is the difference between a limit and a derivative?,embedding,example,1,1897_example_3,Intuitive Definition of a Limit,Intuitive Definition of a Limit,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) includes one value not on a smooth curve.
+
+Despite the fact that \[g(-1) = 4,\] as the *x*-values ap",0.4044049382209778,,
+8,What is the difference between a limit and a derivative?,embedding,try_it,2,1909_try_it_1,Continuity over an Interval,Continuity over an Interval,"State the interval(s) over which the function \[f(x) = \sqrt{x + 3}\] is continuous.
+
+Calculate the limit using limit laws.
+
+For all \[a\in(-3,\infty)\],
+\[\lim_{x \to a}f(x)=\lim_{x \to a}\sqrt{(x",0.3603971600532532,,
+8,What is the difference between a limit and a derivative?,embedding,try_it,3,1897_try_it_2,Intuitive Definition of a Limit,Intuitive Definition of a Limit,"Use the graph of \(h(x)\) in Figure 2.16 to evaluate \(\lim_{{x \to 2}} h(x)\), if possible.
+
+![A graph of the function h(x), which is a parabola graphed over [-2.5, 5]. There is an open circle where ",0.3595581352710724,,
+8,What is the difference between a limit and a derivative?,embedding,try_it,4,1902_try_it_1,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",0.33792686462402344,,
+8,What is the difference between a limit and a derivative?,embedding,try_it,5,1903_try_it_1,Limits of Polynomial and Rational Functions,Limits of Polynomial and Rational Functions,"Evaluate \[\lim_{{x \to -2}} (3x^3 - 2x + 7).\]
+
+We know, if \[p(x)\] is a polynomial functions and *a* is a real number. Then,
+\[lim_{{x\to a}}p(x)=p(a)\]
+We can calculate the limit by substituting *",0.3257055878639221,,
+8,What is the difference between a limit and a derivative?,summary,LO,1,lo_963,963,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,10.848042612771518,,
+8,What is the difference between a limit and a derivative?,summary,LO,2,lo_965,965,Using the Sum and Difference Formulas to Verify Identities,Using the Sum and Difference Formulas to Verify Identities,10.768675018108624,,
+8,What is the difference between a limit and a derivative?,summary,LO,3,lo_962,962,Using the Sum and Difference Formulas for Sine,Using the Sum and Difference Formulas for Sine,10.702021501212922,,
+8,What is the difference between a limit and a derivative?,summary,LO,4,lo_964,964,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,10.48300390572439,,
+8,What is the difference between a limit and a derivative?,summary,LO,5,lo_961,961,Using the Sum and Difference Formulas for Cosine,Using the Sum and Difference Formulas for Cosine,10.461465432620553,,
+8,What is the difference between a limit and a derivative?,summary,LO,6,lo_960,960,Sum and Difference Identities,Sum and Difference Identities,10.344480457885382,,
+8,What is the difference between a limit and a derivative?,summary,LO,7,lo_1898,1898,The Existence of a Limit,The Existence of a Limit,10.244822875481344,,
+8,What is the difference between a limit and a derivative?,summary,concept,1,963_concept_1,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,"# Using the Sum and Difference Formulas for Tangent
+
+Finding exact values for the tangent of the sum or difference of two angles is a little more complicated, but again, it is a matter of recognizing ",14.295093960764428,,
+8,What is the difference between a limit and a derivative?,summary,concept,2,1234_concept_1,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,"# Use A Graph to Locate the Absolute Maximum and Absolute Minimum
+
+There is a difference between locating the highest and lowest points on a graph in a region around an open interval (locally) and loc",14.113175862922308,,
+8,What is the difference between a limit and a derivative?,summary,example,3,1880_example_4,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,A wooden ramp is to be built with one end on the ground and the other end at the top of a short staircase. If the top of the staircase is \[4\] ft from the ground and the angle between the ground and ,11.788239588490045,,
+8,What is the difference between a limit and a derivative?,summary,example,4,1872_example_2,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",11.5804913647001,,
+8,What is the difference between a limit and a derivative?,summary,example,5,1872_example_1,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",11.5804913647001,,
+8,What is the difference between a limit and a derivative?,summary,example,6,1872_example_3,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",11.5804913647001,,
+8,What is the difference between a limit and a derivative?,summary,try_it,7,1903_try_it_1,Limits of Polynomial and Rational Functions,Limits of Polynomial and Rational Functions,"Evaluate \[\lim_{{x \to -2}} (3x^3 - 2x + 7).\]
+
+We know, if \[p(x)\] is a polynomial functions and *a* is a real number. Then,
+\[lim_{{x\to a}}p(x)=p(a)\]
+We can calculate the limit by substituting *",11.468210664436153,,
+8,What is the difference between a limit and a derivative?,summary,try_it,8,1880_try_it_2,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,"A house painter wants to lean a \[20\]-ft ladder against a house. If the angle between the base of the ladder and the ground is to be \[60^{\circ}\], how far from the house should she place the base o",11.156000063800953,,
+8,What is the difference between a limit and a derivative?,summary,concept,9,1057_concept_1,Converting a Complex Number from Polar to Rectangular Form,Converting a Complex Number from Polar to Rectangular Form,"# Converting a Complex Number from Polar to Rectangular Form
+
+Converting a complex number from polar form to rectangular form is a matter of evaluating what is given and using the distributive propert",10.729494433896644,,
+8,What is the difference between a limit and a derivative?,summary,concept,10,962_concept_1,Using the Sum and Difference Formulas for Sine,Using the Sum and Difference Formulas for Sine,"# Using the Sum and Difference Formulas for Sine
+
+The sum and difference formulas for sine can be derived in the same manner as those for cosine, and they resemble the cosine formulas.
+
+## Sum and Dif",10.31122080150395,,
+9,Explain the tangent problem,embedding,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.8338847160339355,,
+9,Explain the tangent problem,embedding,LO,2,lo_963,963,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,0.6402772068977356,,
+9,Explain the tangent problem,embedding,LO,3,lo_981,981,Solving Right Triangle Problems,Solving Right Triangle Problems,0.37279996275901794,,
+9,Explain the tangent problem,embedding,LO,4,lo_1872,1872,Linear Functions and Slope,Linear Functions and Slope,0.35942190885543823,,
+9,Explain the tangent problem,embedding,LO,5,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.35269397497177124,,
+9,Explain the tangent problem,embedding,concept,1,963_concept_1,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,"# Using the Sum and Difference Formulas for Tangent
+
+Finding exact values for the tangent of the sum or difference of two angles is a little more complicated, but again, it is a matter of recognizing ",0.4901929497718811,,
+9,Explain the tangent problem,embedding,try_it,2,1880_try_it_2,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,"A house painter wants to lean a \[20\]-ft ladder against a house. If the angle between the base of the ladder and the ground is to be \[60^{\circ}\], how far from the house should she place the base o",0.44109398126602173,,
+9,Explain the tangent problem,embedding,example,3,1893_example_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",0.4110332727432251,,
+9,Explain the tangent problem,embedding,concept,4,981_concept_1,Solving Right Triangle Problems,Solving Right Triangle Problems,"# Solving Right Triangle Problems
+
+We can now use all of the methods we have learned to solve problems that involve applying the properties of right triangles and the Pythagorean Theorem. We begin wit",0.39874565601348877,,
+9,Explain the tangent problem,embedding,try_it,5,1893_try_it_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",0.3880884647369385,,
+9,Explain the tangent problem,summary,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,16.205958192235393,,
+9,Explain the tangent problem,summary,LO,2,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,13.707708647860843,,
+9,Explain the tangent problem,summary,LO,3,lo_963,963,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,7.009434211651427,,
+9,Explain the tangent problem,summary,LO,4,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,2.2717581194365124,,
+9,Explain the tangent problem,summary,try_it,1,1893_try_it_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",10.39292878080323,,
+9,Explain the tangent problem,summary,try_it,2,1894_try_it_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",10.22759242377236,,
+9,Explain the tangent problem,summary,example,3,1893_example_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",10.22429612783881,,
+9,Explain the tangent problem,summary,example,4,1894_example_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",10.16175224428898,,
+9,Explain the tangent problem,summary,try_it,5,1893_try_it_2,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,An object moves along a coordinate axis so that its position at time \[t\] is given by \[s(t) = t^3\]. Estimate its instantaneous velocity at time \[t = 2\] by computing its average velocity over the ,8.54636273427207,,
+9,Explain the tangent problem,summary,example,6,1893_example_2,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,A rock is dropped from a height of \[64\] ft. It is determined that its height (in feet) above ground \[t\] seconds later (for \[0 \leq t \leq 2\]) is given by \[s(t) = -16t^2 + 64\]. Find the average,8.234724169495255,,
+9,Explain the tangent problem,summary,concept,7,963_concept_1,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,"# Using the Sum and Difference Formulas for Tangent
+
+Finding exact values for the tangent of the sum or difference of two angles is a little more complicated, but again, it is a matter of recognizing ",7.206694850274528,,
+9,Explain the tangent problem,summary,concept,8,1040_concept_1,Using the Law of Cosines to Solve Oblique Triangles,Using the Law of Cosines to Solve Oblique Triangles,"# Using the Law of Cosines to Solve Oblique Triangles
+
+The tool we need to solve the problem of the boat’s distance from the port is the **Law of Cosines**, which defines the relationship among angle ",5.692671761584116,,
+9,Explain the tangent problem,summary,concept,9,961_concept_1,Using the Sum and Difference Formulas for Cosine,Using the Sum and Difference Formulas for Cosine,"# Using the Sum and Difference Formulas for Cosine
+
+Finding the exact value of the sine, cosine, or tangent of an angle is often easier if we can rewrite the given angle in terms of two angles that ha",5.244303638457481,,
+9,Explain the tangent problem,summary,concept,10,964_concept_1,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tangent functions for the sums and differences of angles, we can use them to do the same for their cofun",4.806287337233344,,
+10,How do I find the area under a curve?,embedding,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.5993584394454956,,
+10,How do I find the area under a curve?,embedding,LO,2,lo_1037,1037,Finding the Area of an Oblique Triangle Using the Sine Function,Finding the Area of an Oblique Triangle Using the Sine Function,0.510206937789917,,
+10,How do I find the area under a curve?,embedding,LO,3,lo_1066,1066,Finding Parametric Equations for Curves Defined by Rectangular Equations,Finding Parametric Equations for Curves Defined by Rectangular Equations,0.4108561873435974,,
+10,How do I find the area under a curve?,embedding,LO,4,lo_1052,1052,Summary of Curves,Summary of Curves,0.40594884753227234,,
+10,How do I find the area under a curve?,embedding,LO,5,lo_1063,1063,Parameterizing a Curve,Parameterizing a Curve,0.4026464819908142,,
+10,How do I find the area under a curve?,embedding,example,1,1894_example_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",0.47762805223464966,,
+10,How do I find the area under a curve?,embedding,try_it,2,1894_try_it_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",0.47360536456108093,,
+10,How do I find the area under a curve?,embedding,example,3,1868_example_2,Representing Functions,Representing Functions,"Consider the function \[f(x) = -4x + 2.\]
+Find the \(y\)-intercept (if any).
+
+To find the y-intercept we will substitute \[x=0\]
+
+\[f(0)=-4(0)+2\]
+
+\[f(0)=2\]
+
+So the y-intercept is \[(0,2)\]
+
+e",0.39822760224342346,,
+10,How do I find the area under a curve?,embedding,concept,4,1037_concept_1,Finding the Area of an Oblique Triangle Using the Sine Function,Finding the Area of an Oblique Triangle Using the Sine Function,"#  Finding the Area of an Oblique Triangle Using the Sine Function
+
+Now that we can solve a triangle for missing values, we can use some of those values and the sine function to find the area of an ob",0.3728989064693451,,
+10,How do I find the area under a curve?,embedding,example,5,1868_example_8,Representing Functions,Representing Functions,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the function \[s(t) = -16t^2 + 100,\] where \[s\] is measured in feet and \[t\] is measured in seconds. The",0.3449692726135254,,
+10,How do I find the area under a curve?,summary,LO,1,lo_1042,1042,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,11.235772559509094,,
+10,How do I find the area under a curve?,summary,LO,2,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,9.30818279575349,,
+10,How do I find the area under a curve?,summary,LO,3,lo_1063,1063,Parameterizing a Curve,Parameterizing a Curve,8.74741601076297,,
+10,How do I find the area under a curve?,summary,LO,4,lo_1064,1064,Eliminating the Parameter,Eliminating the Parameter,7.827870824422486,,
+10,How do I find the area under a curve?,summary,LO,5,lo_1037,1037,Finding the Area of an Oblique Triangle Using the Sine Function,Finding the Area of an Oblique Triangle Using the Sine Function,7.246510168969821,,
+10,How do I find the area under a curve?,summary,LO,6,lo_1065,1065,Finding Cartesian Equations from Curves Defined Parametrically,Finding Cartesian Equations from Curves Defined Parametrically,7.23310262133306,,
+10,How do I find the area under a curve?,summary,concept,1,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",14.732920422197905,,
+10,How do I find the area under a curve?,summary,concept,2,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",11.8321068110766,,
+10,How do I find the area under a curve?,summary,concept,3,1062_concept_1,Parametric Equations,Parametric Equations,"concept
+
+# Parametric Equations
+
+### Learning Objectives
+In this section, you will:
+
+- Parameterize a curve.
+- Eliminate the parameter.
+- Find a rectangular equation for a curve defined parametrically",10.900340040935037,,
+10,How do I find the area under a curve?,summary,concept,4,1064_concept_1,Eliminating the Parameter,Eliminating the Parameter,"# Eliminating the Parameter
+
+In many cases, we may have a pair of parametric equations but find that it is simpler to draw a curve if the equation involves only two variables, such as \[x\] and \[y.\]",10.336146598877402,,
+10,How do I find the area under a curve?,summary,concept,5,1063_concept_1,Parameterizing a Curve,Parameterizing a Curve,"# Parameterizing a Curve
+
+When an object moves along a curve—or curvilinear path—in a given direction and in a given amount of time, the position of the object in the plane is given by the \[x\]-coord",10.187020488381927,,
+10,How do I find the area under a curve?,summary,concept,6,1037_concept_1,Finding the Area of an Oblique Triangle Using the Sine Function,Finding the Area of an Oblique Triangle Using the Sine Function,"#  Finding the Area of an Oblique Triangle Using the Sine Function
+
+Now that we can solve a triangle for missing values, we can use some of those values and the sine function to find the area of an ob",9.631250322732809,,
+10,How do I find the area under a curve?,summary,try_it,7,1894_try_it_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",8.35424126411521,,
+10,How do I find the area under a curve?,summary,example,8,1894_example_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",8.305602489268823,,
+10,How do I find the area under a curve?,summary,concept,9,1065_concept_1,Finding Cartesian Equations from Curves Defined Parametrically,Finding Cartesian Equations from Curves Defined Parametrically,"# Finding Cartesian Equations from Curves Defined Parametrically
+
+When we are given a set of parametric equations and need to find an equivalent Cartesian equation, we are essentially “eliminating the",8.225129939924763,,
+10,How do I find the area under a curve?,summary,example,10,1873_example_2,Polynomials,Polynomials,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow ±∞\), ii. find all zeros of \(f\), and iii. sketch a graph of \(f\).
+
+\(f(x) = x^3 - 3x^2 - 4x\)
+
+The fun",8.05797231911691,,
+11,What are transcendental functions?,embedding,LO,1,lo_1875,1875,Transcendental Functions,Transcendental Functions,0.9063595533370972,,
+11,What are transcendental functions?,embedding,LO,2,lo_1874,1874,Algebraic Functions,Algebraic Functions,0.5963290929794312,,
+11,What are transcendental functions?,embedding,LO,3,lo_1888,1888,Exponential Functions,Exponential Functions,0.4887484312057495,,
+11,What are transcendental functions?,embedding,LO,4,lo_1867,1867,Functions,Functions,0.48534920811653137,,
+11,What are transcendental functions?,embedding,LO,5,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,0.43785974383354187,,
+11,What are transcendental functions?,embedding,example,1,1875_example_2,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = 2^{x^2}\]
+
+This function cannot be written as a formula that involves only basic algebraic operations",0.6486416459083557,,
+11,What are transcendental functions?,embedding,example,2,1875_example_3,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = \sin(2x)\]
+
+This function cannot be written using a formula involving basic algebraic operations only",0.6101049184799194,,
+11,What are transcendental functions?,embedding,try_it,3,1875_try_it_1,Transcendental Functions,Transcendental Functions,"Is \(f(x) = x/2\) an algebraic or a transcendental function?
+
+Given function is \[ f(x) = \frac{x}{2}\] Since this function involves basic algebraic operations only, it is an algebraic function.
+
+easy",0.5856380462646484,,
+11,What are transcendental functions?,embedding,example,4,1875_example_1,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[
+f(x) = \frac{\sqrt{x^3 + 1}}{4x + 2}
+\]
+
+Since this function involves basic algebraic operations only, it i",0.5392405986785889,,
+11,What are transcendental functions?,embedding,concept,5,1219_concept_1,Finding Input and Output Values of a Function,Finding Input and Output Values of a Function,"# Finding Input and Output Values of a Function
+
+When we know an input value and want to determine the corresponding output value for a function, we evaluate the function. Evaluating will always produ",0.3579484522342682,,
+11,What are transcendental functions?,summary,LO,1,lo_1875,1875,Transcendental Functions,Transcendental Functions,8.591644396168995,,
+11,What are transcendental functions?,summary,try_it,1,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",7.1242121243472,,
+11,What are transcendental functions?,summary,example,2,1875_example_3,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = \sin(2x)\]
+
+This function cannot be written using a formula involving basic algebraic operations only",6.282213279918428,,
+11,What are transcendental functions?,summary,example,3,1875_example_2,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = 2^{x^2}\]
+
+This function cannot be written as a formula that involves only basic algebraic operations",6.190997205553339,,
+11,What are transcendental functions?,summary,example,4,1875_example_1,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[
+f(x) = \frac{\sqrt{x^3 + 1}}{4x + 2}
+\]
+
+Since this function involves basic algebraic operations only, it i",6.190997205553339,,
+11,What are transcendental functions?,summary,try_it,5,1875_try_it_1,Transcendental Functions,Transcendental Functions,"Is \(f(x) = x/2\) an algebraic or a transcendental function?
+
+Given function is \[ f(x) = \frac{x}{2}\] Since this function involves basic algebraic operations only, it is an algebraic function.
+
+easy",6.135828587180584,,
+11,What are transcendental functions?,summary,concept,6,1065_concept_1,Finding Cartesian Equations from Curves Defined Parametrically,Finding Cartesian Equations from Curves Defined Parametrically,"# Finding Cartesian Equations from Curves Defined Parametrically
+
+When we are given a set of parametric equations and need to find an equivalent Cartesian equation, we are essentially “eliminating the",4.77818230041626,,
+11,What are transcendental functions?,summary,example,7,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",4.689110924102129,,
+11,What are transcendental functions?,summary,concept,8,1038_concept_1,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,"#  Solving Applied Problems Using the Law of Sines
+
+The more we study trigonometric applications, the more we discover that the applications are countless. Some are flat, diagram-type situations, but ",4.23298950501316,,
+11,What are transcendental functions?,summary,concept,9,958_concept_1,Verifying the Fundamental Trigonometric Identities,Verifying the Fundamental Trigonometric Identities,"# Verifying the Fundamental Trigonometric Identities 
+
+Identities enable us to simplify complicated expressions. They are the basic tools of trigonometry used in solving trigonometric equations, just ",3.788953572150759,,
+11,What are transcendental functions?,summary,example,10,1867_example_1,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[f(-2) = 3(-2)^2 + 2(-2) - 1 \]
+
+easy
+
+What operation is performed whe",3.7863658972860414,,
+12,How do I solve optimization problems?,embedding,LO,1,lo_981,981,Solving Right Triangle Problems,Solving Right Triangle Problems,0.3748886287212372,,
+12,How do I solve optimization problems?,embedding,LO,2,lo_1041,1041,Solving Applied Problems Using the Law of Cosines,Solving Applied Problems Using the Law of Cosines,0.3558550775051117,,
+12,How do I solve optimization problems?,embedding,LO,3,lo_1038,1038,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,0.34498873353004456,,
+12,How do I solve optimization problems?,embedding,LO,4,lo_1234,1234,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,0.3034558892250061,,
+12,How do I solve optimization problems?,embedding,LO,5,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.2899785339832306,,
+12,How do I solve optimization problems?,embedding,example,1,1873_example_3,Polynomials,Polynomials,"A company is interested in predicting the amount of revenue it will receive depending on the price it charges for a particular item. Using the data from Table 1.6, the company arrives at the following",0.37291526794433594,,
+12,How do I solve optimization problems?,embedding,example,2,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",0.3051338791847229,,
+12,How do I solve optimization problems?,embedding,concept,3,1234_concept_1,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,"# Use A Graph to Locate the Absolute Maximum and Absolute Minimum
+
+There is a difference between locating the highest and lowest points on a graph in a region around an open interval (locally) and loc",0.3003336489200592,,
+12,How do I solve optimization problems?,embedding,example,4,1869_example_13,Combining Functions,Combining Functions,"A store is advertising a sale of \[20\%\] off all merchandise. Caroline has a coupon that entitles her to an additional \[15\%\] off any item, including sale merchandise. If Caroline decides to purcha",0.29033413529396057,,
+12,How do I solve optimization problems?,embedding,concept,5,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",0.2784527838230133,,
+12,How do I solve optimization problems?,summary,LO,1,lo_1038,1038,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,7.2411648448461845,,
+12,How do I solve optimization problems?,summary,LO,2,lo_1041,1041,Solving Applied Problems Using the Law of Cosines,Solving Applied Problems Using the Law of Cosines,7.1946293950824,,
+12,How do I solve optimization problems?,summary,LO,3,lo_1036,1036,Using The Law of Sines to Solve SSA Triangles,Using The Law of Sines to Solve SSA Triangles,6.742487933577526,,
+12,How do I solve optimization problems?,summary,LO,4,lo_1040,1040,Using the Law of Cosines to Solve Oblique Triangles,Using the Law of Cosines to Solve Oblique Triangles,6.310038010409791,,
+12,How do I solve optimization problems?,summary,LO,5,lo_1034,1034,Non-right Triangles: Law of Sines,Non-right Triangles: Law of Sines,5.824196285332125,,
+12,How do I solve optimization problems?,summary,LO,6,lo_1039,1039,Non-right Triangles: Law of Cosines,Non-right Triangles: Law of Cosines,5.824196285332125,,
+12,How do I solve optimization problems?,summary,LO,7,lo_981,981,Solving Right Triangle Problems,Solving Right Triangle Problems,5.677779452762624,,
+12,How do I solve optimization problems?,summary,LO,8,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,5.2059972654087145,,
+12,How do I solve optimization problems?,summary,LO,9,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,5.2059972654087145,,
+12,How do I solve optimization problems?,summary,LO,10,lo_1042,1042,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,5.075449698498122,,
+12,How do I solve optimization problems?,summary,concept,1,1223_concept_1,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,"# Identifying Basic Toolkit Functions
+
+In this text, we will be exploring functions—the shapes of their graphs, their unique characteristics, their algebraic formulas, and how to solve problems with t",7.9399579373957865,,
+12,How do I solve optimization problems?,summary,concept,2,981_concept_1,Solving Right Triangle Problems,Solving Right Triangle Problems,"# Solving Right Triangle Problems
+
+We can now use all of the methods we have learned to solve problems that involve applying the properties of right triangles and the Pythagorean Theorem. We begin wit",7.424929082109891,,
+12,How do I solve optimization problems?,summary,concept,3,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",7.302997152789221,,
+12,How do I solve optimization problems?,summary,concept,4,1041_concept_1,Solving Applied Problems Using the Law of Cosines,Solving Applied Problems Using the Law of Cosines,"# Solving Applied Problems Using the Law of Cosines
+
+Just as the Law of Sines provided the appropriate equations to solve a number of applications, the Law of Cosines is applicable to situations in wh",6.719725688010658,,
+12,How do I solve optimization problems?,summary,concept,5,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",6.617850877914138,,
+12,How do I solve optimization problems?,summary,concept,6,1038_concept_1,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,"#  Solving Applied Problems Using the Law of Sines
+
+The more we study trigonometric applications, the more we discover that the applications are countless. Some are flat, diagram-type situations, but ",6.506746858065371,,
+12,How do I solve optimization problems?,summary,concept,7,1039_concept_1,Non-right Triangles: Law of Cosines,Non-right Triangles: Law of Cosines,"concept
+
+# Non-right Triangles: Law of Cosines
+
+# Learning Objectives
+In this section, you will:
+
+- Use the Law of Cosines to solve oblique triangles.
+- Solve applied problems using the Law of Cosines",6.366518847970987,,
+12,How do I solve optimization problems?,summary,concept,8,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",4.8486496253402835,,
+12,How do I solve optimization problems?,summary,concept,9,1045_concept_1,Converting from Polar Coordinates to Rectangular Coordinates,Converting from Polar Coordinates to Rectangular Coordinates,"# Converting from Polar Coordinates to Rectangular Coordinates
+
+When given a set of polar coordinates, we may need to convert them to rectangular coordinates. To do so, we can recall the relationships",4.494697885038881,,
+12,How do I solve optimization problems?,summary,concept,10,1238_concept_1,Evaluating Composite Functions,Evaluating Composite Functions,"# Evaluating Composite Functions
+
+Once we compose a new function from two existing functions, we need to be able to evaluate it for any input in its domain. We will do this with specific numerical inp",4.168172117429501,,
+13,What is the mean value theorem?,embedding,LO,1,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,0.5587476491928101,,
+13,What is the mean value theorem?,embedding,LO,2,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.33858782052993774,,
+13,What is the mean value theorem?,embedding,LO,3,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.3080427348613739,,
+13,What is the mean value theorem?,embedding,LO,4,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,0.2856432795524597,,
+13,What is the mean value theorem?,embedding,LO,5,lo_1907,1907,Continuity at a Point,Continuity at a Point,0.24991796910762787,,
+13,What is the mean value theorem?,embedding,concept,1,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",0.28135746717453003,,
+13,What is the mean value theorem?,embedding,try_it,2,1908_try_it_1,Types of Discontinuities,Types of Discontinuities,"For \[f(x) = \begin{cases} x^2 & \text{if } x \neq 1 \\ 3 & \text{if } x = 1 \end{cases}\], decide whether \[f\] is continuous at \[1\]. If \[f\] is not continuous at \[1\], classify the discontinuity",0.25222957134246826,,
+13,What is the mean value theorem?,embedding,try_it,3,1907_try_it_1,Continuity at a Point,Continuity at a Point,"Using the definition, determine whether the function \[f(x) = \begin{cases} 2x + 1 & \text{if } x < 1 \\ 2 & \text{if } x = 1 \\ -x + 4 & \text{if } x > 1 \end{cases}\] is continuous at \(x = 1\). If ",0.2493663877248764,,
+13,What is the mean value theorem?,embedding,concept,4,1235_concept_1,Composition of Functions,Composition of Functions,"concept
+
+# Composition of Functions
+
+### Learning Objectives
+In this section, you will:
+
+- Combine functions using algebraic operations.
+- Create a new function by composition of functions.
+- Evaluate",0.2431303709745407,,
+13,What is the mean value theorem?,embedding,concept,5,1229_concept_1,Graphing Piecewise-Defined Functions,Graphing Piecewise-Defined Functions,"# Graphing Piecewise-Defined Functions
+
+Sometimes, we come across a function that requires more than one formula in order to obtain the given output. For example, in the toolkit functions, we introduc",0.24068377912044525,,
+13,What is the mean value theorem?,summary,LO,1,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,12.521430887644927,,
+13,What is the mean value theorem?,summary,LO,2,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,9.355964026611877,,
+13,What is the mean value theorem?,summary,LO,3,lo_1905,1905,The Squeeze Theorem,The Squeeze Theorem,7.737302430934513,,
+13,What is the mean value theorem?,summary,LO,4,lo_1904,1904,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,6.299789917750357,,
+13,What is the mean value theorem?,summary,LO,5,lo_1055,1055,Finding the Absolute Value of a Complex Number,Finding the Absolute Value of a Complex Number,6.261504668458048,,
+13,What is the mean value theorem?,summary,try_it,1,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",9.859075955744274,,
+13,What is the mean value theorem?,summary,try_it,2,1911_try_it_1,The Intermediate Value Theorem,The Intermediate Value Theorem,"Show that \[f(x) = x^{3} - x^{2} - 3x + 1\] has a zero over the interval \[[0, 1]\].
+
+Use the theorem about the continuity of rational and polynomial functions.
+
+\[f(x) = x^{3} - x^{2} - 3x + 1\] is",9.822330978240227,,
+13,What is the mean value theorem?,summary,example,3,1867_example_1,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[f(-2) = 3(-2)^2 + 2(-2) - 1 \]
+
+easy
+
+What operation is performed whe",9.563635561313987,,
+13,What is the mean value theorem?,summary,example,4,1881_example_3,Trigonometric Identities,Trigonometric Identities,"Prove the trigonometric identity \[1 + \tan^2 \theta = \sec^2 \theta.\]
+
+We start with the identity
+
+\[\sin^2\theta + \cos^2\theta = 1.\]
+
+easy
+
+What is the value of \[\sin^2\theta + \cos^2\theta\] fo",9.316495039988707,,
+13,What is the mean value theorem?,summary,concept,5,1055_concept_1,Finding the Absolute Value of a Complex Number,Finding the Absolute Value of a Complex Number,"# Finding the Absolute Value of a Complex Number
+
+The first step toward working with a complex number in polar form is to find the absolute value. The absolute value of a complex number is the same as",8.430524837245224,,
+13,What is the mean value theorem?,summary,example,6,1867_example_2,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(\sqrt{2})\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[
+f(\sqrt{2}) = 3(\sqrt{2})^{2} + 2\sqrt{2} - 1
+\]
+
+easy
+
+What o",8.383710906937349,,
+13,What is the mean value theorem?,summary,try_it,7,1870_try_it_2,Symmetry of Functions,Symmetry of Functions,"For the function \[f(x) = |x + 2| - 4,\] find the domain and range.
+
+Given function is \[f(x) =  |x + 2| - 4\]
+
+Since the absolute value function is defined for all real numbers, the domain of this ",6.300023662887373,,
+13,What is the mean value theorem?,summary,example,8,1870_example_4,Symmetry of Functions,Symmetry of Functions,"Find the domain and range of the function \[f(x) = 2|x - 3| + 4.\]
+
+Given function is \[f(x) = 2|x - 3| + 4.\]
+
+Since the absolute value function is defined for all real numbers, the domain of this fu",6.161594155956926,,
+13,What is the mean value theorem?,summary,concept,9,1057_concept_1,Converting a Complex Number from Polar to Rectangular Form,Converting a Complex Number from Polar to Rectangular Form,"# Converting a Complex Number from Polar to Rectangular Form
+
+Converting a complex number from polar form to rectangular form is a matter of evaluating what is given and using the distributive propert",5.932202725508826,,
+13,What is the mean value theorem?,summary,try_it,10,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",5.846443550520411,,
+14,Explain L'Hopital's rule,embedding,LO,1,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.4805300831794739,,
+14,Explain L'Hopital's rule,embedding,LO,2,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,0.47771281003952026,,
+14,Explain L'Hopital's rule,embedding,LO,3,lo_1899,1899,One-Sided Limits,One-Sided Limits,0.43586915731430054,,
+14,Explain L'Hopital's rule,embedding,LO,4,lo_1915,1915,One-Sided and Infinite Limits,One-Sided and Infinite Limits,0.41394466161727905,,
+14,Explain L'Hopital's rule,embedding,LO,5,lo_1900,1900,Infinite Limits,Infinite Limits,0.38991254568099976,,
+14,Explain L'Hopital's rule,embedding,try_it,1,1897_try_it_2,Intuitive Definition of a Limit,Intuitive Definition of a Limit,"Use the graph of \(h(x)\) in Figure 2.16 to evaluate \(\lim_{{x \to 2}} h(x)\), if possible.
+
+![A graph of the function h(x), which is a parabola graphed over [-2.5, 5]. There is an open circle where ",0.4005817770957947,,
+14,Explain L'Hopital's rule,embedding,try_it,2,1900_try_it_6,Infinite Limits,Infinite Limits,"Evaluate each of the following limits. Identify any vertical asymptotes of the function \[f(x) = \frac{1}{(x-2)^3}\].
+
+\[\lim_{{x \to 2}} \frac{1}{(x-2)^3}\]
+
+As \[x\] approaches \[2\] from the left s",0.38848692178726196,,
+14,Explain L'Hopital's rule,embedding,example,3,1897_example_3,Intuitive Definition of a Limit,Intuitive Definition of a Limit,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) includes one value not on a smooth curve.
+
+Despite the fact that \[g(-1) = 4,\] as the *x*-values ap",0.3871745467185974,,
+14,Explain L'Hopital's rule,embedding,try_it,4,1900_try_it_4,Infinite Limits,Infinite Limits,"Evaluate each of the following limits. Identify any vertical asymptotes of the function \[f(x) = \frac{1}{(x-2)^3}\].
+
+\[\lim_{{x \to 2^-}} \frac{1}{(x-2)^3}\]
+
+
+As \[x\] approaches \[2\] from the le",0.3732536733150482,,
+14,Explain L'Hopital's rule,embedding,try_it,5,1900_try_it_5,Infinite Limits,Infinite Limits,"Evaluate each of the following limits. Identify any vertical asymptotes of the function \[f(x) = \frac{1}{(x-2)^3}\].
+
+\[\lim_{{x \to 2^+}} \frac{1}{(x-2)^3}\]
+
+As \[x\] approaches 2 from the right si",0.35461169481277466,,
+14,Explain L'Hopital's rule,summary,LO,1,lo_1885,1885,Finding a Function’s Inverse,Finding a Function’s Inverse,4.614813391176169,,
+14,Explain L'Hopital's rule,summary,LO,2,lo_1042,1042,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,3.5307729231698306,,
+14,Explain L'Hopital's rule,summary,LO,3,lo_1886,1886,Inverse Trigonometric Functions,Inverse Trigonometric Functions,3.0793499832279028,,
+14,Explain L'Hopital's rule,summary,try_it,1,1913_try_it_2,Quantifying Closeness,Quantifying Closeness,"Find δ corresponding to \[\epsilon > 0\] for a proof that \[\lim_{{x \to 9}} \sqrt{x} = 3.\]
+
+By definition \[\lim_{{x \to c}} f(x) = L\] means that for every \[\epsilon > 0\], there is a \[\delta > 0",4.726092949319086,,
+14,Explain L'Hopital's rule,summary,example,2,1888_example_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})^3}{(4x^{-\frac{1}{3}})^2}\]
+
+Using the Power of a Product Rule of exponents we can write,
+
+\[\frac{",4.520254123923462,,
+14,Explain L'Hopital's rule,summary,example,3,1888_example_3,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(x^3y^{-1})^2}{(xy^2)^{-2}}\]
+
+Using the Power of a Product Rule we can write,
+
+\[\frac{{(x^3y^{-1})^2}}{{(xy^2)^{-2}}",4.4281184872895905,,
+14,Explain L'Hopital's rule,summary,try_it,4,1877_try_it_1,Transformations of Functions,Transformations of Functions,"Describe how the function \[f(x) = -(x + 1)^2 - 4\] can be graphed using the graph of \[y = x^2\] and a sequence of transformations.
+
+Starting with the graph of \[y = x^2\], shift \[1\] units to the l",4.325281204808611,,
+14,Explain L'Hopital's rule,summary,try_it,5,1902_try_it_1,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",4.25467377970645,,
+14,Explain L'Hopital's rule,summary,try_it,6,1888_try_it_2,Exponential Functions,Exponential Functions,"Use the laws of exponents to simplify \[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}.\]
+
+Using the Quotient Rule we can write,
+
+\[\dfrac{(6x^{-3}y^2)}{(12x^{-4}y^5)}=\dfrac{x^{-3-(4)}y^{2-5}}{2}=\frac{xy^{-3}}",4.213415029527314,,
+14,Explain L'Hopital's rule,summary,example,7,1868_example_8,Representing Functions,Representing Functions,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the function \[s(t) = -16t^2 + 100,\] where \[s\] is measured in feet and \[t\] is measured in seconds. The",4.172556456030082,,
+14,Explain L'Hopital's rule,summary,example,8,1868_example_7,Representing Functions,Representing Functions,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the function \[s(t) = -16t^2 + 100,\] where \[s\] is measured in feet and \[t\] is measured in seconds. The",4.172556456030082,,
+14,Explain L'Hopital's rule,summary,concept,9,1222_concept_1,Using the Horizontal Line Test,Using the Horizontal Line Test,"# Using the Horizontal Line Test
+
+Once we have determined that a graph defines a function, an easy way to determine if it is a one-to-one function is to use the horizontal line test. Draw horizontal l",3.853254357094784,,
+14,Explain L'Hopital's rule,summary,concept,10,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",2.8897755891502808,,
+15,How do I find critical points?,embedding,LO,1,lo_1068,1068,Graphing Parametric Equations by Plotting Points,Graphing Parametric Equations by Plotting Points,0.43620753288269043,,
+15,How do I find critical points?,embedding,LO,2,lo_1051,1051,Graphing Polar Equations by Plotting Points,Graphing Polar Equations by Plotting Points,0.42054569721221924,,
+15,How do I find critical points?,embedding,LO,3,lo_1044,1044,Plotting Points Using Polar Coordinates,Plotting Points Using Polar Coordinates,0.40388867259025574,,
+15,How do I find critical points?,embedding,LO,4,lo_1234,1234,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,0.40298280119895935,,
+15,How do I find critical points?,embedding,LO,5,lo_1049,1049,Polar Coordinates: Graphs,Polar Coordinates: Graphs,0.3811678886413574,,
+15,How do I find critical points?,embedding,concept,1,1234_concept_1,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,"# Use A Graph to Locate the Absolute Maximum and Absolute Minimum
+
+There is a difference between locating the highest and lowest points on a graph in a region around an open interval (locally) and loc",0.3858577013015747,,
+15,How do I find critical points?,embedding,concept,2,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",0.34400662779808044,,
+15,How do I find critical points?,embedding,try_it,3,1873_try_it_1,Polynomials,Polynomials,"Consider the quadratic function \[f(x) = 3x^2 - 6x + 2.\] Find the zeros of \[f.\] Does the parabola open upward or downward?
+
+Given function is \[f(x) = 3x^2 - 6x + 2\]
+To find the zeros of \(f\), u",0.33071690797805786,,
+15,How do I find critical points?,embedding,concept,4,1052_concept_1,Summary of Curves,Summary of Curves,"# Summary of Curves
+
+We have explored a number of seemingly complex polar curves in this section. Figure 20 and Figure 21 summarize the graphs and equations for each of these curves.
+
+
+
+Figure 20
+
+
+
+F",0.3262209892272949,,
+15,How do I find critical points?,embedding,concept,5,984_concept_1,Finding Equations and Graphing Sinusoidal Functions,Finding Equations and Graphing Sinusoidal Functions,"# Finding Equations and Graphing Sinusoidal Functions
+
+One method of graphing sinusoidal functions is to find five key points. These points will correspond to intervals of equal length representing \[",0.32314568758010864,,
+15,How do I find critical points?,summary,LO,1,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,5.2059972654087145,,
+15,How do I find critical points?,summary,LO,2,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,5.2059972654087145,,
+15,How do I find critical points?,summary,LO,3,lo_1044,1044,Plotting Points Using Polar Coordinates,Plotting Points Using Polar Coordinates,4.432538325586474,,
+15,How do I find critical points?,summary,LO,4,lo_1068,1068,Graphing Parametric Equations by Plotting Points,Graphing Parametric Equations by Plotting Points,4.432538325586474,,
+15,How do I find critical points?,summary,concept,1,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",10.761072594240474,,
+15,How do I find critical points?,summary,concept,2,1045_concept_1,Converting from Polar Coordinates to Rectangular Coordinates,Converting from Polar Coordinates to Rectangular Coordinates,"# Converting from Polar Coordinates to Rectangular Coordinates
+
+When given a set of polar coordinates, we may need to convert them to rectangular coordinates. To do so, we can recall the relationships",6.876641576477926,,
+15,How do I find critical points?,summary,concept,3,1048_concept_1,Identify and Graph Polar Equations by Converting to Rectangular Equations,Identify and Graph Polar Equations by Converting to Rectangular Equations,"#  Identify and Graph Polar Equations by Converting to Rectangular Equations
+
+We have learned how to convert rectangular coordinates to polar coordinates, and we have seen that the points are indeed t",6.447868918445073,,
+15,How do I find critical points?,summary,concept,4,959_concept_1,Using Algebra to Simplify Trigonometric Expressions,Using Algebra to Simplify Trigonometric Expressions,"# Using Algebra to Simplify Trigonometric Expressions
+
+We have seen that algebra is very important in verifying trigonometric identities, but it is just as critical in simplifying trigonometric expres",5.631585713759877,,
+15,How do I find critical points?,summary,concept,5,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",5.286399648608903,,
+15,How do I find critical points?,summary,try_it,6,1872_try_it_1,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through points \[(-3,2)\] and \[(1,4).\] Find the slope of the line.
+
+Find an equation of that line in point-slope form. Find an equation of that line in slope-intercept form",5.146530623328369,,
+15,How do I find critical points?,summary,concept,7,964_concept_1,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tangent functions for the sums and differences of angles, we can use them to do the same for their cofun",5.139085300567844,,
+15,How do I find critical points?,summary,concept,8,984_concept_1,Finding Equations and Graphing Sinusoidal Functions,Finding Equations and Graphing Sinusoidal Functions,"# Finding Equations and Graphing Sinusoidal Functions
+
+One method of graphing sinusoidal functions is to find five key points. These points will correspond to intervals of equal length representing \[",4.928321525275793,,
+15,How do I find critical points?,summary,concept,9,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",4.8486496253402835,,
+15,How do I find critical points?,summary,concept,10,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",4.685191232809838,,
+16,What is a secant line?,embedding,LO,1,lo_1222,1222,Using the Horizontal Line Test,Using the Horizontal Line Test,0.35688674449920654,,
+16,What is a secant line?,embedding,LO,2,lo_1221,1221,Using the Vertical Line Test,Using the Vertical Line Test,0.32910311222076416,,
+16,What is a secant line?,embedding,LO,3,lo_1052,1052,Summary of Curves,Summary of Curves,0.31228381395339966,,
+16,What is a secant line?,embedding,LO,4,lo_1882,1882,Graphs and Periods of the Trigonometric Functions,Graphs and Periods of the Trigonometric Functions,0.29591792821884155,,
+16,What is a secant line?,embedding,LO,5,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,0.2834060788154602,,
+16,What is a secant line?,embedding,example,1,1893_example_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",0.3721997141838074,,
+16,What is a secant line?,embedding,concept,2,1071_concept_1,A Geometric View of Vectors,A Geometric View of Vectors,"# A Geometric View of Vectors 
+
+A vector is a specific quantity drawn as a line segment with an arrowhead at one end. It has an initial point, where it begins, and a terminal point, where it ends. A v",0.35680222511291504,,
+16,What is a secant line?,embedding,concept,3,1221_concept_1,Using the Vertical Line Test,Using the Vertical Line Test,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function using a graph. Graphs display a great many input-output pairs in a small space. The visual informati",0.3238976001739502,,
+16,What is a secant line?,embedding,try_it,4,1893_try_it_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",0.31222814321517944,,
+16,What is a secant line?,embedding,concept,5,1044_concept_1,Plotting Points Using Polar Coordinates,Plotting Points Using Polar Coordinates,"# Plotting Points Using Polar Coordinates
+
+When we think about plotting points in the plane, we usually think of rectangular coordinates \[(x, y)\] in the Cartesian coordinate plane. However, there ar",0.282014936208725,,
+16,What is a secant line?,summary,LO,1,lo_1222,1222,Using the Horizontal Line Test,Using the Horizontal Line Test,6.648665201171381,,
+16,What is a secant line?,summary,LO,2,lo_1220,1220,Determining Whether a Function is One-to-One,Determining Whether a Function is One-to-One,6.472367787446578,,
+16,What is a secant line?,summary,LO,3,lo_1221,1221,Using the Vertical Line Test,Using the Vertical Line Test,6.408909998652431,,
+16,What is a secant line?,summary,LO,4,lo_1218,1218,Determining Whether a Relation Represents a Function,Determining Whether a Relation Represents a Function,5.553299324407471,,
+16,What is a secant line?,summary,try_it,1,1893_try_it_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",8.703553945783895,,
+16,What is a secant line?,summary,concept,2,1222_concept_1,Using the Horizontal Line Test,Using the Horizontal Line Test,"# Using the Horizontal Line Test
+
+Once we have determined that a graph defines a function, an easy way to determine if it is a one-to-one function is to use the horizontal line test. Draw horizontal l",7.836651840643876,,
+16,What is a secant line?,summary,example,3,1893_example_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",7.380801515963151,,
+16,What is a secant line?,summary,example,4,1872_example_3,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",7.047605444231489,,
+16,What is a secant line?,summary,example,5,1872_example_2,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",7.047605444231489,,
+16,What is a secant line?,summary,example,6,1872_example_1,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",7.047605444231489,,
+16,What is a secant line?,summary,concept,7,1057_concept_1,Converting a Complex Number from Polar to Rectangular Form,Converting a Complex Number from Polar to Rectangular Form,"# Converting a Complex Number from Polar to Rectangular Form
+
+Converting a complex number from polar form to rectangular form is a matter of evaluating what is given and using the distributive propert",6.4127041073253706,,
+16,What is a secant line?,summary,try_it,8,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",6.339616831016085,,
+16,What is a secant line?,summary,concept,9,1071_concept_1,A Geometric View of Vectors,A Geometric View of Vectors,"# A Geometric View of Vectors 
+
+A vector is a specific quantity drawn as a line segment with an arrowhead at one end. It has an initial point, where it begins, and a terminal point, where it ends. A v",6.164463730369565,,
+16,What is a secant line?,summary,try_it,10,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",5.983764737535175,,
+17,How do I calculate rates of change?,embedding,LO,1,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.6799798011779785,,
+17,How do I calculate rates of change?,embedding,LO,2,lo_1230,1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,0.5368253588676453,,
+17,How do I calculate rates of change?,embedding,LO,3,lo_963,963,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,0.32061028480529785,,
+17,How do I calculate rates of change?,embedding,LO,4,lo_1232,1232,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant",0.32059821486473083,,
+17,How do I calculate rates of change?,embedding,LO,5,lo_986,986,Modeling Harmonic Motion Functions,Modeling Harmonic Motion Functions,0.26685264706611633,,
+17,How do I calculate rates of change?,embedding,concept,1,1231_concept_1,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change because it describes how an output quantity changes relative to the change in the input quantity. We c",0.5409733057022095,,
+17,How do I calculate rates of change?,embedding,concept,2,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",0.45482710003852844,,
+17,How do I calculate rates of change?,embedding,example,3,1893_example_2,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,A rock is dropped from a height of \[64\] ft. It is determined that its height (in feet) above ground \[t\] seconds later (for \[0 \leq t \leq 2\]) is given by \[s(t) = -16t^2 + 64\]. Find the average,0.41428881883621216,,
+17,How do I calculate rates of change?,embedding,try_it,4,1893_try_it_2,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,An object moves along a coordinate axis so that its position at time \[t\] is given by \[s(t) = t^3\]. Estimate its instantaneous velocity at time \[t = 2\] by computing its average velocity over the ,0.4018652141094208,,
+17,How do I calculate rates of change?,embedding,example,5,1868_example_7,Representing Functions,Representing Functions,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the function \[s(t) = -16t^2 + 100,\] where \[s\] is measured in feet and \[t\] is measured in seconds. The",0.3705877959728241,,
+17,How do I calculate rates of change?,summary,LO,1,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,12.930210418707212,,
+17,How do I calculate rates of change?,summary,LO,2,lo_1230,1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,12.774659277161971,,
+17,How do I calculate rates of change?,summary,LO,3,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,10.03673921992824,,
+17,How do I calculate rates of change?,summary,LO,4,lo_1232,1232,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant",9.676045548333182,,
+17,How do I calculate rates of change?,summary,LO,5,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,7.277017486127516,,
+17,How do I calculate rates of change?,summary,LO,6,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,7.277017486127516,,
+17,How do I calculate rates of change?,summary,LO,7,lo_1080,1080,Finding the Dot Product of Two Vectors,Finding the Dot Product of Two Vectors,5.5451040496790815,,
+17,How do I calculate rates of change?,summary,concept,1,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",16.112559942520107,,
+17,How do I calculate rates of change?,summary,concept,2,1231_concept_1,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change because it describes how an output quantity changes relative to the change in the input quantity. We c",15.211015477041403,,
+17,How do I calculate rates of change?,summary,concept,3,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",13.159168646532462,,
+17,How do I calculate rates of change?,summary,concept,4,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",9.22227707782632,,
+17,How do I calculate rates of change?,summary,concept,5,1233_concept_1,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"# Analyzing the Toolkit Functions for Increasing or Decreasing Intervals
+
+We will now return to our toolkit functions and discuss their graphical behavior in Figure 10, Figure 11, and Figure 12.
+
+
+
+Fi",8.719860367890572,,
+17,How do I calculate rates of change?,summary,concept,6,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",6.9361500499515625,,
+17,How do I calculate rates of change?,summary,example,7,1890_example_6,Logarithmic Functions,Logarithmic Functions,"Use a calculating utility to evaluate \[\log_3 7\] with the change-of-base formula presented earlier.
+
+Using the change-of-base formula, we can rewrite the given logarithm in terms of the natural loga",6.746908828249479,,
+17,How do I calculate rates of change?,summary,try_it,8,1890_try_it_3,Logarithmic Functions,Logarithmic Functions,"Use the change-of-base formula and a calculating utility to evaluate \[\log_4 6.\]
+
+Using the change-of-base formula, we can rewrite the given logarithm in terms of the natural logarithm with base \[e",6.703359143926363,,
+17,How do I calculate rates of change?,summary,concept,9,1077_concept_1,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,"# Performing Operations with Vectors in Terms of i and j 
+
+So far, we have investigated the basics of vectors: magnitude and direction, vector addition and subtraction, scalar multiplication, the comp",6.25450734314362,,
+17,How do I calculate rates of change?,summary,try_it,10,1909_try_it_1,Continuity over an Interval,Continuity over an Interval,"State the interval(s) over which the function \[f(x) = \sqrt{x + 3}\] is continuous.
+
+Calculate the limit using limit laws.
+
+For all \[a\in(-3,\infty)\],
+\[\lim_{x \to a}f(x)=\lim_{x \to a}\sqrt{(x",6.1181197266548075,,
+18,What is an integral?,embedding,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.5455746054649353,,
+18,What is an integral?,embedding,LO,2,lo_1223,1223,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,0.2804482877254486,,
+18,What is an integral?,embedding,LO,3,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,0.27277418971061707,,
+18,What is an integral?,embedding,LO,4,lo_1867,1867,Functions,Functions,0.24971050024032593,,
+18,What is an integral?,embedding,LO,5,lo_1879,1879,Radian Measure,Radian Measure,0.23071345686912537,,
+18,What is an integral?,embedding,concept,1,1223_concept_1,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,"# Identifying Basic Toolkit Functions
+
+In this text, we will be exploring functions—the shapes of their graphs, their unique characteristics, their algebraic formulas, and how to solve problems with t",0.299259752035141,,
+18,What is an integral?,embedding,concept,2,1225_concept_1,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,"# Finding the Domain of a Function Defined by an Equation
+
+In Functions and Function Notation, we were introduced to the concepts of domain and range. In this section, we will practice determining dom",0.29394352436065674,,
+18,What is an integral?,embedding,concept,3,1063_concept_1,Parameterizing a Curve,Parameterizing a Curve,"# Parameterizing a Curve
+
+When an object moves along a curve—or curvilinear path—in a given direction and in a given amount of time, the position of the object in the plane is given by the \[x\]-coord",0.2858468294143677,,
+18,What is an integral?,embedding,concept,4,1221_concept_1,Using the Vertical Line Test,Using the Vertical Line Test,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function using a graph. Graphs display a great many input-output pairs in a small space. The visual informati",0.26548150181770325,,
+18,What is an integral?,embedding,example,5,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",0.2622033953666687,,
+18,What is an integral?,summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,8.69386675852568,,
+18,What is an integral?,summary,LO,2,lo_1884,1884,Existence of an Inverse Function,Existence of an Inverse Function,3.040841691626867,,
+18,What is an integral?,summary,try_it,1,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",6.875775189196643,,
+18,What is an integral?,summary,try_it,2,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",6.335066407898271,,
+18,What is an integral?,summary,example,3,1867_example_1,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[f(-2) = 3(-2)^2 + 2(-2) - 1 \]
+
+easy
+
+What operation is performed whe",4.820548369736777,,
+18,What is an integral?,summary,example,4,1881_example_3,Trigonometric Identities,Trigonometric Identities,"Prove the trigonometric identity \[1 + \tan^2 \theta = \sec^2 \theta.\]
+
+We start with the identity
+
+\[\sin^2\theta + \cos^2\theta = 1.\]
+
+easy
+
+What is the value of \[\sin^2\theta + \cos^2\theta\] fo",4.584528657081361,,
+18,What is an integral?,summary,try_it,5,1867_try_it_1,Functions,Functions,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the function we get
+
+\[f(1)=(1)^2-3(1)+5\]
+
+\[f(1)=1-3+5\]
+
+\[f(1)=3\]
+
+easy
+
+What operation is used to ",4.584528657081361,,
+18,What is an integral?,summary,concept,6,1057_concept_1,Converting a Complex Number from Polar to Rectangular Form,Converting a Complex Number from Polar to Rectangular Form,"# Converting a Complex Number from Polar to Rectangular Form
+
+Converting a complex number from polar form to rectangular form is a matter of evaluating what is given and using the distributive propert",4.493424182288273,,
+18,What is an integral?,summary,try_it,7,1894_try_it_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",4.168172117429501,,
+18,What is an integral?,summary,example,8,1894_example_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",4.130662153883857,,
+18,What is an integral?,summary,try_it,9,1875_try_it_1,Transcendental Functions,Transcendental Functions,"Is \(f(x) = x/2\) an algebraic or a transcendental function?
+
+Given function is \[ f(x) = \frac{x}{2}\] Since this function involves basic algebraic operations only, it is an algebraic function.
+
+easy",3.973284533465676,,
+18,What is an integral?,summary,example,10,1867_example_2,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(\sqrt{2})\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[
+f(\sqrt{2}) = 3(\sqrt{2})^{2} + 2\sqrt{2} - 1
+\]
+
+easy
+
+What o",3.680363651355379,,
+19,Explain the fundamental theorem of calculus,embedding,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.5322986841201782,,
+19,Explain the fundamental theorem of calculus,embedding,LO,2,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.4918597638607025,,
+19,Explain the fundamental theorem of calculus,embedding,LO,3,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,0.3380076587200165,,
+19,Explain the fundamental theorem of calculus,embedding,LO,4,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.3250272870063782,,
+19,Explain the fundamental theorem of calculus,embedding,LO,5,lo_1052,1052,Summary of Curves,Summary of Curves,0.2681296467781067,,
+19,Explain the fundamental theorem of calculus,embedding,concept,1,1221_concept_1,Using the Vertical Line Test,Using the Vertical Line Test,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function using a graph. Graphs display a great many input-output pairs in a small space. The visual informati",0.33259645104408264,,
+19,Explain the fundamental theorem of calculus,embedding,concept,2,1063_concept_1,Parameterizing a Curve,Parameterizing a Curve,"# Parameterizing a Curve
+
+When an object moves along a curve—or curvilinear path—in a given direction and in a given amount of time, the position of the object in the plane is given by the \[x\]-coord",0.3156525492668152,,
+19,Explain the fundamental theorem of calculus,embedding,example,3,1897_example_3,Intuitive Definition of a Limit,Intuitive Definition of a Limit,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) includes one value not on a smooth curve.
+
+Despite the fact that \[g(-1) = 4,\] as the *x*-values ap",0.313291072845459,,
+19,Explain the fundamental theorem of calculus,embedding,concept,4,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",0.2993989586830139,,
+19,Explain the fundamental theorem of calculus,embedding,example,5,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",0.28903287649154663,,
+19,Explain the fundamental theorem of calculus,summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,9.814808358800047,,
+19,Explain the fundamental theorem of calculus,summary,LO,2,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,9.71617881153155,,
+19,Explain the fundamental theorem of calculus,summary,LO,3,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,9.174641216944488,,
+19,Explain the fundamental theorem of calculus,summary,LO,4,lo_1905,1905,The Squeeze Theorem,The Squeeze Theorem,9.16238097244412,,
+19,Explain the fundamental theorem of calculus,summary,LO,5,lo_958,958,Verifying the Fundamental Trigonometric Identities,Verifying the Fundamental Trigonometric Identities,8.277780124960433,,
+19,Explain the fundamental theorem of calculus,summary,LO,6,lo_1904,1904,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,7.781779229408887,,
+19,Explain the fundamental theorem of calculus,summary,LO,7,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,7.210439954555941,,
+19,Explain the fundamental theorem of calculus,summary,concept,1,958_concept_1,Verifying the Fundamental Trigonometric Identities,Verifying the Fundamental Trigonometric Identities,"# Verifying the Fundamental Trigonometric Identities 
+
+Identities enable us to simplify complicated expressions. They are the basic tools of trigonometry used in solving trigonometric equations, just ",9.31761045102657,,
+19,Explain the fundamental theorem of calculus,summary,try_it,2,1894_try_it_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",9.125594836482877,,
+19,Explain the fundamental theorem of calculus,summary,example,3,1894_example_1,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",9.07659308336978,,
+19,Explain the fundamental theorem of calculus,summary,try_it,4,1911_try_it_1,The Intermediate Value Theorem,The Intermediate Value Theorem,"Show that \[f(x) = x^{3} - x^{2} - 3x + 1\] has a zero over the interval \[[0, 1]\].
+
+Use the theorem about the continuity of rational and polynomial functions.
+
+\[f(x) = x^{3} - x^{2} - 3x + 1\] is",8.138425679161159,,
+19,Explain the fundamental theorem of calculus,summary,concept,5,979_concept_1,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,"# Solving Trigonometric Equations Using Fundamental Identities
+
+While algebra can be used to solve a number of trigonometric equations, we can also use the fundamental identities because they make sol",8.130527581715048,,
+19,Explain the fundamental theorem of calculus,summary,example,6,1893_example_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",7.92290071498876,,
+19,Explain the fundamental theorem of calculus,summary,concept,7,1061_concept_1,Finding Roots of Complex Numbers in Polar Form,Finding Roots of Complex Numbers in Polar Form,"# Finding Roots of Complex Numbers in Polar Form
+
+To find the \[n^{th}\] root of a complex number in polar form, we use the \[n^{th}\] Root Theorem or De Moivre’s Theorem and raise the complex number ",7.852138092780531,,
+19,Explain the fundamental theorem of calculus,summary,try_it,8,1893_try_it_1,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",7.844609947659208,,
+19,Explain the fundamental theorem of calculus,summary,concept,9,981_concept_1,Solving Right Triangle Problems,Solving Right Triangle Problems,"# Solving Right Triangle Problems
+
+We can now use all of the methods we have learned to solve problems that involve applying the properties of right triangles and the Pythagorean Theorem. We begin wit",7.304227344689718,,
+19,Explain the fundamental theorem of calculus,summary,try_it,10,1905_try_it_1,The Squeeze Theorem,The Squeeze Theorem,"Use the squeeze theorem to evaluate \[\lim_{{x \to 0}} x^2 \sin \frac{1}{x}.\]
+
+Because \[-1 \leq sin\frac{1}{x} \leq 1\] for all *x*, we have \[-x^2 \leq x^2 sin\frac{1}{x} \leq x^2\] , multiplying b",7.204163723568896,,
+20,How do I find antiderivatives?,embedding,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.4386861324310303,,
+20,How do I find antiderivatives?,embedding,LO,2,lo_979,979,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,0.3278633952140808,,
+20,How do I find antiderivatives?,embedding,LO,3,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.32719555497169495,,
+20,How do I find antiderivatives?,embedding,LO,4,lo_1037,1037,Finding the Area of an Oblique Triangle Using the Sine Function,Finding the Area of an Oblique Triangle Using the Sine Function,0.32467517256736755,,
+20,How do I find antiderivatives?,embedding,LO,5,lo_958,958,Verifying the Fundamental Trigonometric Identities,Verifying the Fundamental Trigonometric Identities,0.3122822642326355,,
+20,How do I find antiderivatives?,embedding,try_it,1,1904_try_it_1,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,"Evaluate \[\lim_{{x \to -3}} \frac{{x^2 + 4x + 3}}{{x^2 - 9}}.\]
+
+The function \[f(x) = \frac{x^2+4x+3}{x^2-9}\] is undefined for \[x = -3\]. In fact, if we substitute -3 into the function we get \[\f",0.307110071182251,,
+20,How do I find antiderivatives?,embedding,example,2,1869_example_2,Combining Functions,Combining Functions,"Given the functions \[f(x) = 2x - 3\] and \[g(x) = x^2 - 1\], find each of the following functions and state its domain.
+
+\[(f - g)(x)\]
+
+\[(f-g)(x)=f(x)-g(x) = (2x-3) - (x^2 - 1) \]
+\[(f-g)(x)= -x^2",0.301766574382782,,
+20,How do I find antiderivatives?,embedding,try_it,3,1867_try_it_1,Functions,Functions,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the function we get
+
+\[f(1)=(1)^2-3(1)+5\]
+
+\[f(1)=1-3+5\]
+
+\[f(1)=3\]
+
+easy
+
+What operation is used to ",0.301300585269928,,
+20,How do I find antiderivatives?,embedding,example,4,1875_example_1,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[
+f(x) = \frac{\sqrt{x^3 + 1}}{4x + 2}
+\]
+
+Since this function involves basic algebraic operations only, it i",0.2948620915412903,,
+20,How do I find antiderivatives?,embedding,concept,5,1223_concept_1,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,"# Identifying Basic Toolkit Functions
+
+In this text, we will be exploring functions—the shapes of their graphs, their unique characteristics, their algebraic formulas, and how to solve problems with t",0.2922322750091553,,
+20,How do I find antiderivatives?,summary,LO,1,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,5.2059972654087145,,
+20,How do I find antiderivatives?,summary,LO,2,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,5.2059972654087145,,
+20,How do I find antiderivatives?,summary,LO,3,lo_1080,1080,Finding the Dot Product of Two Vectors,Finding the Dot Product of Two Vectors,3.513414717215123,,
+20,How do I find antiderivatives?,summary,LO,4,lo_1075,1075,Finding Component Form,Finding Component Form,3.3227205867455583,,
+20,How do I find antiderivatives?,summary,LO,5,lo_1079,1079,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,3.2870391135335626,,
+20,How do I find antiderivatives?,summary,LO,6,lo_1073,1073,Performing Vector Addition and Scalar Multiplication,Performing Vector Addition and Scalar Multiplication,3.252115838719404,,
+20,How do I find antiderivatives?,summary,concept,1,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",8.666303500512724,,
+20,How do I find antiderivatives?,summary,concept,2,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",5.286399648608903,,
+20,How do I find antiderivatives?,summary,concept,3,964_concept_1,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tangent functions for the sums and differences of angles, we can use them to do the same for their cofun",5.139085300567844,,
+20,How do I find antiderivatives?,summary,concept,4,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",4.8486496253402835,,
+20,How do I find antiderivatives?,summary,concept,5,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",4.685191232809838,,
+20,How do I find antiderivatives?,summary,example,6,1873_example_1,Polynomials,Polynomials,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow \pm \infty\), ii. find all zeros of \(f\), and iii. sketch a graph of \(f\).
+
+\(f(x) = -2x^2 + 4x - 1\)
+
+",4.638396284919939,,
+20,How do I find antiderivatives?,summary,example,7,1873_example_2,Polynomials,Polynomials,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow ±∞\), ii. find all zeros of \(f\), and iii. sketch a graph of \(f\).
+
+\(f(x) = x^3 - 3x^2 - 4x\)
+
+The fun",4.592526854165719,,
+20,How do I find antiderivatives?,summary,concept,8,1045_concept_1,Converting from Polar Coordinates to Rectangular Coordinates,Converting from Polar Coordinates to Rectangular Coordinates,"# Converting from Polar Coordinates to Rectangular Coordinates
+
+When given a set of polar coordinates, we may need to convert them to rectangular coordinates. To do so, we can recall the relationships",4.494697885038881,,
+20,How do I find antiderivatives?,summary,concept,9,1238_concept_1,Evaluating Composite Functions,Evaluating Composite Functions,"# Evaluating Composite Functions
+
+Once we compose a new function from two existing functions, we need to be able to evaluate it for any input in its domain. We will do this with specific numerical inp",4.168172117429501,,
+20,How do I find antiderivatives?,summary,concept,10,1077_concept_1,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,"# Performing Operations with Vectors in Terms of i and j 
+
+So far, we have investigated the basics of vectors: magnitude and direction, vector addition and subtraction, scalar multiplication, the comp",4.143254523836143,,
+21,What is the difference between definite and indefinite integrals?,embedding,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,0.46356797218322754,,
+21,What is the difference between definite and indefinite integrals?,embedding,LO,2,lo_979,979,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,0.299949049949646,,
+21,What is the difference between definite and indefinite integrals?,embedding,LO,3,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,0.27452948689460754,,
+21,What is the difference between definite and indefinite integrals?,embedding,LO,4,lo_1908,1908,Types of Discontinuities,Types of Discontinuities,0.2456873059272766,,
+21,What is the difference between definite and indefinite integrals?,embedding,LO,5,lo_958,958,Verifying the Fundamental Trigonometric Identities,Verifying the Fundamental Trigonometric Identities,0.23698094487190247,,
+21,What is the difference between definite and indefinite integrals?,embedding,concept,1,979_concept_1,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,"# Solving Trigonometric Equations Using Fundamental Identities
+
+While algebra can be used to solve a number of trigonometric equations, we can also use the fundamental identities because they make sol",0.30809855461120605,,
+21,What is the difference between definite and indefinite integrals?,embedding,example,2,1875_example_2,Transcendental Functions,Transcendental Functions,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = 2^{x^2}\]
+
+This function cannot be written as a formula that involves only basic algebraic operations",0.30156540870666504,,
+21,What is the difference between definite and indefinite integrals?,embedding,concept,3,1225_concept_1,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,"# Finding the Domain of a Function Defined by an Equation
+
+In Functions and Function Notation, we were introduced to the concepts of domain and range. In this section, we will practice determining dom",0.2698354423046112,,
+21,What is the difference between definite and indefinite integrals?,embedding,concept,4,1232_concept_1,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exploring how functions change, we can identify intervals over which the function is changing in specif",0.26830530166625977,,
+21,What is the difference between definite and indefinite integrals?,embedding,concept,5,1219_concept_1,Finding Input and Output Values of a Function,Finding Input and Output Values of a Function,"# Finding Input and Output Values of a Function
+
+When we know an input value and want to determine the corresponding output value for a function, we evaluate the function. Evaluating will always produ",0.26798176765441895,,
+21,What is the difference between definite and indefinite integrals?,summary,LO,1,lo_963,963,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,10.848042612771518,,
+21,What is the difference between definite and indefinite integrals?,summary,LO,2,lo_965,965,Using the Sum and Difference Formulas to Verify Identities,Using the Sum and Difference Formulas to Verify Identities,10.768675018108624,,
+21,What is the difference between definite and indefinite integrals?,summary,LO,3,lo_962,962,Using the Sum and Difference Formulas for Sine,Using the Sum and Difference Formulas for Sine,10.702021501212922,,
+21,What is the difference between definite and indefinite integrals?,summary,LO,4,lo_964,964,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,10.48300390572439,,
+21,What is the difference between definite and indefinite integrals?,summary,LO,5,lo_961,961,Using the Sum and Difference Formulas for Cosine,Using the Sum and Difference Formulas for Cosine,10.461465432620553,,
+21,What is the difference between definite and indefinite integrals?,summary,LO,6,lo_960,960,Sum and Difference Identities,Sum and Difference Identities,10.344480457885382,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,1,963_concept_1,Using the Sum and Difference Formulas for Tangent,Using the Sum and Difference Formulas for Tangent,"# Using the Sum and Difference Formulas for Tangent
+
+Finding exact values for the tangent of the sum or difference of two angles is a little more complicated, but again, it is a matter of recognizing ",11.49003963782428,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,2,962_concept_1,Using the Sum and Difference Formulas for Sine,Using the Sum and Difference Formulas for Sine,"# Using the Sum and Difference Formulas for Sine
+
+The sum and difference formulas for sine can be derived in the same manner as those for cosine, and they resemble the cosine formulas.
+
+## Sum and Dif",10.31122080150395,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,3,961_concept_1,Using the Sum and Difference Formulas for Cosine,Using the Sum and Difference Formulas for Cosine,"# Using the Sum and Difference Formulas for Cosine
+
+Finding the exact value of the sine, cosine, or tangent of an angle is often easier if we can rewrite the given angle in terms of two angles that ha",10.020472906364372,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,4,965_concept_1,Using the Sum and Difference Formulas to Verify Identities,Using the Sum and Difference Formulas to Verify Identities,"# Using the Sum and Difference Formulas to Verify Identities
+
+Verifying an identity means demonstrating that the equation holds for all values of the variable. It helps to be very familiar with the id",9.962300814851105,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,5,964_concept_1,Using Sum and Difference Formulas for Cofunctions,Using Sum and Difference Formulas for Cofunctions,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tangent functions for the sums and differences of angles, we can use them to do the same for their cofun",9.9278043282585,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,6,1234_concept_1,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,"# Use A Graph to Locate the Absolute Maximum and Absolute Minimum
+
+There is a difference between locating the highest and lowest points on a graph in a region around an open interval (locally) and loc",9.710181879948319,,
+21,What is the difference between definite and indefinite integrals?,summary,example,7,1880_example_4,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,A wooden ramp is to be built with one end on the ground and the other end at the top of a short staircase. If the top of the staircase is \[4\] ft from the ground and the angle between the ground and ,8.733001557769152,,
+21,What is the difference between definite and indefinite integrals?,summary,concept,8,960_concept_1,Sum and Difference Identities,Sum and Difference Identities,"concept
+
+# Sum and Difference Identities
+
+### Learning Objectives
+In this section, you will:
+
+- Use sum and difference formulas for cosine.
+- Use sum and difference formulas for sine.
+- Use sum and di",8.263368905569509,,
+21,What is the difference between definite and indefinite integrals?,summary,try_it,9,1910_try_it_1,Proof,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",7.814947096168384,,
+21,What is the difference between definite and indefinite integrals?,summary,example,10,1872_example_3,Linear Functions and Slope,Linear Functions and Slope,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+
+
+Figure 1.17: Finding the equation of a linear function with a graph that is a line between two giv",7.8148972999625475,,
+22,How do I solve differential equations?,embedding,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.49943846464157104,,
+22,How do I solve differential equations?,embedding,LO,2,lo_984,984,Finding Equations and Graphing Sinusoidal Functions,Finding Equations and Graphing Sinusoidal Functions,0.4415927529335022,,
+22,How do I solve differential equations?,embedding,LO,3,lo_974,974,Solving Trigonometric Equations,Solving Trigonometric Equations,0.3825681209564209,,
+22,How do I solve differential equations?,embedding,LO,4,lo_975,975,Solving Linear Trigonometric Equations in Sine and Cosine,Solving Linear Trigonometric Equations in Sine and Cosine,0.37159329652786255,,
+22,How do I solve differential equations?,embedding,LO,5,lo_979,979,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,0.36793389916419983,,
+22,How do I solve differential equations?,embedding,concept,1,1062_concept_1,Parametric Equations,Parametric Equations,"concept
+
+# Parametric Equations
+
+### Learning Objectives
+In this section, you will:
+
+- Parameterize a curve.
+- Eliminate the parameter.
+- Find a rectangular equation for a curve defined parametrically",0.3191604018211365,,
+22,How do I solve differential equations?,embedding,example,2,1890_example_2,Logarithmic Functions,Logarithmic Functions,"Solve each of the following equations for \[x\].
+
+\[
+e^x + 6e^{-x} = 5
+\]
+
+\[
+e^x + 6e^{-x} = 5
+\]
+Multiplying both sides of the equation by \[e^x\], we arrive at the equation
+\[
+e^{2x} + 6 = 5e^x.
+\]",0.30333641171455383,,
+22,How do I solve differential equations?,embedding,example,3,1890_example_1,Logarithmic Functions,Logarithmic Functions,"Solve each of the following equations for \(x\).
+
+\[
+5^x = 2
+\]
+
+\[5^x = 2\]
+
+Applying the natural logarithm function to both sides of the equation, we have
+
+\[\text{ln}(5^x) = \text{ln}(2).\]
+
+easy
+
+",0.27007171511650085,,
+22,How do I solve differential equations?,embedding,concept,4,1064_concept_1,Eliminating the Parameter,Eliminating the Parameter,"# Eliminating the Parameter
+
+In many cases, we may have a pair of parametric equations but find that it is simpler to draw a curve if the equation involves only two variables, such as \[x\] and \[y.\]",0.2574809789657593,,
+22,How do I solve differential equations?,embedding,example,5,1868_example_2,Representing Functions,Representing Functions,"Consider the function \[f(x) = -4x + 2.\]
+Find the \(y\)-intercept (if any).
+
+To find the y-intercept we will substitute \[x=0\]
+
+\[f(0)=-4(0)+2\]
+
+\[f(0)=2\]
+
+So the y-intercept is \[(0,2)\]
+
+e",0.25719761848449707,,
+22,How do I solve differential equations?,summary,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,7.478664224923063,,
+22,How do I solve differential equations?,summary,LO,2,lo_977,977,Solve Trigonometric Equations Using a Calculator,Solve Trigonometric Equations Using a Calculator,6.824238930932378,,
+22,How do I solve differential equations?,summary,LO,3,lo_976,976,Solving Equations Involving a Single Trigonometric Function,Solving Equations Involving a Single Trigonometric Function,5.77717402937906,,
+22,How do I solve differential equations?,summary,LO,4,lo_1078,1078,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,5.2059972654087145,,
+22,How do I solve differential equations?,summary,LO,5,lo_1077,1077,Performing Operations with Vectors in Terms of i and j,Performing Operations with Vectors in Terms of i and j,5.2059972654087145,,
+22,How do I solve differential equations?,summary,LO,6,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,4.587030300505529,,
+22,How do I solve differential equations?,summary,concept,1,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",7.302997152789221,,
+22,How do I solve differential equations?,summary,concept,2,974_concept_1,Solving Trigonometric Equations,Solving Trigonometric Equations,"concept
+
+# Solving Trigonometric Equations
+
+### Learning Objectives
+In this section, you will:
+
+- Solve linear trigonometric equations in sine and cosine.
+- Solve equations involving a single trigonom",6.709852045968666,,
+22,How do I solve differential equations?,summary,concept,3,977_concept_1,Solve Trigonometric Equations Using a Calculator,Solve Trigonometric Equations Using a Calculator,"# Solve Trigonometric Equations Using a Calculator
+
+Not all functions can be solved exactly using only the unit circle. When we must solve an equation involving an angle other than one of the special ",6.439546053918824,,
+22,How do I solve differential equations?,summary,concept,4,1048_concept_1,Identify and Graph Polar Equations by Converting to Rectangular Equations,Identify and Graph Polar Equations by Converting to Rectangular Equations,"#  Identify and Graph Polar Equations by Converting to Rectangular Equations
+
+We have learned how to convert rectangular coordinates to polar coordinates, and we have seen that the points are indeed t",6.059491852823604,,
+22,How do I solve differential equations?,summary,concept,5,1223_concept_1,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,"# Identifying Basic Toolkit Functions
+
+In this text, we will be exploring functions—the shapes of their graphs, their unique characteristics, their algebraic formulas, and how to solve problems with t",5.265181222817835,,
+22,How do I solve differential equations?,summary,concept,6,979_concept_1,Solving Trigonometric Equations Using Fundamental Identities,Solving Trigonometric Equations Using Fundamental Identities,"# Solving Trigonometric Equations Using Fundamental Identities
+
+While algebra can be used to solve a number of trigonometric equations, we can also use the fundamental identities because they make sol",5.187167441033418,,
+22,How do I solve differential equations?,summary,concept,7,980_concept_1,Solving Trigonometric Equations with Multiple Angles,Solving Trigonometric Equations with Multiple Angles,"# Solving Trigonometric Equations with Multiple Angles
+
+Sometimes it is not possible to solve a trigonometric equation with identities that have a multiple angle, such as \[\sin(2x)\] or \[\cos(3x).\]",5.043048138664842,,
+22,How do I solve differential equations?,summary,concept,8,1078_concept_1,Performing Operations on Vectors in Terms of i and j,Performing Operations on Vectors in Terms of i and j,"# Performing Operations on Vectors in Terms of i and j
+
+When vectors are written in terms of \[\mathbf{i}\] and \[\mathbf{j},\] we can carry out addition, subtraction, and scalar multiplication by per",4.8486496253402835,,
+22,How do I solve differential equations?,summary,concept,9,1045_concept_1,Converting from Polar Coordinates to Rectangular Coordinates,Converting from Polar Coordinates to Rectangular Coordinates,"# Converting from Polar Coordinates to Rectangular Coordinates
+
+When given a set of polar coordinates, we may need to convert them to rectangular coordinates. To do so, we can recall the relationships",4.494697885038881,,
+22,How do I solve differential equations?,summary,concept,10,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",4.388459542548978,,
+23,What are piecewise functions?,embedding,LO,1,lo_1876,1876,Piecewise-Defined Functions,Piecewise-Defined Functions,0.8323260545730591,,
+23,What are piecewise functions?,embedding,LO,2,lo_1229,1229,Graphing Piecewise-Defined Functions,Graphing Piecewise-Defined Functions,0.7443190813064575,,
+23,What are piecewise functions?,embedding,LO,3,lo_1867,1867,Functions,Functions,0.5705891847610474,,
+23,What are piecewise functions?,embedding,LO,4,lo_1217,1217,Functions and Function Notation,Functions and Function Notation,0.47937795519828796,,
+23,What are piecewise functions?,embedding,LO,5,lo_1868,1868,Representing Functions,Representing Functions,0.47587403655052185,,
+23,What are piecewise functions?,embedding,concept,1,1229_concept_1,Graphing Piecewise-Defined Functions,Graphing Piecewise-Defined Functions,"# Graphing Piecewise-Defined Functions
+
+Sometimes, we come across a function that requires more than one formula in order to obtain the given output. For example, in the toolkit functions, we introduc",0.7142049670219421,,
+23,What are piecewise functions?,embedding,try_it,2,1876_try_it_1,Piecewise-Defined Functions,Piecewise-Defined Functions,"Sketch a graph of the function
+\[
+f(x) = 
+\begin{cases} 
+2 - x, & x \leq 2 \\
+x + 2, & x > 2 
+\end{cases}
+\]
+
+Graph the linear function \[y =2-x\] on the interval \[(-∞, 2].\] Point \[x=2 \] is includ",0.5396630764007568,,
+23,What are piecewise functions?,embedding,concept,3,1225_concept_1,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,"# Finding the Domain of a Function Defined by an Equation
+
+In Functions and Function Notation, we were introduced to the concepts of domain and range. In this section, we will practice determining dom",0.4995209574699402,,
+23,What are piecewise functions?,embedding,concept,4,1221_concept_1,Using the Vertical Line Test,Using the Vertical Line Test,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function using a graph. Graphs display a great many input-output pairs in a small space. The visual informati",0.49418485164642334,,
+23,What are piecewise functions?,embedding,example,5,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",0.4851251244544983,,
+23,What are piecewise functions?,summary,LO,1,lo_1876,1876,Piecewise-Defined Functions,Piecewise-Defined Functions,7.857969024997302,,
+23,What are piecewise functions?,summary,LO,2,lo_1229,1229,Graphing Piecewise-Defined Functions,Graphing Piecewise-Defined Functions,6.221023606255642,,
+23,What are piecewise functions?,summary,example,1,1876_example_2,Piecewise-Defined Functions,Piecewise-Defined Functions,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged $10 for the first hour or any part of the first hour and an additional $2 for each hour or part ther",8.162802357158832,,
+23,What are piecewise functions?,summary,try_it,2,1869_try_it_3,Combining Functions,Combining Functions,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an additional \[30\%\] off, what will be the final price for an item that is originally \[x\] dollars, after",7.1242121243472,,
+23,What are piecewise functions?,summary,example,3,1876_example_1,Piecewise-Defined Functions,Piecewise-Defined Functions,"Sketch a graph of the following piecewise-defined function:
+
+\[f(x) = 
+\begin{cases} 
+x + 3, & x < 1 \\
+(x - 2)^2, & x \geq 1 
+\end{cases}
+\]
+
+Graph the linear function \[y = x + 3\] on the interval \",5.397906629031999,,
+23,What are piecewise functions?,summary,try_it,4,1876_try_it_2,Piecewise-Defined Functions,Piecewise-Defined Functions,The cost of mailing a letter is a function of the weight of the letter. Suppose the cost of mailing a letter is \[49¢\] for the first ounce and \[21¢\] for each additional ounce. Write a piecewise-def,5.2857481396087,,
+23,What are piecewise functions?,summary,concept,5,1229_concept_1,Graphing Piecewise-Defined Functions,Graphing Piecewise-Defined Functions,"# Graphing Piecewise-Defined Functions
+
+Sometimes, we come across a function that requires more than one formula in order to obtain the given output. For example, in the toolkit functions, we introduc",5.0748672840450455,,
+23,What are piecewise functions?,summary,concept,6,1065_concept_1,Finding Cartesian Equations from Curves Defined Parametrically,Finding Cartesian Equations from Curves Defined Parametrically,"# Finding Cartesian Equations from Curves Defined Parametrically
+
+When we are given a set of parametric equations and need to find an equivalent Cartesian equation, we are essentially “eliminating the",4.77818230041626,,
+23,What are piecewise functions?,summary,concept,7,1038_concept_1,Solving Applied Problems Using the Law of Sines,Solving Applied Problems Using the Law of Sines,"#  Solving Applied Problems Using the Law of Sines
+
+The more we study trigonometric applications, the more we discover that the applications are countless. Some are flat, diagram-type situations, but ",4.23298950501316,,
+23,What are piecewise functions?,summary,concept,8,1224_concept_1,Domain and Range,Domain and Range,"concept
+
+# Domain and Range
+
+# Learning Objectives
+In this section, you will:
+- Find the domain of a function defined by an equation.
+- Graph piecewise-defined functions.
+
+Horror and thriller movies a",4.156226977740542,,
+23,What are piecewise functions?,summary,concept,9,958_concept_1,Verifying the Fundamental Trigonometric Identities,Verifying the Fundamental Trigonometric Identities,"# Verifying the Fundamental Trigonometric Identities 
+
+Identities enable us to simplify complicated expressions. They are the basic tools of trigonometry used in solving trigonometric equations, just ",3.788953572150759,,
+23,What are piecewise functions?,summary,example,10,1867_example_1,Functions,Functions,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] in the formula for \[f(x).\]
+\[f(-2) = 3(-2)^2 + 2(-2) - 1 \]
+
+easy
+
+What operation is performed whe",3.7863658972860414,,
+24,Explain function transformations,embedding,LO,1,lo_1877,1877,Transformations of Functions,Transformations of Functions,0.8555936813354492,,
+24,Explain function transformations,embedding,LO,2,lo_1868,1868,Representing Functions,Representing Functions,0.5812681317329407,,
+24,Explain function transformations,embedding,LO,3,lo_1867,1867,Functions,Functions,0.5728367567062378,,
+24,Explain function transformations,embedding,LO,4,lo_1217,1217,Functions and Function Notation,Functions and Function Notation,0.5248505473136902,,
+24,Explain function transformations,embedding,LO,5,lo_1870,1870,Symmetry of Functions,Symmetry of Functions,0.5203787684440613,,
+24,Explain function transformations,embedding,example,1,1877_example_1,Transformations of Functions,Transformations of Functions,"For each of the following functions, sketch a graph by using a sequence of transformations of a well-known function.
+
+\[f(x) = -|x + 2| - 3\]
+
+Starting with the graph of \[y = |x|\], shift \[2\] units",0.623816192150116,,
+24,Explain function transformations,embedding,try_it,2,1877_try_it_1,Transformations of Functions,Transformations of Functions,"Describe how the function \[f(x) = -(x + 1)^2 - 4\] can be graphed using the graph of \[y = x^2\] and a sequence of transformations.
+
+Starting with the graph of \[y = x^2\], shift \[1\] units to the l",0.5964833498001099,,
+24,Explain function transformations,embedding,example,3,1877_example_2,Transformations of Functions,Transformations of Functions,"For each of the following function, sketch a graph by using a sequence of transformations of a well-known function.
+
+\[f(x) = 3\sqrt{-x} + 1\]
+
+Starting with the graph of \[y = \sqrt{x}\], reflect abo",0.5450683832168579,,
+24,Explain function transformations,embedding,concept,4,1221_concept_1,Using the Vertical Line Test,Using the Vertical Line Test,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function using a graph. Graphs display a great many input-output pairs in a small space. The visual informati",0.4946903586387634,,
+24,Explain function transformations,embedding,concept,5,1237_concept_1,Create a Function by Composition of Functions,Create a Function by Composition of Functions,"# Create a Function by Composition of Functions
+
+Performing algebraic operations on functions combines them into a new function, but we can also create functions by composing functions. When we wanted",0.47407907247543335,,
+24,Explain function transformations,summary,LO,1,lo_1877,1877,Transformations of Functions,Transformations of Functions,9.003965249312703,,
+24,Explain function transformations,summary,LO,2,lo_1885,1885,Finding a Function’s Inverse,Finding a Function’s Inverse,1.2284807359688341,,
+24,Explain function transformations,summary,LO,3,lo_1219,1219,Finding Input and Output Values of a Function,Finding Input and Output Values of a Function,1.2031676954482868,,
+24,Explain function transformations,summary,LO,4,lo_1884,1884,Existence of an Inverse Function,Existence of an Inverse Function,1.1976304093375012,,
+24,Explain function transformations,summary,LO,5,lo_1220,1220,Determining Whether a Function is One-to-One,Determining Whether a Function is One-to-One,1.1864522339268486,,
+24,Explain function transformations,summary,LO,6,lo_1218,1218,Determining Whether a Relation Represents a Function,Determining Whether a Relation Represents a Function,1.1618844614068742,,
+24,Explain function transformations,summary,LO,7,lo_1217,1217,Functions and Function Notation,Functions and Function Notation,1.157111230036045,,
+24,Explain function transformations,summary,LO,8,lo_1221,1221,Using the Vertical Line Test,Using the Vertical Line Test,1.1336866253823588,,
+24,Explain function transformations,summary,LO,9,lo_1239,1239,Finding the Domain of a Composite Function,Finding the Domain of a Composite Function,1.0921818693078502,,
+24,Explain function transformations,summary,LO,10,lo_1223,1223,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,1.0921818693078502,,
+24,Explain function transformations,summary,example,1,1877_example_2,Transformations of Functions,Transformations of Functions,"For each of the following function, sketch a graph by using a sequence of transformations of a well-known function.
+
+\[f(x) = 3\sqrt{-x} + 1\]
+
+Starting with the graph of \[y = \sqrt{x}\], reflect abo",6.954022532405852,,
+24,Explain function transformations,summary,example,2,1877_example_1,Transformations of Functions,Transformations of Functions,"For each of the following functions, sketch a graph by using a sequence of transformations of a well-known function.
+
+\[f(x) = -|x + 2| - 3\]
+
+Starting with the graph of \[y = |x|\], shift \[2\] units",6.745524739813378,,
+24,Explain function transformations,summary,try_it,3,1877_try_it_1,Transformations of Functions,Transformations of Functions,"Describe how the function \[f(x) = -(x + 1)^2 - 4\] can be graphed using the graph of \[y = x^2\] and a sequence of transformations.
+
+Starting with the graph of \[y = x^2\], shift \[1\] units to the l",6.553375240931823,,
+24,Explain function transformations,summary,concept,4,1219_concept_1,Finding Input and Output Values of a Function,Finding Input and Output Values of a Function,"# Finding Input and Output Values of a Function
+
+When we know an input value and want to determine the corresponding output value for a function, we evaluate the function. Evaluating will always produ",1.1589782194127602,,
+24,Explain function transformations,summary,concept,5,1217_concept_1,Functions and Function Notation,Functions and Function Notation,"concept
+
+# Functions and Function Notation
+
+# Learning Objectives
+In this section, you will:
+- Determine whether a relation represents a function.
+- Find the value of a function.
+- Determine whether a",1.1336866253823588,,
+24,Explain function transformations,summary,try_it,6,1875_try_it_1,Transcendental Functions,Transcendental Functions,"Is \(f(x) = x/2\) an algebraic or a transcendental function?
+
+Given function is \[ f(x) = \frac{x}{2}\] Since this function involves basic algebraic operations only, it is an algebraic function.
+
+easy",1.086235205052436,,
+24,Explain function transformations,summary,example,7,1874_example_6,Algebraic Functions,Algebraic Functions,"For each of the following functions, determine the domain of the function.
+
+\[f(x) = \sqrt[3]{2x - 1}\]
+
+Given function is a cube root function and 
+cube root function is defined for all real numbers",1.086235205052436,,
+24,Explain function transformations,summary,concept,8,1222_concept_1,Using the Horizontal Line Test,Using the Horizontal Line Test,"# Using the Horizontal Line Test
+
+Once we have determined that a graph defines a function, an easy way to determine if it is a one-to-one function is to use the horizontal line test. Draw horizontal l",1.0668726037317686,,
+24,Explain function transformations,summary,concept,9,1220_concept_1,Determining Whether a Function is One-to-One,Determining Whether a Function is One-to-One,"# Determining Whether a Function is One-to-One
+
+Some functions have a given output value that corresponds to two or more input values. For example, in the stock chart shown in the figure at the beginn",1.0629882317209538,,
+25,How do I find the domain of a function?,embedding,LO,1,lo_1225,1225,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,0.8948431015014648,,
+25,How do I find the domain of a function?,embedding,LO,2,lo_1239,1239,Finding the Domain of a Composite Function,Finding the Domain of a Composite Function,0.8285908699035645,,
+25,How do I find the domain of a function?,embedding,LO,3,lo_1227,1227,Finding Domain and Range from Graphs,Finding Domain and Range from Graphs,0.6225038766860962,,
+25,How do I find the domain of a function?,embedding,LO,4,lo_1228,1228,Finding Domains and Ranges of the Toolkit Functions,Finding Domains and Ranges of the Toolkit Functions,0.621084988117218,,
+25,How do I find the domain of a function?,embedding,LO,5,lo_1224,1224,Domain and Range,Domain and Range,0.5984964370727539,,
+25,How do I find the domain of a function?,embedding,example,1,1874_example_1,Algebraic Functions,Algebraic Functions,"For each of the following functions, find the domain and range.
+
+\[f(x) = \frac{3x - 1}{5x + 2}\]
+
+Domain of the function \[f(x) = \frac{3x - 1}{5x + 2}\]
+You need to determine the values of \[x\] fo",0.6957372426986694,,
+25,How do I find the domain of a function?,embedding,example,2,1874_example_5,Algebraic Functions,Algebraic Functions,"For each of the following functions, determine the domain of the function.
+
+\[f(x) = \sqrt{4 - 3x}\]
+
+Since the square root of a negative number is not a real number, the domain is the set of values \",0.693286657333374,,
+25,How do I find the domain of a function?,embedding,try_it,3,1869_try_it_1,Combining Functions,Combining Functions,"For \[f(x) = x^2 + 3\] and \[g(x) = 2x - 5\], find \[(\frac{f}{g})(x)\] and state its domain.
+
+\[\left(\frac{f}{g}\right)(x)=\frac{f(x)}{g(x)} = \frac{x^2+3}{2x-5}\]. 
+
+The numerator of the fraction",0.677990734577179,,
+25,How do I find the domain of a function?,embedding,example,4,1867_example_5,Functions,Functions,"For each of the following functions, determine the i. domain and ii. range.
+
+\[f(x) = \sqrt{3x + 2} - 1\]
+
+Consider \[f(x) = \sqrt{3x + 2} - 1.\]
+
+The input of the square root must always be greater t",0.6607186794281006,,
+25,How do I find the domain of a function?,embedding,try_it,5,1867_try_it_2,Functions,Functions,"Find the domain and range for \[f(x) = \sqrt{4 - 2x} + 5.\]
+
+Consider \[f(x) = \sqrt{4 - 2x} + 5.\]
+
+The input of the square root must always be greater than or equal to 0. To find the domain of \(f",0.6554913520812988,,
+25,How do I find the domain of a function?,summary,LO,1,lo_1239,1239,Finding the Domain of a Composite Function,Finding the Domain of a Composite Function,10.57733804013549,,
+25,How do I find the domain of a function?,summary,LO,2,lo_1225,1225,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,10.401157041605787,,
+25,How do I find the domain of a function?,summary,concept,1,1079_concept_1,Calculating the Component Form of a Vector: Direction,Calculating the Component Form of a Vector: Direction,"# Calculating the Component Form of a Vector: Direction 
+
+We have seen how to draw vectors according to their initial and terminal points and how to find the position vector. We have also examined not",13.751386736113696,,
+25,How do I find the domain of a function?,summary,concept,2,1239_concept_1,Finding the Domain of a Composite Function,Finding the Domain of a Composite Function,"# Finding the Domain of a Composite Function
+
+As we discussed previously, the domain of a composite function such as \[f \circ g\] is dependent on the domain of \[g\] and the domain of \[f.\] It is im",11.11962903982863,,
+25,How do I find the domain of a function?,summary,try_it,3,1885_try_it_3,Finding a Function’s Inverse,Finding a Function’s Inverse,"Consider \[f(x) = 1/x^2\] restricted to the domain \[(-∞, 0).\] Verify that \[f\] is one-to-one on this domain. Determine the domain and range of the inverse of \[f\] and find a formula for \[f^{-1}.\",11.0541971121066,,
+25,How do I find the domain of a function?,summary,concept,4,1042_concept_1,Using Heron’s Formula to Find the Area of a Triangle,Using Heron’s Formula to Find the Area of a Triangle,"# Using Heron’s Formula to Find the Area of a Triangle
+
+We already learned how to find the area of an oblique triangle when we know two sides and an angle. We also know the formula to find the area of",10.944188832523954,,
+25,How do I find the domain of a function?,summary,concept,5,1230_concept_1,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will:
+
+- Find the average rate of change of a function.
+- Use a graph to determine where a function is i",10.904509567669555,,
+25,How do I find the domain of a function?,summary,example,6,1867_example_4,Functions,Functions,"For each of the following functions, determine the i. domain and ii. range.
+
+\[f(x) = (x - 4)^2 + 5\]
+
+Since \(f(x) = (x - 4)^2 + 5\) is a real number for any real number \(x\), therefore domain of \(",10.845743120892875,,
+25,How do I find the domain of a function?,summary,concept,7,1224_concept_1,Domain and Range,Domain and Range,"concept
+
+# Domain and Range
+
+# Learning Objectives
+In this section, you will:
+- Find the domain of a function defined by an equation.
+- Graph piecewise-defined functions.
+
+Horror and thriller movies a",10.650672778290986,,
+25,How do I find the domain of a function?,summary,concept,8,1231_concept_1,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change because it describes how an output quantity changes relative to the change in the input quantity. We c",10.290311945548247,,
+25,How do I find the domain of a function?,summary,concept,9,1227_concept_1,Finding Domain and Range from Graphs,Finding Domain and Range from Graphs,"# Finding Domain and Range from Graphs
+
+Another way to identify the domain and range of functions is by using graphs. Because the domain refers to the set of possible input values, the domain of a gra",10.141119419556697,,
+25,How do I find the domain of a function?,summary,concept,10,1225_concept_1,Finding the Domain of a Function Defined by an Equation,Finding the Domain of a Function Defined by an Equation,"# Finding the Domain of a Function Defined by an Equation
+
+In Functions and Function Notation, we were introduced to the concepts of domain and range. In this section, we will practice determining dom",10.136083314230602,,
