@@ -1,8 +1,7 @@
-"""Retriever Prototype: Embedding vs Summarization
+"""Retriever Prototype: Embedding-Based Retrieval
 
-Compare two retrieval strategies on MatchGPT KG data:
-- Method 1: Embedding Retrieval - Dense semantic search using FAISS
-- Method 2: Summarization Retrieval - Lexical search on summaries using BM25
+Embedding-based retrieval using dense semantic search on MatchGPT KG data.
+Uses OpenAI text-embedding-3 with FAISS for efficient similarity search.
 """
 
 import os
@@ -17,8 +16,6 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import faiss
-from rank_bm25 import BM25Okapi
-import re
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -28,20 +25,6 @@ load_dotenv()
 DATA_DIR = Path(__file__).parent.parent.parent / "data" / "processed"
 RESULTS_DIR = Path(__file__).parent.parent.parent / "results"
 RESULTS_DIR.mkdir(exist_ok=True)
-
-
-def tokenize(text):
-    """
-    Tokenize text by removing punctuation, lowercasing, and splitting on whitespace.
-    
-    Args:
-        text: Input text string
-    
-    Returns:
-        List of tokens (words)
-    """
-    text = re.sub(r'[^\w\s]', ' ', str(text).lower())
-    return text.split()
 
 
 def load_data():
@@ -124,8 +107,8 @@ def build_corpus(los_df, content_df, prereq_in_map, content_ids_map):
     Build retrieval corpora for Learning Objectives and content items.
     
     Creates two DataFrames, each with:
-    - base_text: Minimal text for embedding-based retrieval (LO title or content text)
-    - enriched_text: Expanded text with graph context for BM25 retrieval
+    - base_text: Text for embedding-based retrieval (LO title or content text)
+    - enriched_text: Expanded text with graph context (kept for reference, not used in embeddings)
     
     For LOs:
     - base_text: Just the LO title
@@ -318,63 +301,17 @@ def build_embedding_index(lo_corpus_df, content_corpus_df):
     return client, lo_index, content_index
 
 
-def build_bm25_index(lo_corpus_df, content_corpus_df):
-    """
-    Build BM25 lexical search index over enriched text corpora.
-    
-    Creates a unified BM25 index from both LO and content enriched_text fields.
-    BM25 performs keyword-based ranking using term frequency and inverse document
-    frequency, making it suitable for exact keyword matching queries.
-    
-    Args:
-        lo_corpus_df: DataFrame with LO corpus (must have 'doc_id' and 'enriched_text' columns)
-        content_corpus_df: DataFrame with content corpus (must have 'doc_id' and 'enriched_text' columns)
-    
-    Returns:
-        tuple: (bm25_index, all_doc_ids)
-            - bm25_index: BM25Okapi index instance ready for scoring
-            - all_doc_ids: List of doc_ids in same order as indexed documents
-                (LOs first, then content items)
-    
-    Note:
-        Text is tokenized by removing punctuation, lowercasing, and splitting on whitespace.
-        The enriched_text includes graph context (prereqs, related content) to improve
-        keyword matching relevance.
-    """
-    # Combine LO and content enriched_text
-    lo_texts = lo_corpus_df["enriched_text"].astype(str).tolist()
-    content_texts = content_corpus_df["enriched_text"].astype(str).tolist()
-    all_texts = lo_texts + content_texts
-    
-    # Build doc_id list
-    lo_doc_ids = lo_corpus_df["doc_id"].tolist()
-    content_doc_ids = content_corpus_df["doc_id"].tolist()
-    all_doc_ids = lo_doc_ids + content_doc_ids
-    
-    # Tokenize and build index
-    tokenized = [tokenize(text) for text in all_texts]
-    bm25_index = BM25Okapi(tokenized)
-    
-    print(f"Built BM25 index: {len(all_texts)} documents")
-    
-    return bm25_index, all_doc_ids
-
-
 class SimpleRetrieverAgent:
     """
-    Simple retriever agent for comparing embedding-based vs BM25 retrieval methods.
+    Simple retriever agent for embedding-based semantic search.
     
-    Supports two retrieval strategies:
-    - Embedding: Dense semantic search using FAISS and OpenAI text-embedding-3
-    - Summary (BM25): Lexical keyword search using BM25 ranking
-    
+    Uses dense semantic search with FAISS and OpenAI text-embedding-3.
     Optional graph expansion adds related LOs (prerequisites) and content items
     via 1-hop traversal from top results.
     """
     
     def __init__(self, lo_corpus_df, content_corpus_df,
                  embedding_model=None, lo_index=None, content_index=None,
-                 bm25_index=None, bm25_doc_ids=None,
                  prereq_in_map=None, content_ids_map=None):
         """
         Initialize the retriever agent with corpora and indexes.
@@ -382,25 +319,20 @@ class SimpleRetrieverAgent:
         Args:
             lo_corpus_df: DataFrame with LO corpus (required)
             content_corpus_df: DataFrame with content corpus (required)
-            embedding_model: OpenAI client instance (for embedding method)
-            lo_index: FAISS index for LOs (for embedding method)
-            content_index: FAISS index for content (for embedding method)
-            bm25_index: BM25Okapi index (for BM25 method)
-            bm25_doc_ids: List of doc_ids matching bm25_index order (for BM25 method)
+            embedding_model: OpenAI client instance (required for embedding method)
+            lo_index: FAISS index for LOs (required for embedding method)
+            content_index: FAISS index for content (required for embedding method)
             prereq_in_map: Dict mapping LO ID → prerequisite LO IDs (for graph expansion)
             content_ids_map: Dict mapping LO ID → content item IDs (for graph expansion)
         
         Note:
-            At least one retrieval method (embedding or BM25) should be provided.
             Graph expansion requires prereq_in_map and content_ids_map.
         """
         self.lo_corpus_df = lo_corpus_df
         self.content_corpus_df = content_corpus_df
-        self.embedding_client = embedding_model  # Now OpenAI client
+        self.embedding_client = embedding_model  # OpenAI client
         self.lo_index = lo_index
         self.content_index = content_index
-        self.bm25_index = bm25_index
-        self.bm25_doc_ids = bm25_doc_ids or []
         self.prereq_in_map = prereq_in_map or {}
         self.content_ids_map = content_ids_map or {}
         
@@ -414,18 +346,16 @@ class SimpleRetrieverAgent:
             for i, r in enumerate(content_corpus_df.itertuples(index=False))
         }
     
-    def retrieve(self, query: str, method: str = "embedding", 
-                 k_los: int = 5, k_content: int = 5, expand: bool = True) -> dict:
+    def retrieve(self, query: str, k_los: int = 5, k_content: int = 5, expand: bool = True) -> dict:
         """
-        Retrieve top-k Learning Objectives and content items for a query.
+        Retrieve top-k Learning Objectives and content items for a query using embedding-based search.
         
         Args:
             query: Search query string
-            method: Retrieval method - "embedding" (semantic) or "summary" (BM25 lexical)
             k_los: Number of top Learning Objectives to return (default: 5)
             k_content: Number of top content items to return (default: 5)
             expand: If True, add graph-expanded results (prereqs and related content)
-                via 1-hop traversal from top results (default: False)
+                via 1-hop traversal from top results (default: True)
         
         Returns:
             dict: {
@@ -434,14 +364,9 @@ class SimpleRetrieverAgent:
             }
         
         Raises:
-            AttributeError: If required indexes/models are not initialized for the chosen method
+            AttributeError: If required indexes/models are not initialized
         """
-        if method == "embedding":
-            return self._retrieve_embedding(query, k_los, k_content, expand)
-        elif method == "summary":
-            return self._retrieve_bm25(query, max(k_los, k_content) * 2, expand)
-        else:
-            return {"los": [], "content": []}
+        return self._retrieve_embedding(query, k_los, k_content, expand)
     
     def _retrieve_embedding(self, query: str, k_los: int, k_content: int, expand: bool) -> dict:
         """
@@ -465,6 +390,9 @@ class SimpleRetrieverAgent:
             greater semantic relevance. Separate searches are performed for LOs
             and content to maintain balanced results.
         """
+        if self.embedding_client is None or self.lo_index is None or self.content_index is None:
+            raise AttributeError("Embedding method requires embedding_client, lo_index, and content_index to be initialized")
+        
         # Encode query using OpenAI
         response = self.embedding_client.embeddings.create(
             model="text-embedding-3-small",
@@ -501,74 +429,6 @@ class SimpleRetrieverAgent:
                 "title": row["lo_title"],
                 "snippet": row["base_text"][:200],
             })
-        
-        if expand:
-            lo_hits, ct_hits = self._expand_results(lo_hits, ct_hits)
-        
-        return {"los": lo_hits, "content": ct_hits}
-    
-    def _retrieve_bm25(self, query: str, k: int, expand: bool) -> dict:
-        """
-        Retrieve results using BM25 lexical search on enriched text.
-        
-        Tokenizes the query and scores all documents using BM25 term frequency
-        ranking. Returns top-k LOs and top-k content items separately, maintaining
-        balanced results across both types.
-        
-        Args:
-            query: Search query string
-            k: Target number of results per type (LOs and content)
-            expand: Whether to add graph-expanded results
-        
-        Returns:
-            dict: {"los": List[dict], "content": List[dict]} with hit dictionaries
-        
-        Note:
-            BM25 scores are unbounded (typically 0-10+ range). Higher scores indicate
-            better keyword matches. The unified index contains both LOs and content,
-            so we retrieve more candidates (k*2) and split them into separate lists.
-            Uses enriched_text which includes graph context for better keyword matching.
-        """
-        query_tokens = tokenize(query)
-        scores = self.bm25_index.get_scores(query_tokens)
-        top_indices = np.argsort(scores)[::-1][:k * 2]  # Get more to split into LO/content
-        
-        lo_hits = []
-        ct_hits = []
-        
-        for idx in top_indices:
-            if len(lo_hits) >= k and len(ct_hits) >= k:
-                break
-            
-            doc_id = self.bm25_doc_ids[idx]
-            score = float(scores[idx])
-            
-            if doc_id.startswith("lo_") and len(lo_hits) < k:
-                row_idx = self._lo_row_by_doc.get(doc_id)
-                if row_idx is not None:
-                    row = self.lo_corpus_df.iloc[row_idx]
-                    lo_hits.append({
-                        "rank": len(lo_hits) + 1,
-                        "score": score,
-                        "doc_id": doc_id,
-                        "lo_id": row["lo_id"],
-                        "title": row["base_text"],
-                        "snippet": row["base_text"],
-                        "type": "LO",
-                    })
-            elif not doc_id.startswith("lo_") and len(ct_hits) < k:
-                row_idx = self._ct_row_by_doc.get(doc_id)
-                if row_idx is not None:
-                    row = self.content_corpus_df.iloc[row_idx]
-                    ct_hits.append({
-                        "rank": len(ct_hits) + 1,
-                        "score": score,
-                        "doc_id": doc_id,
-                        "type": row["type"],
-                        "lo_title": row["lo_title"],
-                        "title": row["lo_title"],
-                        "snippet": row["base_text"][:200],
-                    })
         
         if expand:
             lo_hits, ct_hits = self._expand_results(lo_hits, ct_hits)
@@ -673,14 +533,14 @@ def _format_result_row(intent_id, query, method, hit, entity_type):
 
 def evaluate_methods(agent, test_queries, output_path=None):
     """
-    Compare embedding vs BM25 retrieval methods on a set of test queries.
+    Evaluate embedding-based retrieval on a set of test queries.
     
-    Runs both retrieval methods on each query and exports results to a CSV
-    for manual evaluation. Each row represents one retrieved result with
-    metadata including method, rank, scores, and document information.
+    Runs retrieval on each query and exports results to a CSV for manual evaluation.
+    Each row represents one retrieved result with metadata including rank, scores,
+    and document information.
     
     Args:
-        agent: SimpleRetrieverAgent instance with both methods initialized
+        agent: SimpleRetrieverAgent instance with embedding method initialized
         test_queries: List of query strings to evaluate
         output_path: Optional path to save CSV. Defaults to results/retriever_eval.csv
     
@@ -688,7 +548,7 @@ def evaluate_methods(agent, test_queries, output_path=None):
         pd.DataFrame: Results DataFrame with columns:
             - intent_id: Query number (1-indexed)
             - query: Original query string
-            - method: "embedding" or "summary"
+            - method: "embedding"
             - entity_type: "LO" or content type (concept, example, try_it)
             - rank: Position in results (1-5)
             - doc_id: Document identifier
@@ -697,12 +557,11 @@ def evaluate_methods(agent, test_queries, output_path=None):
             - snippet: First 200 chars of content
             - score: Retrieval score
             - relevance_score: Empty column for manual 1-5 ratings
-            - winner: Empty column for manual method comparison ("embedding", "summary", "tie")
     
     Note:
-        For each query, retrieves top 5 LOs and top 5 content items from both methods,
-        resulting in ~20 rows per query. After export, manually fill relevance_score
-        and winner columns to calculate aggregate metrics.
+        For each query, retrieves top 5 LOs and top 5 content items,
+        resulting in ~10 rows per query. After export, manually fill relevance_score
+        to calculate aggregate metrics.
     """
     results = []
     
@@ -711,10 +570,7 @@ def evaluate_methods(agent, test_queries, output_path=None):
         print(f"  Query {intent_id}/{len(test_queries)}: {query[:60]}...")
         
         # Run embedding method
-        emb_results = agent.retrieve(query, method="embedding", k_los=5, k_content=5)
-        
-        # Run BM25 method
-        bm25_results = agent.retrieve(query, method="summary", k_los=5, k_content=5)
+        emb_results = agent.retrieve(query, k_los=5, k_content=5)
         
         # Export embedding results
         for r in emb_results["los"]:
@@ -722,20 +578,12 @@ def evaluate_methods(agent, test_queries, output_path=None):
         
         for r in emb_results["content"]:
             results.append(_format_result_row(intent_id, query, "embedding", r, r["type"]))
-        
-        # Export BM25 results
-        for r in bm25_results["los"]:
-            results.append(_format_result_row(intent_id, query, "summary", r, "LO"))
-        
-        for r in bm25_results["content"]:
-            results.append(_format_result_row(intent_id, query, "summary", r, r["type"]))
     
     # Create DataFrame
     results_df = pd.DataFrame(results)
     
-    # Add manual evaluation columns
+    # Add manual evaluation column
     results_df["relevance_score"] = None  # 1-5 rating
-    results_df["winner"] = None  # "embedding", "summary", "tie"
     
     # Save to CSV
     if output_path is None:
@@ -745,22 +593,21 @@ def evaluate_methods(agent, test_queries, output_path=None):
     print(f"\nExported {len(results_df)} result rows to {output_path}")
     print("\nNext steps:")
     print("1. Open the CSV and manually rate relevance_score (1-5) for each result")
-    print("2. For each query, mark winner column: 'embedding', 'summary', or 'tie'")
-    print("3. Calculate aggregate metrics: win rate, avg relevance per method")
+    print("2. Calculate aggregate metrics: average relevance, coverage, etc.")
     
     return results_df
 
 
 def compare_query(agent, query):
     """
-    Display side-by-side comparison of embedding vs BM25 results for a single query.
+    Display embedding-based retrieval results for a single query.
     
-    Prints formatted output showing top-5 LOs and top-5 content items from both
-    retrieval methods, with scores and document IDs, for quick visual comparison.
+    Prints formatted output showing top-5 LOs and top-5 content items with scores
+    and document IDs for quick visual inspection.
     
     Args:
         agent: SimpleRetrieverAgent instance
-        query: Query string to compare
+        query: Query string to retrieve
     
     Returns:
         None (prints to stdout)
@@ -769,25 +616,15 @@ def compare_query(agent, query):
     print(f"Query: {query}")
     print(f"{'='*80}")
     
-    emb_results = agent.retrieve(query, method="embedding", k_los=5, k_content=5)
-    bm25_results = agent.retrieve(query, method="summary", k_los=5, k_content=5)
+    results = agent.retrieve(query, k_los=5, k_content=5)
     
-    print("\nEMBEDDING METHOD:")
+    print("\nEMBEDDING RETRIEVAL RESULTS:")
     print("-" * 80)
     print("Top LOs:")
-    for r in emb_results["los"][:5]:
+    for r in results["los"][:5]:
         print(f"  {r['rank']}. [{r['doc_id']}] (score: {r['score']:.3f}) {r['title']}")
     print("\nTop Content:")
-    for r in emb_results["content"][:5]:
-        print(f"  {r['rank']}. [{r['doc_id']}] ({r['type']}, score: {r['score']:.3f}) {r['title']}")
-    
-    print("\n\nBM25 METHOD:")
-    print("-" * 80)
-    print("Top LOs:")
-    for r in bm25_results["los"][:5]:
-        print(f"  {r['rank']}. [{r['doc_id']}] (score: {r['score']:.3f}) {r['title']}")
-    print("\nTop Content:")
-    for r in bm25_results["content"][:5]:
+    for r in results["content"][:5]:
         print(f"  {r['rank']}. [{r['doc_id']}] ({r['type']}, score: {r['score']:.3f}) {r['title']}")
 
 
@@ -800,11 +637,10 @@ def main():
     2. Build adjacency maps for graph traversal
     3. Build retrieval corpora (LO and content)
     4. Build FAISS embedding indexes
-    5. Build BM25 lexical index
-    6. Create SimpleRetrieverAgent with both methods
-    7. Run sanity checks on single queries
-    8. Evaluate both methods on 25 test queries
-    9. Export results CSV for manual evaluation
+    5. Create SimpleRetrieverAgent with embedding method
+    6. Run sanity checks on single queries
+    7. Evaluate embedding retrieval on 25 test queries
+    8. Export results CSV for manual evaluation
     
     Returns:
         None
@@ -828,6 +664,7 @@ def main():
     )
     print(f"  Prereq in map: {len(prereq_in_map)} entries")
     print(f"  Content map: {len(content_ids_map)} entries")
+    # Note: prereq_out_map is built but unused (kept for future use)
     
     # Build corpus
     print("\n3. Building corpus...")
@@ -841,29 +678,23 @@ def main():
         lo_corpus_df, content_corpus_df
     )
     
-    # Build BM25 index
-    print("\n5. Building BM25 index...")
-    bm25_index, bm25_doc_ids = build_bm25_index(lo_corpus_df, content_corpus_df)
-    
     # Create retriever agent
-    print("\n6. Creating SimpleRetrieverAgent...")
+    print("\n5. Creating SimpleRetrieverAgent...")
     agent = SimpleRetrieverAgent(
         lo_corpus_df, content_corpus_df,
         embedding_model=embedding_model,
         lo_index=lo_index,
         content_index=content_index,
-        bm25_index=bm25_index,
-        bm25_doc_ids=bm25_doc_ids,
         prereq_in_map=prereq_in_map,
         content_ids_map=content_ids_map,
     )
     
     # Test embedding method
-    print("\n7. Testing embedding retrieval...")
+    print("\n6. Testing embedding retrieval...")
     test_query = "What is a derivative?"
-    results_embedding = agent.retrieve(test_query, method="embedding", k_los=5, k_content=5)
+    results_embedding = agent.retrieve(test_query, k_los=5, k_content=5)
     
-    print(f"\nQuery: '{test_query}' (Method: embedding)")
+    print(f"\nQuery: '{test_query}'")
     print("\nTop LOs:")
     for r in results_embedding["los"][:5]:
         print(f"  {r['rank']}. {r['doc_id']} (score: {r['score']:.3f}) - {r['title']}")
@@ -871,27 +702,15 @@ def main():
     for r in results_embedding["content"][:5]:
         print(f"  {r['rank']}. {r['doc_id']} ({r['type']}, score: {r['score']:.3f}) - {r['title']}")
     
-    # Test BM25 method
-    print("\n8. Testing BM25 retrieval...")
-    results_bm25 = agent.retrieve(test_query, method="summary", k_los=5, k_content=5)
-    
-    print(f"\nQuery: '{test_query}' (Method: summary/BM25)")
-    print("\nTop LOs:")
-    for r in results_bm25["los"][:5]:
-        print(f"  {r['rank']}. {r['doc_id']} (score: {r['score']:.3f}) - {r['title']}")
-    print("\nTop Content:")
-    for r in results_bm25["content"][:5]:
-        print(f"  {r['rank']}. {r['doc_id']} ({r['type']}, score: {r['score']:.3f}) - {r['title']}")
-    
     # Test with expansion
-    print("\n9. Testing with graph expansion...")
-    results_expanded = agent.retrieve(test_query, method="embedding", k_los=5, k_content=5, expand=True)
+    print("\n7. Testing with graph expansion...")
+    results_expanded = agent.retrieve(test_query, k_los=5, k_content=5, expand=True)
     
-    print(f"\nQuery: '{test_query}' (Method: embedding, expand=True)")
+    print(f"\nQuery: '{test_query}' (expand=True)")
     print(f"Found {len(results_expanded['los'])} LOs, {len(results_expanded['content'])} content items")
     
     # Generate test queries
-    print("\n10. Generating test queries...")
+    print("\n8. Generating test queries...")
     test_queries = [
         "What is a derivative?",
         "How do I solve a quadratic equation?",
@@ -923,11 +742,11 @@ def main():
     print(f"Generated {len(test_queries)} test queries")
     
     # Run evaluation
-    print("\n11. Running evaluation...")
+    print("\n9. Running evaluation...")
     results_df = evaluate_methods(agent, test_queries)
     
-    # Show side-by-side comparison for first query
-    print("\n12. Side-by-side comparison (first query):")
+    # Show results for first query
+    print("\n10. Sample query results:")
     compare_query(agent, test_queries[0])
     
     print("\n" + "=" * 60)
