@@ -1,6 +1,6 @@
 """Retriever Prototype: Embedding-Based Retrieval
 
-Embedding-based retrieval using dense semantic search on MatchGPT KG data.
+Embedding-based retrieval using dense semantic search on MathGPT KG data.
 Uses OpenAI text-embedding-3 with FAISS for efficient similarity search.
 """
 
@@ -18,6 +18,7 @@ from pathlib import Path
 import faiss
 from openai import OpenAI
 from dotenv import load_dotenv
+import json
 
 load_dotenv()
 
@@ -202,7 +203,7 @@ def build_corpus(los_df, content_df, prereq_in_map, content_ids_map):
     return lo_corpus_df, content_corpus_df
 
 
-def build_embedding_index(lo_corpus_df, content_corpus_df):
+def build_embedding_index(lo_corpus_df, content_corpus_df, embedding_model_name: str = "text-embedding-3-large"):
     """
     Build FAISS vector indexes for efficient embedding-based similarity search.
     
@@ -232,7 +233,7 @@ def build_embedding_index(lo_corpus_df, content_corpus_df):
         raise RuntimeError("OPENAI_API_KEY environment variable not set")
     
     client = OpenAI(api_key=api_key)
-    model = "text-embedding-3-small"  # or "text-embedding-3-large" for better quality
+    model = embedding_model_name  # default to highest-quality OpenAI embedding
     
     lo_texts = lo_corpus_df["base_text"].astype(str).tolist()
     content_texts = content_corpus_df["base_text"].astype(str).tolist()
@@ -275,16 +276,17 @@ def build_embedding_index(lo_corpus_df, content_corpus_df):
                         time.sleep(0.1)
                     except Exception as e2:
                         print(f"    Error encoding single text: {e2}")
-                        # Use zero vector as fallback
-                        all_vecs.append([0.0] * 1536)
+                        # Use zero vector as fallback (dimension depends on model)
+                        dim = 3072 if "large" in model else 1536
+                        all_vecs.append([0.0] * dim)
         
         print(f"  Encoded {len(texts)}/{len(texts)}      ")
         return np.array(all_vecs).astype("float32")
     
-    print("Encoding LOs with OpenAI text-embedding-3-small...")
+    print(f"Encoding LOs with OpenAI {model}...")
     lo_vecs = encode_with_openai(lo_texts, client, model)
     
-    print("Encoding content with OpenAI text-embedding-3-small...")
+    print(f"Encoding content with OpenAI {model}...")
     content_vecs = encode_with_openai(content_texts, client, model)
     
     faiss.normalize_L2(lo_vecs)
@@ -312,7 +314,7 @@ class SimpleRetrieverAgent:
     
     def __init__(self, lo_corpus_df, content_corpus_df,
                  embedding_model=None, lo_index=None, content_index=None,
-                 prereq_in_map=None, content_ids_map=None):
+                 prereq_in_map=None, content_ids_map=None, embedding_model_name="text-embedding-3-large"):
         """
         Initialize the retriever agent with corpora and indexes.
         
@@ -324,6 +326,7 @@ class SimpleRetrieverAgent:
             content_index: FAISS index for content (required for embedding method)
             prereq_in_map: Dict mapping LO ID → prerequisite LO IDs (for graph expansion)
             content_ids_map: Dict mapping LO ID → content item IDs (for graph expansion)
+            embedding_model_name: Name of the embedding model used (must match index)
         
         Note:
             Graph expansion requires prereq_in_map and content_ids_map.
@@ -335,6 +338,9 @@ class SimpleRetrieverAgent:
         self.content_index = content_index
         self.prereq_in_map = prereq_in_map or {}
         self.content_ids_map = content_ids_map or {}
+        self.embedding_model_name = embedding_model_name
+        self.rerank_model = "gpt-4o-mini"
+        self.rerank_top_k = 10
         
         # Build lookup dicts for fast access
         self._lo_row_by_doc = {
@@ -346,7 +352,7 @@ class SimpleRetrieverAgent:
             for i, r in enumerate(content_corpus_df.itertuples(index=False))
         }
     
-    def retrieve(self, query: str, k_los: int = 5, k_content: int = 5, expand: bool = True) -> dict:
+    def retrieve(self, query: str, k_los: int = 5, k_content: int = 5, expand: bool = True, rerank: bool = False) -> dict:
         """
         Retrieve top-k Learning Objectives and content items for a query using embedding-based search.
         
@@ -356,6 +362,7 @@ class SimpleRetrieverAgent:
             k_content: Number of top content items to return (default: 5)
             expand: If True, add graph-expanded results (prereqs and related content)
                 via 1-hop traversal from top results (default: True)
+            rerank: If True, use LLM reranking for better precision (default: False, slow/expensive)
         
         Returns:
             dict: {
@@ -366,9 +373,9 @@ class SimpleRetrieverAgent:
         Raises:
             AttributeError: If required indexes/models are not initialized
         """
-        return self._retrieve_embedding(query, k_los, k_content, expand)
+        return self._retrieve_embedding(query, k_los, k_content, expand, rerank)
     
-    def _retrieve_embedding(self, query: str, k_los: int, k_content: int, expand: bool) -> dict:
+    def _retrieve_embedding(self, query: str, k_los: int, k_content: int, expand: bool, rerank: bool = False) -> dict:
         """
         Retrieve results using dense embedding similarity search.
         
@@ -393,9 +400,9 @@ class SimpleRetrieverAgent:
         if self.embedding_client is None or self.lo_index is None or self.content_index is None:
             raise AttributeError("Embedding method requires embedding_client, lo_index, and content_index to be initialized")
         
-        # Encode query using OpenAI
+        # Encode query using OpenAI (must use same model as index)
         response = self.embedding_client.embeddings.create(
-            model="text-embedding-3-small",
+            model=self.embedding_model_name,
             input=[query]
         )
         q = np.array(response.data[0].embedding).astype("float32").reshape(1, -1)
@@ -432,6 +439,11 @@ class SimpleRetrieverAgent:
         
         if expand:
             lo_hits, ct_hits = self._expand_results(lo_hits, ct_hits)
+
+        # Optional LLM reranking (disabled by default for speed/cost)
+        if rerank:
+            lo_hits = self._rerank_hits(query, lo_hits, entity_type="LO")
+            ct_hits = self._rerank_hits(query, ct_hits, entity_type="content")
         
         return {"los": lo_hits, "content": ct_hits}
     
@@ -501,6 +513,64 @@ class SimpleRetrieverAgent:
                         expanded_content_ids.add(cid)
         
         return lo_hits, ct_hits
+
+    def _rerank_hits(self, query: str, hits: list, entity_type: str) -> list:
+        """
+        Refine ordering using an LLM reranker for higher precision.
+        """
+        if not hits or self.embedding_client is None:
+            return hits
+
+        top_hits = hits[: max(1, min(self.rerank_top_k, len(hits)))]
+        doc_block = []
+        for idx, hit in enumerate(top_hits, 1):
+            snippet = (hit.get("snippet") or hit.get("title") or "")[:500]
+            doc_block.append(
+                f"{idx}. ID: {hit['doc_id']}\nTitle: {hit.get('title','')}\nSnippet: {snippet}\n"
+            )
+        doc_block_text = "\n".join(doc_block)
+
+        prompt = f"""You are reranking {entity_type} results for a search engine.
+Query: "{query}"
+Documents:
+{doc_block_text}
+
+Return ONLY JSON: {{"reranked_ids": ["doc_id1","doc_id2",...]}} with documents ordered most relevant first."""
+
+        create_params = {
+            "model": self.rerank_model,
+            "messages": [
+                {"role": "system", "content": "You reorder search results. Output strict JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            "response_format": {"type": "json_object"},
+        }
+
+        reranked_ids = []
+        try:
+            response = self.embedding_client.chat.completions.create(**create_params)
+            payload = json.loads(response.choices[0].message.content)
+            reranked_ids = payload.get("reranked_ids", [])
+        except Exception as exc:
+            print(f"  Rerank fallback ({entity_type}): {exc}")
+
+        id_to_hit = {hit["doc_id"]: hit for hit in hits}
+        reordered = []
+        used = set()
+        for doc_id in reranked_ids:
+            if doc_id in id_to_hit and doc_id not in used:
+                reordered.append(id_to_hit[doc_id])
+                used.add(doc_id)
+
+        for hit in hits:
+            if hit["doc_id"] not in used:
+                reordered.append(hit)
+
+        for idx, hit in enumerate(reordered, 1):
+            hit["rank"] = idx
+            hit["score"] = max(0.0, 1.0 - 0.05 * (idx - 1))
+
+        return reordered
 
 
 def _format_result_row(intent_id, query, method, hit, entity_type):
@@ -598,6 +668,99 @@ def evaluate_methods(agent, test_queries, output_path=None):
     return results_df
 
 
+def evaluate_methods_simple(agent, test_queries, output_path=None):
+    """
+    Evaluate embedding-based retrieval with simple output format: one row per query.
+    
+    Args:
+        agent: SimpleRetrieverAgent instance with embedding method initialized
+        test_queries: List of query strings to evaluate
+        output_path: Optional path to save CSV. Defaults to results/retriever_eval_simple.csv
+    
+    Returns:
+        pd.DataFrame: Results DataFrame with columns:
+            - intent_id: Query number (1-indexed)
+            - intent: Query string
+            - top_5_los: JSON string with top 5 LO results
+            - top_5_content: JSON string with top 5 content results
+    """
+    import json
+    
+    results = []
+    
+    print(f"\nEvaluating {len(test_queries)} queries (simple format)...")
+    for intent_id, query in enumerate(test_queries, 1):
+        print(f"  Query {intent_id}/{len(test_queries)}: {query[:60]}...")
+        
+        # Run embedding method with LLM reranking enabled
+        emb_results = agent.retrieve(query, k_los=5, k_content=5, rerank=True)
+        
+        # Format results as JSON strings (convert numpy/pandas types to native Python types)
+        def safe_int(val):
+            """Convert value to int, handling None and numpy types."""
+            if val is None or val == "":
+                return ""
+            return int(val)
+        
+        def safe_float(val):
+            """Convert value to float, handling numpy types."""
+            if val is None:
+                return 0.0
+            return float(val)
+        
+        # Combine LOs and content into a single list
+        combined_results = []
+        
+        # Add LOs with entity_type marker
+        for r in emb_results["los"]:
+            combined_results.append({
+                "rank": safe_int(r["rank"]),
+                "doc_id": str(r["doc_id"]),
+                "entity_type": "LO",
+                "lo_id": safe_int(r.get("lo_id")),
+                "type": None,
+                "title": str(r["title"]),
+                "score": safe_float(r["score"])
+            })
+        
+        # Add content items with entity_type marker
+        for r in emb_results["content"]:
+            combined_results.append({
+                "rank": safe_int(r["rank"]),
+                "doc_id": str(r["doc_id"]),
+                "entity_type": "content",
+                "lo_id": None,
+                "type": str(r["type"]),
+                "title": str(r["title"]),
+                "score": safe_float(r["score"])
+            })
+        
+        # Sort by score descending to maintain relevance order
+        combined_results.sort(key=lambda x: x["score"], reverse=True)
+        
+        # Reassign ranks based on combined order
+        for idx, item in enumerate(combined_results, 1):
+            item["rank"] = idx
+        
+        results.append({
+            "intent": query,
+            "content": json.dumps(combined_results)
+        })
+    
+    # Create DataFrame
+    results_df = pd.DataFrame(results)
+    
+    # Save to CSV
+    if output_path is None:
+        output_path = RESULTS_DIR / "retriever_eval_simple.csv"
+    
+    results_df.to_csv(output_path, index=False)
+    print(f"\nExported {len(results_df)} result rows to {output_path}")
+    print(f"File location: {output_path.absolute()}")
+    
+    return results_df
+
+
 def compare_query(agent, query):
     """
     Display embedding-based retrieval results for a single query.
@@ -674,8 +837,9 @@ def main():
     
     # Build embedding index
     print("\n4. Building embedding index...")
+    embedding_model_name = "text-embedding-3-large"  # Use large model for best quality
     embedding_model, lo_index, content_index = build_embedding_index(
-        lo_corpus_df, content_corpus_df
+        lo_corpus_df, content_corpus_df, embedding_model_name=embedding_model_name
     )
     
     # Create retriever agent
@@ -687,6 +851,7 @@ def main():
         content_index=content_index,
         prereq_in_map=prereq_in_map,
         content_ids_map=content_ids_map,
+        embedding_model_name=embedding_model_name,
     )
     
     # Test embedding method
@@ -709,41 +874,91 @@ def main():
     print(f"\nQuery: '{test_query}' (expand=True)")
     print(f"Found {len(results_expanded['los'])} LOs, {len(results_expanded['content'])} content items")
     
-    # Generate test queries
-    print("\n8. Generating test queries...")
+    # Load 70 test queries
+    print("\n8. Loading 70 test queries...")
     test_queries = [
-        "What is a derivative?",
-        "How do I solve a quadratic equation?",
-        "Explain the chain rule",
-        "How do I find limits?",
-        "What is continuity?",
-        "Give me practice problems on integrals",
-        "How do I use the product rule?",
-        "What is the difference between a limit and a derivative?",
-        "Explain the tangent problem",
-        "How do I find the area under a curve?",
-        "What are transcendental functions?",
+        # Category 1: Generic Questions (14)
+        "What is calculus?",
+        "How do I find the derivative of a function?",
+        "Explain integration",
+        "What are limits?",
+        "How do derivatives work?",
+        "What is the fundamental theorem of calculus?",
+        "Explain continuous functions",
+        "What are trigonometric functions?",
         "How do I solve optimization problems?",
-        "What is the mean value theorem?",
-        "Explain L'Hopital's rule",
-        "How do I find critical points?",
-        "What is a secant line?",
-        "How do I calculate rates of change?",
-        "What is an integral?",
-        "Explain the fundamental theorem of calculus",
-        "How do I find antiderivatives?",
-        "What is the difference between definite and indefinite integrals?",
-        "How do I solve differential equations?",
-        "What are piecewise functions?",
-        "Explain function transformations",
-        "How do I find the domain of a function?",
+        "What is the chain rule?",
+        "Explain related rates",
+        "What are antiderivatives?",
+        "How do I find the area under a curve?",
+        "What is the difference between differentiation and integration?",
+        # Category 2: Very Nuanced Questions (14)
+        "How does the intermediate value theorem relate to the existence of roots in continuous functions?",
+        "Why must a function be continuous on a closed interval for Rolle's theorem to apply?",
+        "What is the relationship between differentiability and continuity, and can you have one without the other?",
+        "How does the mean value theorem connect average rate of change to instantaneous rate of change?",
+        "When solving related rates problems, why is it crucial to differentiate implicitly with respect to time?",
+        "How does the substitution method in integration relate to the chain rule in differentiation?",
+        "Why does L'Hôpital's rule only apply to indeterminate forms like 0/0 or ∞/∞?",
+        "What is the geometric interpretation of the second derivative test for concavity?",
+        "How do you determine whether an improper integral converges or diverges?",
+        "Why is the linearization of a function at a point related to the tangent line?",
+        "How does the disk method differ from the shell method when finding volumes of revolution?",
+        "What conditions must be met for a function to satisfy the hypotheses of the extreme value theorem?",
+        "How does implicit differentiation allow us to find derivatives of relations that aren't functions?",
+        "Why does the power rule for integration require n ≠ -1 as a special case?",
+        # Category 3: Image-Based Questions (14)
+        "Looking at the graph of f(x) = x², what is the slope of the tangent line at x = 1?",
+        "In the diagram showing secant lines approaching a tangent, how does this illustrate the limit definition of derivative?",
+        "What does the shaded region under the curve represent in the Riemann sum illustration?",
+        "How do you interpret the graph showing increasing and decreasing intervals of a function?",
+        "In the velocity-time graph shown, what does the area under the curve represent?",
+        "Looking at the unit circle diagram, how are sine and cosine values determined?",
+        "What does the graph of the derivative tell you about the original function's behavior?",
+        "In the illustration of related rates with a ladder sliding down a wall, how are the rates connected?",
+        "How does the graph demonstrate that this function has a vertical asymptote?",
+        "What do the critical points shown on this graph indicate about local extrema?",
+        "In the diagram showing the disk method, how is each disk's volume calculated?",
+        "How does the graph illustrate the difference between average and instantaneous rate of change?",
+        "What does the concavity shown in this graph tell you about the second derivative?",
+        "In the parametric curve illustration, how do x(t) and y(t) trace out the path?",
+        # Category 4: Problem-Specific / Symbolic Queries (14)
+        "How do I find the derivative of f(x) = 3x² + 5x - 7?",
+        "What is the integral of ∫(2x + 3)dx?",
+        "Evaluate lim(x→2) (x² - 4)/(x - 2)",
+        "Find dy/dx if y = sin(x²)",
+        "Solve ∫₀¹ x³dx",
+        "What is d/dx[e^(2x)]?",
+        "Find the derivative of f(x) = ln(x² + 1)",
+        "Evaluate ∫cos(x)sin(x)dx",
+        "What is the second derivative of y = x⁴ - 3x² + 2?",
+        "Find lim(x→∞) (3x² + 2x)/(x² - 1)",
+        "Solve dy/dx = 2xy given y(0) = 1",
+        "What is ∫(1/x)dx?",
+        "Find the derivative of f(x) = (x² + 1)/(x - 2)",
+        "Evaluate ∫₁^e (1/x)dx",
+        # Category 5: Objectively Wrong / Non-Existent Queries (14)
+        "How do I use calculus to prove the Riemann hypothesis?",
+        "What is the derivative of a quantum wave function?",
+        "Explain how to integrate using blockchain technology",
+        "How does calculus apply to string theory in 11 dimensions?",
+        "What is the integral of a neural network activation function?",
+        "How do I find the derivative of dark matter?",
+        "Explain the calculus of non-Euclidean hyperbolic manifolds",
+        "What is the Laplace transform of a social network graph?",
+        "How do I use calculus to optimize cryptocurrency mining?",
+        "What is the derivative of consciousness?",
+        "Explain how to integrate using machine learning algorithms",
+        "How does calculus prove the existence of parallel universes?",
+        "What is the integral of political ideology?",
+        "How do I find the derivative of a DNA sequence?",
     ]
     
     print(f"Generated {len(test_queries)} test queries")
     
-    # Run evaluation
+    # Run evaluation (simple format: one row per query)
     print("\n9. Running evaluation...")
-    results_df = evaluate_methods(agent, test_queries)
+    results_df = evaluate_methods_simple(agent, test_queries)
     
     # Show results for first query
     print("\n10. Sample query results:")

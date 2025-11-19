@@ -1,0 +1,498 @@
+intent_id,query,method,entity_type,rank,doc_id,lo_id,title,snippet,score,relevance_score,winner
+1,What is a derivative?,llm_summary,LO,1,lo_1897,1897,Intuitive Definition of a Limit,The intuitive definition of a limit in calculus is the value that a function approaches as the input gets closer to a certain point. It helps us understand the behavior of functions near specific poin,0.4587077498435974,,
+1,What is a derivative?,llm_summary,LO,2,lo_1893,1893,The Tangent Problem and Differential Calculus,The learning objective focuses on understanding the tangent problem in differential calculus. Students will learn how to find the slope of a curve at a specific point using the concept of tangent line,0.4397602081298828,,
+1,What is a derivative?,llm_summary,LO,3,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.4060119092464447,,
+1,What is a derivative?,llm_summary,LO,4,lo_1231,1231,Finding the Average Rate of Change of a Function,The average rate of change of a function is a measure of how the function's output changes over a specific interval. It is calculated by finding the difference in the function's values at the endpoint,0.38918519020080566,,
+1,What is a derivative?,llm_summary,LO,5,lo_1232,1232,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","This learning objective focuses on using a graph to analyze the behavior of a function. By examining the slope of the graph, students can determine where the function is increasing (positive slope), d",0.36883944272994995,,
+1,What is a derivative?,llm_summary,try_it,1,1867_try_it_1,,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the functi","When evaluating a function at a specific value, substitution is used by replacing the variable with the given value. For example, to find \(f(1)\) for \(f(x) = x^2 - 3x + 5\), substitute \(x=1\) to ge",0.38775312900543213,,
+1,What is a derivative?,llm_summary,concept,2,1230_concept_1,,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will","This concept focuses on rates of change and the behavior of graphs. Students will learn to find the average rate of change of a function, identify where a function is increasing, decreasing, or consta",0.379059374332428,,
+1,What is a derivative?,llm_summary,example,3,1868_example_7,,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the fun","In this example, a ball is dropped from a height of 100 ft, and its height at time t is given by the function s(t) = -16t^2 + 100. By creating a table with specific time values, we determine that the ",0.36877310276031494,,
+1,What is a derivative?,llm_summary,concept,4,1232_concept_1,,"# Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant
+
+As part of exp","When analyzing a function, we can determine if it is increasing, decreasing, or constant over specific intervals. A function is considered increasing if its values rise as the input values increase wi",0.36450135707855225,,
+1,What is a derivative?,llm_summary,concept,5,1217_concept_1,,"concept
+
+# Functions and Function Notation
+
+# Learning Objectives
+In this section, you will:
+- Deter","In the Functions and Function Notation concept, you will learn to determine if a relation represents a function, find function values, assess if a function is one-to-one, use the vertical line test to",0.3454276919364929,,
+2,How do I solve a quadratic equation?,llm_summary,LO,1,lo_978,978,Solving Trigonometric Equations in Quadratic Form,"The learning objective is to solve trigonometric equations that can be rewritten in quadratic form. This involves using trigonometric identities to manipulate the equation into a quadratic equation, w",0.4517359733581543,,
+2,How do I solve a quadratic equation?,llm_summary,LO,2,lo_976,976,Solving Equations Involving a Single Trigonometric Function,"This learning objective focuses on solving equations that involve a single trigonometric function, such as sine, cosine, or tangent. Students will learn to apply trigonometric identities and propertie",0.2593418061733246,,
+2,How do I solve a quadratic equation?,llm_summary,LO,3,lo_979,979,Solving Trigonometric Equations Using Fundamental Identities,This learning objective focuses on solving trigonometric equations by utilizing fundamental trigonometric identities. Students will learn how to manipulate trigonometric expressions using identities s,0.2516871988773346,,
+2,How do I solve a quadratic equation?,llm_summary,LO,4,lo_957,957,Solving Trigonometric Equations with Identities,"The learning objective is to solve trigonometric equations using trigonometric identities. Students will learn how to manipulate trigonometric expressions using identities such as Pythagorean, double ",0.23822520673274994,,
+2,How do I solve a quadratic equation?,llm_summary,LO,5,lo_1873,1873,Polynomials,"The learning objective for polynomials is to understand and work with algebraic expressions that involve variables raised to non-negative integer powers. Students will learn how to add, subtract, mult",0.23783913254737854,,
+2,How do I solve a quadratic equation?,llm_summary,concept,1,978_concept_1,,"# Solving Trigonometric Equations in Quadratic Form
+
+Solving a quadratic equation may be more compli","When solving trigonometric equations in quadratic form, identify the trigonometric function being squared and substitute it with a variable like \(x\). Treat the equation as a quadratic by looking for",0.5199167728424072,,
+2,How do I solve a quadratic equation?,llm_summary,try_it,2,1873_try_it_1,,Consider the quadratic function \[f(x) = 3x^2 - 6x + 2.\] Find the zeros of \[f.\] Does the parabola,"The quadratic formula is used to find the zeros of a quadratic function, which are the points where the function crosses the x-axis. The formula is \[x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}.\] The lead",0.49470430612564087,,
+2,How do I solve a quadratic equation?,llm_summary,example,3,1873_example_1,,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow \pm \",The quadratic function \(f(x) = -2x^2 + 4x - 1\) has a behavior of \(f(x) \rightarrow -\infty\) as \(x \rightarrow \pm \infty\) due to \(a < 0\). The zeros of the function are approximately 0.2929 and,0.41456007957458496,,
+2,How do I solve a quadratic equation?,llm_summary,example,4,1868_example_2,,"Consider the function \[f(x) = -4x + 2.\]
+Find the \(y\)-intercept (if any).
+
+To find the y-intercep","In the function \[f(x) = -4x + 2\], the y-intercept is found by substituting \[x = 0\] into the function, resulting in the point \[(0, 2)\]. The y-intercept is the point where the graph of a function ",0.3308248221874237,,
+2,How do I solve a quadratic equation?,llm_summary,example,5,1872_example_2,,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+","This example demonstrates finding the equation of a linear function passing through two given points \((11, -4)\) and \((-4, 5)\). By calculating the slope using the formula \(m = \frac{y_2 - y_1}{x_2",0.3254094421863556,,
+3,Explain the chain rule,llm_summary,LO,1,lo_1902,1902,Evaluating Limits with the Limit Laws,"This learning objective focuses on understanding and applying the limit laws to evaluate limits of functions. Key concepts include using properties such as sum, difference, product, quotient, and cons",0.3343261778354645,,
+3,Explain the chain rule,llm_summary,LO,2,lo_963,963,Using the Sum and Difference Formulas for Tangent,The learning objective focuses on understanding and applying the sum and difference formulas for tangent functions. Students will learn how to express the tangent of the sum or difference of two angle,0.31568896770477295,,
+3,Explain the chain rule,llm_summary,LO,3,lo_1219,1219,Finding Input and Output Values of a Function,This learning objective focuses on understanding how to determine input and output values of a function. Students will learn to identify the independent variable (input) and dependent variable (output,0.30206960439682007,,
+3,Explain the chain rule,llm_summary,LO,4,lo_1893,1893,The Tangent Problem and Differential Calculus,The learning objective focuses on understanding the tangent problem in differential calculus. Students will learn how to find the slope of a curve at a specific point using the concept of tangent line,0.29497087001800537,,
+3,Explain the chain rule,llm_summary,LO,5,lo_1230,1230,Rates of Change and Behavior of Graphs,This learning objective focuses on understanding rates of change and the behavior of graphs. Students will learn how to analyze and interpret graphs to identify patterns in the rate at which quantitie,0.2902827262878418,,
+3,Explain the chain rule,llm_summary,try_it,1,1902_try_it_1,,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate th","When evaluating the limit \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4},\] the product rule for limits is applied by splitting the expression into \[\lim_{{x \to 6}} (2x - 1) \cdot \lim_{{x \to 6}} \sqrt{x",0.330571711063385,,
+3,Explain the chain rule,llm_summary,example,2,1872_example_1,,"Consider the line passing through the points \[(11, -4)\] and \[(-4, 5)\] as shown in Figure 1.17.
+
+","The example demonstrates finding the slope of a line passing through two given points using the formula \[m = \frac{y_2 - y_1}{x_2 - x_1}\]. In this case, the slope of the line passing through \[(11, ",0.32759395241737366,,
+3,Explain the chain rule,llm_summary,example,3,1888_example_2,,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})","The example demonstrates simplifying expressions using the Power of a Product Rule of exponents. By applying this rule, expressions like \[(ab)^n\] can be simplified to \[(a^n \cdot b^n)\]. The key co",0.3181128203868866,,
+3,Explain the chain rule,llm_summary,example,4,1888_example_3,,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(x^3y^{-1})^2}{(xy","The example demonstrates simplifying expressions using the laws of exponents, specifically the Power of a Product Rule and the Power Rule. The Power of a Product Rule states that for any real numbers ",0.31459423899650574,,
+3,Explain the chain rule,llm_summary,example,5,1868_example_7,,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the fun","In this example, a ball is dropped from a height of 100 ft, and its height at time t is given by the function s(t) = -16t^2 + 100. By creating a table with specific time values, we determine that the ",0.3109751343727112,,
+4,How do I find limits?,llm_summary,LO,1,lo_1902,1902,Evaluating Limits with the Limit Laws,"This learning objective focuses on understanding and applying the limit laws to evaluate limits of functions. Key concepts include using properties such as sum, difference, product, quotient, and cons",0.6212114095687866,,
+4,How do I find limits?,llm_summary,LO,2,lo_1904,1904,Additional Limit Evaluation Techniques,"This learning objective covers additional techniques for evaluating limits in calculus. Students will learn methods such as L'Hôpital's Rule, squeeze theorem, and trigonometric limits to evaluate limi",0.5739735960960388,,
+4,How do I find limits?,llm_summary,LO,3,lo_1898,1898,The Existence of a Limit,The concept of a limit in mathematics refers to the value that a function or sequence approaches as the input approaches a certain point. Understanding limits is crucial in calculus as it helps in ana,0.5223920345306396,,
+4,How do I find limits?,llm_summary,LO,4,lo_1897,1897,Intuitive Definition of a Limit,The intuitive definition of a limit in calculus is the value that a function approaches as the input gets closer to a certain point. It helps us understand the behavior of functions near specific poin,0.5078246593475342,,
+4,How do I find limits?,llm_summary,LO,5,lo_1900,1900,Infinite Limits,Infinite limits occur when the value of a function approaches infinity or negative infinity as the input approaches a certain value. Understanding infinite limits involves analyzing the behavior of a ,0.4855009913444519,,
+4,How do I find limits?,llm_summary,try_it,1,1904_try_it_4,,"Evaluate \[\lim_{{x \to 3}} \left( \frac{1}{{x - 3}} - \frac{4}{{x^2 - 2x - 3}} \right).\]
+
+Both \[\","The given limit involves two fractions that do not have limits at zero, so algebraic simplification is needed. By factoring the denominator of the second fraction, the expression can be rewritten as \",0.5419765710830688,,
+4,How do I find limits?,llm_summary,try_it,2,1903_try_it_1,,"Evaluate \[\lim_{{x \to -2}} (3x^3 - 2x + 7).\]
+
+We know, if \[p(x)\] is a polynomial functions and ",The limit of the function \[3x^3 - 2x + 7\] as \[x\] approaches -2 is -13. The limit of a polynomial function at a given point is the value of the function at that point. For the function \[f(x) = 2x^,0.5122489333152771,,
+4,How do I find limits?,llm_summary,try_it,3,1904_try_it_2,,"Evaluate \[\lim_{{x \to 5}} \frac{{\sqrt{{x - 1}} - 2}}{{x - 5}}.\]
+
+\[\frac{\sqrt{x-1} - 2}{x-5}\] ","To evaluate the limit \[\lim_{{x \to 5}} \frac{{\sqrt{{x - 1}} - 2}}{{x - 5}}\], we multiply by the conjugate of the numerator to simplify the expression. By multiplying out the numerator and simplify",0.4996151030063629,,
+4,How do I find limits?,llm_summary,example,4,1897_example_2,,"Evaluate \[\lim_{{x \to 4}} \frac{{\sqrt{x} - 2}}{{x - 4}}\] using a table of functional values.
+
+We",The example demonstrates evaluating the limit of the function \[\frac{\sqrt{x} - 2}{x - 4}\] as x approaches 4 using a table of functional values. By listing values of the function for x values close ,0.49950629472732544,,
+4,How do I find limits?,llm_summary,example,5,1897_example_3,,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) ","When evaluating the limit of a function at a certain point, we are looking at the value that the function approaches as the input approaches that point, not necessarily the value of the function at th",0.48465922474861145,,
+5,What is continuity?,llm_summary,LO,1,lo_1907,1907,Continuity at a Point,"Continuity at a point refers to the property of a function where the function is defined and has a limit at that specific point. To determine continuity at a point, we check if the function is defined",0.7368752360343933,,
+5,What is continuity?,llm_summary,LO,2,lo_1909,1909,Continuity over an Interval,"Understanding continuity over an interval involves analyzing the behavior of a function within a specific range of values. Key concepts include identifying points of discontinuity, determining if a fu",0.6405614614486694,,
+5,What is continuity?,llm_summary,LO,3,lo_1911,1911,The Intermediate Value Theorem,"The Intermediate Value Theorem states that if a function is continuous on a closed interval, it must take on every value between the function's values at the endpoints of the interval. This theorem is",0.48556703329086304,,
+5,What is continuity?,llm_summary,LO,4,lo_1908,1908,Types of Discontinuities,"This learning objective covers the different types of discontinuities in mathematics, including removable, jump, and infinite discontinuities. Students will learn to identify and understand these disc",0.4537965953350067,,
+5,What is continuity?,llm_summary,LO,5,lo_1897,1897,Intuitive Definition of a Limit,The intuitive definition of a limit in calculus is the value that a function approaches as the input gets closer to a certain point. It helps us understand the behavior of functions near specific poin,0.39280977845191956,,
+5,What is continuity?,llm_summary,try_it,1,1907_try_it_1,,"Using the definition, determine whether the function \[f(x) = \begin{cases} 2x + 1 & \text{if } x < ","The try_it activities cover the concepts of continuity, evaluating functions at specific points, and determining limits. Students learn how to check for continuity at a point, evaluate functions at sp",0.5026805400848389,,
+5,What is continuity?,llm_summary,try_it,2,1910_try_it_1,,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of ","The domain of a polynomial function is \[\mathbb{R}\], meaning it is continuous for all real numbers. This applies to polynomial functions of various forms, such as \[f(x) = 3x^{4}-4x^{2}\], \[g(x) = ",0.49169841408729553,,
+5,What is continuity?,llm_summary,try_it,3,1909_try_it_1,,"State the interval(s) over which the function \[f(x) = \sqrt{x + 3}\] is continuous.
+
+Calculate the ","The function \(f(x) = \sqrt{x + 3}\) is continuous over the interval \((-3, \infty)\) as the limit of the function exists and equals the function's value for all \(a \in (-3, \infty)\). A function is ",0.42403316497802734,,
+5,What is continuity?,llm_summary,try_it,4,1911_try_it_1,,"Show that \[f(x) = x^{3} - x^{2} - 3x + 1\] has a zero over the interval \[[0, 1]\].
+
+Use the theore","In the try_it activity, the focus was on understanding polynomial functions and their continuity. The key concepts covered include the domain of polynomial functions being all real numbers (\[\mathbb{",0.3910529613494873,,
+5,What is continuity?,llm_summary,try_it,5,1908_try_it_1,,"For \[f(x) = \begin{cases} x^2 & \text{if } x \neq 1 \\ 3 & \text{if } x = 1 \end{cases}\], decide w","The function \[f(x)\] is continuous at \[1\] because \[f(1) = 3\], indicating that the function exists at that point. The value of the function \[g(x)\] at \[x = 2\] is \[5\], as defined by the functi",0.38812845945358276,,
+6,Give me practice problems on integrals,llm_summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The learning objective focuses on understanding the concept of the area problem in integral calculus. Students will learn how to calculate the area under a curve using integration techniques. Key conc,0.6342536807060242,,
+6,Give me practice problems on integrals,llm_summary,LO,2,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.3988998830318451,,
+6,Give me practice problems on integrals,llm_summary,LO,3,lo_958,958,Verifying the Fundamental Trigonometric Identities,"The learning objective is to understand and apply fundamental trigonometric identities, such as sine, cosine, and tangent, to verify equations. Students will learn to manipulate trigonometric expressi",0.3956083357334137,,
+6,Give me practice problems on integrals,llm_summary,LO,4,lo_1904,1904,Additional Limit Evaluation Techniques,"This learning objective covers additional techniques for evaluating limits in calculus. Students will learn methods such as L'Hôpital's Rule, squeeze theorem, and trigonometric limits to evaluate limi",0.3944498300552368,,
+6,Give me practice problems on integrals,llm_summary,LO,5,lo_974,974,Solving Trigonometric Equations,The learning objective is to understand how to solve trigonometric equations using trigonometric identities and properties. Students will learn to use algebraic techniques to isolate the trigonometric,0.3857087790966034,,
+6,Give me practice problems on integrals,llm_summary,example,1,1894_example_1,,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\","The example demonstrates estimating the area under the curve of the function \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] using three rectangles. The key concepts include calculating the area of a ",0.427341103553772,,
+6,Give me practice problems on integrals,llm_summary,example,2,1890_example_2,,"Solve each of the following equations for \[x\].
+
+\[
+e^x + 6e^{-x} = 5
+\]
+
+\[
+e^x + 6e^{-x} = 5
+\]
+M",The example involves solving exponential equations by making substitutions to simplify them into quadratic forms. Key concepts include using substitutions like \[y = e^x\] to transform equations into ,0.41008639335632324,,
+6,Give me practice problems on integrals,llm_summary,concept,3,960_concept_1,,"concept
+
+# Sum and Difference Identities
+
+### Learning Objectives
+In this section, you will:
+
+- Use ","In this section, you will learn about the sum and difference identities for cosine, sine, tangent, and cofunctions. These identities are essential for verifying trigonometric equations and simplifying",0.3731512427330017,,
+6,Give me practice problems on integrals,llm_summary,concept,4,974_concept_1,,"concept
+
+# Solving Trigonometric Equations
+
+### Learning Objectives
+In this section, you will:
+
+- So","In this section, you will learn how to solve various types of trigonometric equations, including linear equations in sine and cosine, equations involving a single trigonometric function, quadratic equ",0.3709237575531006,,
+6,Give me practice problems on integrals,llm_summary,try_it,5,1894_try_it_1,,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\)","In this try_it, the key concept is estimating the area under a curve using rectangles. The formula to calculate the area of a rectangle is Length x Width. The area of a rectangle with length 5 units a",0.34671729803085327,,
+7,How do I use the product rule?,llm_summary,LO,1,lo_973,973,Expressing Sums as Products,"This learning objective focuses on understanding how to express sums as products. Students will learn how to rewrite addition expressions as multiplication expressions, which involves using the distri",0.35592058300971985,,
+7,How do I use the product rule?,llm_summary,LO,2,lo_1902,1902,Evaluating Limits with the Limit Laws,"This learning objective focuses on understanding and applying the limit laws to evaluate limits of functions. Key concepts include using properties such as sum, difference, product, quotient, and cons",0.351200133562088,,
+7,How do I use the product rule?,llm_summary,LO,3,lo_972,972,Expressing Products as Sums,The learning objective is to understand how to express products as sums. This involves breaking down a product into its individual components and representing it as a sum of those components. By maste,0.311201810836792,,
+7,How do I use the product rule?,llm_summary,LO,4,lo_1080,1080,Finding the Dot Product of Two Vectors,The dot product of two vectors is a mathematical operation that yields a scalar quantity. It involves multiplying the corresponding components of the vectors and summing the results. The dot product i,0.3096745014190674,,
+7,How do I use the product rule?,llm_summary,LO,5,lo_971,971,Sum-to-Product and Product-to-Sum Formulas,The Sum-to-Product and Product-to-Sum formulas are trigonometric identities that allow us to convert between sums and products of trigonometric functions. These formulas are useful for simplifying tri,0.30787405371665955,,
+7,How do I use the product rule?,llm_summary,try_it,1,1902_try_it_1,,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate th","When evaluating the limit \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4},\] the product rule for limits is applied by splitting the expression into \[\lim_{{x \to 6}} (2x - 1) \cdot \lim_{{x \to 6}} \sqrt{x",0.560652494430542,,
+7,How do I use the product rule?,llm_summary,example,2,1888_example_2,,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})","The example demonstrates simplifying expressions using the Power of a Product Rule of exponents. By applying this rule, expressions like \[(ab)^n\] can be simplified to \[(a^n \cdot b^n)\]. The key co",0.4427843391895294,,
+7,How do I use the product rule?,llm_summary,example,3,1888_example_3,,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(x^3y^{-1})^2}{(xy","The example demonstrates simplifying expressions using the laws of exponents, specifically the Power of a Product Rule and the Power Rule. The Power of a Product Rule states that for any real numbers ",0.4184657335281372,,
+7,How do I use the product rule?,llm_summary,try_it,4,1869_try_it_3,,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an addit","When items are on sale for 10% off their original price and a customer has a coupon for an additional 30% off, the final price for an item originally priced at x dollars is 0.63x after applying the co",0.4136013686656952,,
+7,How do I use the product rule?,llm_summary,concept,5,973_concept_1,,"# Expressing Sums as Products
+
+Some problems require the reverse of the process we just used. The su",The concept of expressing sums as products involves using sum-to-product formulas to convert sums of sine or cosine functions into products. These formulas are derived from product-to-sum identities a,0.32569247484207153,,
+8,What is the difference between a limit and a derivative?,llm_summary,LO,1,lo_1897,1897,Intuitive Definition of a Limit,The intuitive definition of a limit in calculus is the value that a function approaches as the input gets closer to a certain point. It helps us understand the behavior of functions near specific poin,0.6812646985054016,,
+8,What is the difference between a limit and a derivative?,llm_summary,LO,2,lo_1898,1898,The Existence of a Limit,The concept of a limit in mathematics refers to the value that a function or sequence approaches as the input approaches a certain point. Understanding limits is crucial in calculus as it helps in ana,0.6274055242538452,,
+8,What is the difference between a limit and a derivative?,llm_summary,LO,3,lo_1915,1915,One-Sided and Infinite Limits,"In calculus, one-sided limits are used to determine the behavior of a function as it approaches a specific value from either the left or right side. Infinite limits occur when the function grows witho",0.518827497959137,,
+8,What is the difference between a limit and a derivative?,llm_summary,LO,4,lo_1899,1899,One-Sided Limits,One-sided limits refer to the behavior of a function as it approaches a specific value from either the left or the right side. Understanding one-sided limits helps in determining the existence and val,0.4957720935344696,,
+8,What is the difference between a limit and a derivative?,llm_summary,LO,5,lo_1900,1900,Infinite Limits,Infinite limits occur when the value of a function approaches infinity or negative infinity as the input approaches a certain value. Understanding infinite limits involves analyzing the behavior of a ,0.47977879643440247,,
+8,What is the difference between a limit and a derivative?,llm_summary,example,1,1897_example_3,,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) ","When evaluating the limit of a function at a certain point, we are looking at the value that the function approaches as the input approaches that point, not necessarily the value of the function at th",0.5409157872200012,,
+8,What is the difference between a limit and a derivative?,llm_summary,example,2,1900_example_7,,"Use the graph of \[f(x)\] in Figure 2.21 to determine each of the following values:
+
+\[\lim_{{x \to ","In this example, the graph of the function \[f(x)\] is used to determine the left-hand limit, right-hand limit, two-sided limit, and the value of the function at \[x = -4\]. The left-hand limit, right",0.44410958886146545,,
+8,What is the difference between a limit and a derivative?,llm_summary,try_it,3,1902_try_it_1,,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate th","When evaluating the limit \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4},\] the product rule for limits is applied by splitting the expression into \[\lim_{{x \to 6}} (2x - 1) \cdot \lim_{{x \to 6}} \sqrt{x",0.42707040905952454,,
+8,What is the difference between a limit and a derivative?,llm_summary,try_it,4,1897_try_it_2,,"Use the graph of \(h(x)\) in Figure 2.16 to evaluate \(\lim_{{x \to 2}} h(x)\), if possible.
+
+![A gr","The given graph of \(h(x)\) in Figure 2.16 shows that as \(x\) approaches 2 from either side, the \(h(x)\) values approach -1. Therefore, the limit as \(x\) approaches 2 of \(h(x)\) is -1. This demons",0.41569459438323975,,
+8,What is the difference between a limit and a derivative?,llm_summary,example,5,1897_example_1,,"Evaluate \[\lim_{{x \to 0}} \frac{{\sin x}}{x}\] using a table of functional values.
+
+We have calcul","When evaluating the limit \[\lim_{{x \to 0}} \frac{{\sin x}}{x}\] using a table of functional values, we observe the behavior of the function as it approaches the limit. Choosing values like 0.1, 0.01",0.39914965629577637,,
+9,Explain the tangent problem,llm_summary,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The learning objective focuses on understanding the tangent problem in differential calculus. Students will learn how to find the slope of a curve at a specific point using the concept of tangent line,0.5826066732406616,,
+9,Explain the tangent problem,llm_summary,LO,2,lo_963,963,Using the Sum and Difference Formulas for Tangent,The learning objective focuses on understanding and applying the sum and difference formulas for tangent functions. Students will learn how to express the tangent of the sum or difference of two angle,0.5544893145561218,,
+9,Explain the tangent problem,llm_summary,LO,3,lo_960,960,Sum and Difference Identities,"The Sum and Difference Identities in trigonometry are formulas that express the sine, cosine, and tangent of the sum or difference of two angles in terms of the trigonometric functions of the individu",0.3698890805244446,,
+9,Explain the tangent problem,llm_summary,LO,4,lo_958,958,Verifying the Fundamental Trigonometric Identities,"The learning objective is to understand and apply fundamental trigonometric identities, such as sine, cosine, and tangent, to verify equations. Students will learn to manipulate trigonometric expressi",0.36112019419670105,,
+9,Explain the tangent problem,llm_summary,LO,5,lo_1881,1881,Trigonometric Identities,"The learning objective of Trigonometric Identities is to understand and apply the relationships between trigonometric functions, such as sine, cosine, and tangent. Students will learn how to manipulat",0.36007454991340637,,
+9,Explain the tangent problem,llm_summary,concept,1,963_concept_1,,"# Using the Sum and Difference Formulas for Tangent
+
+Finding exact values for the tangent of the sum","The concept discusses the sum and difference formulas for tangent, which allow us to find the tangent of the sum or difference of two angles. The key formulas are: \[\tan(\alpha + \beta) = \frac{\tan ",0.5377832055091858,,
+9,Explain the tangent problem,llm_summary,try_it,2,1893_try_it_1,,Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding th,The try_it exercise involves estimating the slope of the tangent line to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through two points on the graph. The formula for finding th,0.5059106349945068,,
+9,Explain the tangent problem,llm_summary,example,3,1893_example_1,,Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding sl,The example demonstrates estimating the slope of the tangent line to \(f(x) = x^2\) at \(x = 1\) by calculating the slopes of secant lines through given points on the graph. The formula for the slope ,0.47160133719444275,,
+9,Explain the tangent problem,llm_summary,concept,4,967_concept_1,,"# Using Double-Angle Formulas to Find Exact Values
+
+In the previous section, we used addition and su","The double-angle formulas in trigonometry are derived from the sum formulas by setting the angles to be equal. For sine, \(\sin(2\theta) = 2\sin\theta\cos\theta\), and for cosine, \(\cos(2\theta) = \c",0.4368164539337158,,
+9,Explain the tangent problem,llm_summary,try_it,5,1880_try_it_2,,A house painter wants to lean a \[20\]-ft ladder against a house. If the angle between the base of t,"In this try_it, a house painter wants to place a 20-ft ladder against a house at a 60-degree angle. The cosine function is used to determine that the base of the ladder should be placed 10 feet away f",0.42633527517318726,,
+10,How do I find the area under a curve?,llm_summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The learning objective focuses on understanding the concept of the area problem in integral calculus. Students will learn how to calculate the area under a curve using integration techniques. Key conc,0.4736807346343994,,
+10,How do I find the area under a curve?,llm_summary,LO,2,lo_1037,1037,Finding the Area of an Oblique Triangle Using the Sine Function,"This learning objective focuses on using the sine function to find the area of an oblique triangle. Students will learn how to apply the formula: Area = 1/2 * a * b * sin(C), where a and b are two sid",0.40719282627105713,,
+10,How do I find the area under a curve?,llm_summary,LO,3,lo_1052,1052,Summary of Curves,"The learning objective for curves involves understanding the concept of curves in mathematics, including their definitions, properties, and representations. Students will learn about different types o",0.3519248962402344,,
+10,How do I find the area under a curve?,llm_summary,LO,4,lo_1066,1066,Finding Parametric Equations for Curves Defined by Rectangular Equations,"This learning objective focuses on the process of finding parametric equations for curves that are defined by rectangular equations. By converting rectangular equations into parametric form, students ",0.33927008509635925,,
+10,How do I find the area under a curve?,llm_summary,LO,5,lo_1065,1065,Finding Cartesian Equations from Curves Defined Parametrically,This learning objective focuses on converting parametric equations into Cartesian equations. Students will learn how to eliminate the parameter in parametric equations to express the curve solely in t,0.3004375398159027,,
+10,How do I find the area under a curve?,llm_summary,try_it,1,1894_try_it_1,,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\)","In this try_it, the key concept is estimating the area under a curve using rectangles. The formula to calculate the area of a rectangle is Length x Width. The area of a rectangle with length 5 units a",0.5864934921264648,,
+10,How do I find the area under a curve?,llm_summary,example,2,1894_example_1,,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\","The example demonstrates estimating the area under the curve of the function \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] using three rectangles. The key concepts include calculating the area of a ",0.49948710203170776,,
+10,How do I find the area under a curve?,llm_summary,concept,3,1037_concept_1,,"#  Finding the Area of an Oblique Triangle Using the Sine Function
+
+Now that we can solve a triangle","To find the area of an oblique triangle using the sine function, you can use the formula \[Area = \frac{1}{2}bc\sin\alpha\] where \[b\] and \[c\] are two sides of the triangle and \[\alpha\] is the an",0.4129204750061035,,
+10,How do I find the area under a curve?,llm_summary,example,4,1872_example_4,,Jessica leaves her house at 5:50 a.m. and goes for a 9-mile run. She returns to her house at 7:08 a.,"Jessica runs 9 miles in 78 minutes at a constant pace, leading to a linear function \[D(t) = \frac{3}{26}t\]. The slope of a linear function represents the ratio of the change in \[y\] to the change i",0.4008173942565918,,
+10,How do I find the area under a curve?,llm_summary,example,5,1868_example_2,,"Consider the function \[f(x) = -4x + 2.\]
+Find the \(y\)-intercept (if any).
+
+To find the y-intercep","In the function \[f(x) = -4x + 2\], the y-intercept is found by substituting \[x = 0\] into the function, resulting in the point \[(0, 2)\]. The y-intercept is the point where the graph of a function ",0.3658350110054016,,
+11,What are transcendental functions?,llm_summary,LO,1,lo_1875,1875,Transcendental Functions,"Transcendental functions are a class of functions that cannot be expressed in terms of algebraic operations. Examples include exponential, logarithmic, and trigonometric functions. Understanding trans",0.8736437559127808,,
+11,What are transcendental functions?,llm_summary,LO,2,lo_1874,1874,Algebraic Functions,"Algebraic functions involve mathematical expressions that combine variables and constants using operations like addition, subtraction, multiplication, and division. Understanding algebraic functions h",0.5498180389404297,,
+11,What are transcendental functions?,llm_summary,LO,3,lo_1891,1891,Hyperbolic Functions,"Hyperbolic functions are a set of mathematical functions that are analogs of trigonometric functions. The key hyperbolic functions are sinh, cosh, and tanh, which are defined in terms of exponential f",0.5476192831993103,,
+11,What are transcendental functions?,llm_summary,LO,4,lo_1888,1888,Exponential Functions,Exponential functions are a type of mathematical function where the variable is in the exponent. They grow or decay at a constant percentage rate. Key concepts include the base of the exponential func,0.500610888004303,,
+11,What are transcendental functions?,llm_summary,LO,5,lo_1903,1903,Limits of Polynomial and Rational Functions,This learning objective focuses on understanding the behavior of polynomial and rational functions as their inputs approach certain values. Students will learn how to identify and analyze the limits o,0.48419684171676636,,
+11,What are transcendental functions?,llm_summary,example,1,1875_example_3,,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = \","Transcendental functions involve trigonometric, exponential, and logarithmic functions, and cannot be expressed using basic algebraic operations only. Examples of transcendental functions include \(\s",0.7837508916854858,,
+11,What are transcendental functions?,llm_summary,example,2,1875_example_2,,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = 2","Algebraic functions involve basic algebraic operations, while transcendental functions involve complex operations. Transcendental functions cannot be expressed using a finite number of basic algebraic",0.7426062822341919,,
+11,What are transcendental functions?,llm_summary,try_it,3,1875_try_it_1,,"Is \(f(x) = x/2\) an algebraic or a transcendental function?
+
+Given function is \[ f(x) = \frac{x}{2",The function \(f(x) = x/2\) is an algebraic function because it involves basic algebraic operations only. Functions like \(f(x) = x + 3\) and \(f(x) = \sqrt{x}\) are also algebraic functions as they o,0.6026620864868164,,
+11,What are transcendental functions?,llm_summary,example,4,1869_example_1,,"Given the functions \[f(x) = 2x - 3\] and \[g(x) = x^2 - 1\], find each of the following functions a","In the examples provided, the concept of combining functions through addition is demonstrated. By adding the given functions \[f(x)\] and \[g(x)\], the new function \[(f+g)(x)\] is obtained. The domai",0.4533178210258484,,
+11,What are transcendental functions?,llm_summary,concept,5,1236_concept_1,,"# Combining Functions Using Algebraic Operations
+
+Function composition is only one way to combine ex","When combining functions using algebraic operations, we can add, subtract, multiply, and divide functions by performing operations on their outputs. For example, if we have functions \[f(x) = x - 1\] ",0.4411245584487915,,
+12,How do I solve optimization problems?,llm_summary,LO,1,lo_978,978,Solving Trigonometric Equations in Quadratic Form,"The learning objective is to solve trigonometric equations that can be rewritten in quadratic form. This involves using trigonometric identities to manipulate the equation into a quadratic equation, w",0.37495845556259155,,
+12,How do I solve optimization problems?,llm_summary,LO,2,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.3416064381599426,,
+12,How do I solve optimization problems?,llm_summary,LO,3,lo_1234,1234,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,This learning objective focuses on using a graph to identify the absolute maximum and absolute minimum values of a function. Students will learn how to visually locate these points on a graph by ident,0.3391744792461395,,
+12,How do I solve optimization problems?,llm_summary,LO,4,lo_972,972,Expressing Products as Sums,The learning objective is to understand how to express products as sums. This involves breaking down a product into its individual components and representing it as a sum of those components. By maste,0.3197251558303833,,
+12,How do I solve optimization problems?,llm_summary,LO,5,lo_1064,1064,Eliminating the Parameter,"The learning objective of ""Eliminating the Parameter"" is to understand how to express parametric equations in terms of a single variable. This involves eliminating the parameter by solving for the var",0.3063690662384033,,
+12,How do I solve optimization problems?,llm_summary,example,1,1876_example_2,,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged ","In a parking garage in a big city, drivers are charged variable rates based on the number of hours parked, with a maximum charge of $30 for the day. The cost function \[C(x)\] is defined piecewise, wi",0.31174635887145996,,
+12,How do I solve optimization problems?,llm_summary,example,2,1894_example_1,,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\","The example demonstrates estimating the area under the curve of the function \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] using three rectangles. The key concepts include calculating the area of a ",0.2989722192287445,,
+12,How do I solve optimization problems?,llm_summary,concept,3,981_concept_1,,"# Solving Right Triangle Problems
+
+We can now use all of the methods we have learned to solve proble","In solving right triangle problems, we apply the Pythagorean Theorem to find missing side lengths and angles. By modeling situations with right triangles, we can determine lengths and angles accuratel",0.29780298471450806,,
+12,How do I solve optimization problems?,llm_summary,example,4,1886_example_4,,"Evaluate each of the following expressions.
+\[\sin^{-1}(\cos(\frac{2\pi}{3}))\]
+
+Since \[\text{cos}(","In the given example, we are asked to evaluate expressions involving inverse trigonometric functions. The key concept is understanding how to find the angle that satisfies a specific trigonometric fun",0.2937617301940918,,
+12,How do I solve optimization problems?,llm_summary,concept,5,974_concept_1,,"concept
+
+# Solving Trigonometric Equations
+
+### Learning Objectives
+In this section, you will:
+
+- So","In this section, you will learn how to solve various types of trigonometric equations, including linear equations in sine and cosine, equations involving a single trigonometric function, quadratic equ",0.27970391511917114,,
+13,What is the mean value theorem?,llm_summary,LO,1,lo_1911,1911,The Intermediate Value Theorem,"The Intermediate Value Theorem states that if a function is continuous on a closed interval, it must take on every value between the function's values at the endpoints of the interval. This theorem is",0.5433540940284729,,
+13,What is the mean value theorem?,llm_summary,LO,2,lo_1231,1231,Finding the Average Rate of Change of a Function,The average rate of change of a function is a measure of how the function's output changes over a specific interval. It is calculated by finding the difference in the function's values at the endpoint,0.38717690110206604,,
+13,What is the mean value theorem?,llm_summary,LO,3,lo_1909,1909,Continuity over an Interval,"Understanding continuity over an interval involves analyzing the behavior of a function within a specific range of values. Key concepts include identifying points of discontinuity, determining if a fu",0.3489501178264618,,
+13,What is the mean value theorem?,llm_summary,LO,4,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.3294292390346527,,
+13,What is the mean value theorem?,llm_summary,LO,5,lo_1905,1905,The Squeeze Theorem,"The Squeeze Theorem states that if two functions, g(x) and h(x), ""squeeze"" a third function f(x) between them for all x in a certain interval, and the limits of g(x) and h(x) as x approaches a certain",0.30835089087486267,,
+13,What is the mean value theorem?,llm_summary,example,1,1876_example_2,,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged ","In a parking garage in a big city, drivers are charged variable rates based on the number of hours parked, with a maximum charge of $30 for the day. The cost function \[C(x)\] is defined piecewise, wi",0.3092914819717407,,
+13,What is the mean value theorem?,llm_summary,try_it,2,1908_try_it_1,,"For \[f(x) = \begin{cases} x^2 & \text{if } x \neq 1 \\ 3 & \text{if } x = 1 \end{cases}\], decide w","The function \[f(x)\] is continuous at \[1\] because \[f(1) = 3\], indicating that the function exists at that point. The value of the function \[g(x)\] at \[x = 2\] is \[5\], as defined by the functi",0.3045083284378052,,
+13,What is the mean value theorem?,llm_summary,example,3,1868_example_7,,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the fun","In this example, a ball is dropped from a height of 100 ft, and its height at time t is given by the function s(t) = -16t^2 + 100. By creating a table with specific time values, we determine that the ",0.30253562331199646,,
+13,What is the mean value theorem?,llm_summary,concept,4,1230_concept_1,,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will","This concept focuses on rates of change and the behavior of graphs. Students will learn to find the average rate of change of a function, identify where a function is increasing, decreasing, or consta",0.29739463329315186,,
+13,What is the mean value theorem?,llm_summary,try_it,5,1893_try_it_2,,An object moves along a coordinate axis so that its position at time \[t\] is given by \[s(t) = t^3\,"When an object moves along a coordinate axis with position function \[s(t) = t^3\], the instantaneous velocity at \[t = 2\] is estimated by calculating the average velocity over the interval \[[2, 2.0",0.28403782844543457,,
+14,Explain L'Hopital's rule,llm_summary,LO,1,lo_1904,1904,Additional Limit Evaluation Techniques,"This learning objective covers additional techniques for evaluating limits in calculus. Students will learn methods such as L'Hôpital's Rule, squeeze theorem, and trigonometric limits to evaluate limi",0.5184967517852783,,
+14,Explain L'Hopital's rule,llm_summary,LO,2,lo_1915,1915,One-Sided and Infinite Limits,"In calculus, one-sided limits are used to determine the behavior of a function as it approaches a specific value from either the left or right side. Infinite limits occur when the function grows witho",0.5112869739532471,,
+14,Explain L'Hopital's rule,llm_summary,LO,3,lo_1897,1897,Intuitive Definition of a Limit,The intuitive definition of a limit in calculus is the value that a function approaches as the input gets closer to a certain point. It helps us understand the behavior of functions near specific poin,0.49197980761528015,,
+14,Explain L'Hopital's rule,llm_summary,LO,4,lo_1905,1905,The Squeeze Theorem,"The Squeeze Theorem states that if two functions, g(x) and h(x), ""squeeze"" a third function f(x) between them for all x in a certain interval, and the limits of g(x) and h(x) as x approaches a certain",0.46233680844306946,,
+14,Explain L'Hopital's rule,llm_summary,LO,5,lo_1902,1902,Evaluating Limits with the Limit Laws,"This learning objective focuses on understanding and applying the limit laws to evaluate limits of functions. Key concepts include using properties such as sum, difference, product, quotient, and cons",0.44813084602355957,,
+14,Explain L'Hopital's rule,llm_summary,try_it,1,1900_try_it_7,,"Evaluate \[\lim_{{x \to 1}} f(x)\] for \[f(x)\] shown here:
+
+
+
+If we approach \[x=1\] from left side","In this try_it, the key concept is evaluating limits from both the left and right sides of a point to determine if the limit exists. If the left-hand limit and right-hand limit at a point are not equa",0.46255314350128174,,
+14,Explain L'Hopital's rule,llm_summary,example,2,1897_example_3,,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) ","When evaluating the limit of a function at a certain point, we are looking at the value that the function approaches as the input approaches that point, not necessarily the value of the function at th",0.45625191926956177,,
+14,Explain L'Hopital's rule,llm_summary,example,3,1900_example_4,,Evaluate each of the following limits using Infinite Limits from Positive Integers. Identify any ver,"In this example, the limit of the function \[f(x) = \frac{1}{(x+3)^4}\] as \[x\] approaches -3 from the left is found to be \[+\infty\]. This indicates a vertical asymptote at \[x = -3\]. A vertical a",0.43902501463890076,,
+14,Explain L'Hopital's rule,llm_summary,try_it,4,1897_try_it_2,,"Use the graph of \(h(x)\) in Figure 2.16 to evaluate \(\lim_{{x \to 2}} h(x)\), if possible.
+
+![A gr","The given graph of \(h(x)\) in Figure 2.16 shows that as \(x\) approaches 2 from either side, the \(h(x)\) values approach -1. Therefore, the limit as \(x\) approaches 2 of \(h(x)\) is -1. This demons",0.4198961853981018,,
+14,Explain L'Hopital's rule,llm_summary,try_it,5,1905_try_it_1,,"Use the squeeze theorem to evaluate \[\lim_{{x \to 0}} x^2 \sin \frac{1}{x}.\]
+
+Because \[-1 \leq si",The given limit using the squeeze theorem is \[\lim_{{x \to 0}} x^2 \sin \frac{1}{x} = 0\]. The squeeze theorem states that if \[g(x) \leq f(x) \leq h(x)\] and \[\lim_{{x \to a}} g(x) = \lim_{{x \to a,0.41912996768951416,,
+15,How do I find critical points?,llm_summary,LO,1,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.48277097940444946,,
+15,How do I find critical points?,llm_summary,LO,2,lo_1234,1234,Use A Graph to Locate the Absolute Maximum and Absolute Minimum,This learning objective focuses on using a graph to identify the absolute maximum and absolute minimum values of a function. Students will learn how to visually locate these points on a graph by ident,0.3882136344909668,,
+15,How do I find critical points?,llm_summary,LO,3,lo_1068,1068,Graphing Parametric Equations by Plotting Points,This learning objective focuses on understanding how to graph parametric equations by plotting points. Students will learn how to identify key points on the graph by evaluating the parametric equation,0.3684674799442291,,
+15,How do I find critical points?,llm_summary,LO,4,lo_1228,1228,Finding Domains and Ranges of the Toolkit Functions,"This learning objective focuses on understanding how to determine the domains and ranges of basic functions commonly used in mathematics, such as linear, quadratic, exponential, and trigonometric func",0.3258828818798065,,
+15,How do I find critical points?,llm_summary,LO,5,lo_1045,1045,Converting from Polar Coordinates to Rectangular Coordinates,This learning objective focuses on the process of converting coordinates from polar form to rectangular form. Students will learn how to use trigonometric functions to determine the x and y components,0.318922758102417,,
+15,How do I find critical points?,llm_summary,concept,1,1234_concept_1,,"# Use A Graph to Locate the Absolute Maximum and Absolute Minimum
+
+There is a difference between loc","To find the absolute maximum and minimum points on a graph, look for the highest and lowest points across the entire domain of the function. The absolute maximum is the highest y-coordinate, while the",0.42609038949012756,,
+15,How do I find critical points?,llm_summary,concept,2,1051_concept_1,,"# Graphing Polar Equations by Plotting Points
+
+To graph in the rectangular coordinate system we cons","When graphing polar equations by plotting points, construct a table of θ and r values to determine the curve. To find zeros, set r equal to zero and solve for θ. To find the maximum value, substitute ",0.3933756947517395,,
+15,How do I find critical points?,llm_summary,concept,3,1052_concept_1,,"# Summary of Curves
+
+We have explored a number of seemingly complex polar curves in this section. Fi","This section covers various polar curves, providing graphs and equations for each curve. Students can access online resources for further instruction and practice on graphing polar coordinates using t",0.36075231432914734,,
+15,How do I find critical points?,llm_summary,try_it,4,1893_try_it_1,,Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding th,The try_it exercise involves estimating the slope of the tangent line to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through two points on the graph. The formula for finding th,0.35662850737571716,,
+15,How do I find critical points?,llm_summary,concept,5,984_concept_1,,"# Finding Equations and Graphing Sinusoidal Functions
+
+One method of graphing sinusoidal functions i","To graph sinusoidal functions, find five key points that represent intervals of \[\frac{1}{4}\] of the period. These points indicate maximum and minimum values and \[x\]-intercepts if there is no vert",0.35357558727264404,,
+16,What is a secant line?,llm_summary,LO,1,lo_1222,1222,Using the Horizontal Line Test,"The Horizontal Line Test is a method used to determine if a function is one-to-one or many-to-one. By drawing horizontal lines across the graph of a function, if any horizontal line intersects the gra",0.3388040065765381,,
+16,What is a secant line?,llm_summary,LO,2,lo_1221,1221,Using the Vertical Line Test,"The Vertical Line Test is a method used to determine if a graph represents a function. By drawing vertical lines through the graph, if any line intersects the graph at more than one point, then the gr",0.334522545337677,,
+16,What is a secant line?,llm_summary,LO,3,lo_1880,1880,The Six Basic Trigonometric Functions,"The six basic trigonometric functions are sine, cosine, tangent, cosecant, secant, and cotangent. These functions relate the angles and side lengths of a right triangle. Understanding these functions ",0.30771827697753906,,
+16,What is a secant line?,llm_summary,LO,4,lo_1882,1882,Graphs and Periods of the Trigonometric Functions,"This learning objective focuses on understanding the graphs and periods of trigonometric functions. Students will learn how to graph sine, cosine, and tangent functions, as well as identify their peri",0.2965341806411743,,
+16,What is a secant line?,llm_summary,LO,5,lo_1039,1039,Non-right Triangles: Law of Cosines,The Law of Cosines is a trigonometric formula used to find the lengths of the sides or angles of a non-right triangle. It is particularly useful when dealing with triangles that do not have a right an,0.29226043820381165,,
+16,What is a secant line?,llm_summary,example,1,1893_example_1,,Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding sl,The example demonstrates estimating the slope of the tangent line to \(f(x) = x^2\) at \(x = 1\) by calculating the slopes of secant lines through given points on the graph. The formula for the slope ,0.4275949001312256,,
+16,What is a secant line?,llm_summary,example,2,1884_example_1,,"For each of the following functions, use the horizontal line test to determine whether it is one-to-",The horizontal line test is used to determine if a function is one-to-one by checking if a horizontal line intersects the graph of the function more than once. If a horizontal line intersects the grap,0.3514905571937561,,
+16,What is a secant line?,llm_summary,concept,3,1221_concept_1,,"# Using the Vertical Line Test
+
+As we have seen in some examples above, we can represent a function ","The vertical line test is a method used to determine if a graph represents a function. To apply the test, examine the graph and check if any vertical line intersects the curve more than once. If a ver",0.34196197986602783,,
+16,What is a secant line?,llm_summary,try_it,4,1893_try_it_1,,Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding th,The try_it exercise involves estimating the slope of the tangent line to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through two points on the graph. The formula for finding th,0.3398560583591461,,
+16,What is a secant line?,llm_summary,concept,5,1040_concept_1,,"# Using the Law of Cosines to Solve Oblique Triangles
+
+The tool we need to solve the problem of the ","The Law of Cosines is a tool used to solve problems involving oblique triangles, defining the relationship between angle measurements and side lengths. Understanding the derivation of the Law of Cosin",0.3305108845233917,,
+17,How do I calculate rates of change?,llm_summary,LO,1,lo_1231,1231,Finding the Average Rate of Change of a Function,The average rate of change of a function is a measure of how the function's output changes over a specific interval. It is calculated by finding the difference in the function's values at the endpoint,0.6318749785423279,,
+17,How do I calculate rates of change?,llm_summary,LO,2,lo_1230,1230,Rates of Change and Behavior of Graphs,This learning objective focuses on understanding rates of change and the behavior of graphs. Students will learn how to analyze and interpret graphs to identify patterns in the rate at which quantitie,0.4446698725223541,,
+17,How do I calculate rates of change?,llm_summary,LO,3,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.26351845264434814,,
+17,How do I calculate rates of change?,llm_summary,LO,4,lo_1888,1888,Exponential Functions,Exponential functions are a type of mathematical function where the variable is in the exponent. They grow or decay at a constant percentage rate. Key concepts include the base of the exponential func,0.21957409381866455,,
+17,How do I calculate rates of change?,llm_summary,LO,5,lo_1232,1232,"Using a Graph to Determine Where a Function is Increasing, Decreasing, or Constant","This learning objective focuses on using a graph to analyze the behavior of a function. By examining the slope of the graph, students can determine where the function is increasing (positive slope), d",0.21603301167488098,,
+17,How do I calculate rates of change?,llm_summary,concept,1,1231_concept_1,,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change be",The average rate of change of a function is calculated by dividing the change in output by the change in input values. This is represented as Δy/Δx or (y2 - y1)/(x2 - x1). The average rate of change h,0.6851826906204224,,
+17,How do I calculate rates of change?,llm_summary,concept,2,1230_concept_1,,"concept
+
+# Rates of Change and Behavior of Graphs
+
+### Learning Objectives
+In this section, you will","This concept focuses on rates of change and the behavior of graphs. Students will learn to find the average rate of change of a function, identify where a function is increasing, decreasing, or consta",0.5150163173675537,,
+17,How do I calculate rates of change?,llm_summary,example,3,1889_example_1,,"Suppose $500 is invested in an account at an annual interest rate of \(r = 5.5\%\), compounded conti","When $500 is invested at an annual interest rate of 5.5% compounded continuously, the formula for the amount of money in the account over time is A(t) = 500e^(0.055t). To find the amount after 10 year",0.4299480617046356,,
+17,How do I calculate rates of change?,llm_summary,try_it,4,1869_try_it_3,,"If items are on sale for \[10\%\] off their original price, and a customer has a coupon for an addit","When items are on sale for 10% off their original price and a customer has a coupon for an additional 30% off, the final price for an item originally priced at x dollars is 0.63x after applying the co",0.38280490040779114,,
+17,How do I calculate rates of change?,llm_summary,example,5,1893_example_2,,A rock is dropped from a height of \[64\] ft. It is determined that its height (in feet) above groun,"In this example, a rock's height above the ground is modeled by the function \[s(t) = -16t^2 + 64\] for \[0 \leq t \leq 2\]. The average velocity of the rock over two time intervals is calculated, and",0.36827272176742554,,
+18,What is an integral?,llm_summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The learning objective focuses on understanding the concept of the area problem in integral calculus. Students will learn how to calculate the area under a curve using integration techniques. Key conc,0.5689024925231934,,
+18,What is an integral?,llm_summary,LO,2,lo_1909,1909,Continuity over an Interval,"Understanding continuity over an interval involves analyzing the behavior of a function within a specific range of values. Key concepts include identifying points of discontinuity, determining if a fu",0.34795594215393066,,
+18,What is an integral?,llm_summary,LO,3,lo_1063,1063,Parameterizing a Curve,"Parameterizing a curve involves representing the curve as a set of equations in terms of a parameter, typically denoted by t. This allows us to describe the motion of a point along the curve by varyin",0.34077656269073486,,
+18,What is an integral?,llm_summary,LO,4,lo_1890,1890,Logarithmic Functions,"Logarithmic functions are mathematical functions that involve logarithms, which are the inverse operations of exponential functions. Key concepts include understanding the properties of logarithmic fu",0.3212835192680359,,
+18,What is an integral?,llm_summary,LO,5,lo_1879,1879,Radian Measure,"Radian measure is a unit used to measure angles in a circle, where one radian is equal to the angle subtended at the center of a circle by an arc equal in length to the radius of the circle. Understan",0.3163585662841797,,
+18,What is an integral?,llm_summary,example,1,1894_example_1,,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\","The example demonstrates estimating the area under the curve of the function \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] using three rectangles. The key concepts include calculating the area of a ",0.4061608910560608,,
+18,What is an integral?,llm_summary,concept,2,1233_concept_1,,"# Analyzing the Toolkit Functions for Increasing or Decreasing Intervals
+
+We will now return to our ","In this concept, we analyze toolkit functions to understand how they behave in terms of increasing or decreasing intervals. By examining graphical representations in Figures 10, 11, and 12, we can ide",0.35361605882644653,,
+18,What is an integral?,llm_summary,example,3,1867_example_1,,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] ","In this example, we are evaluating a function by substituting a specific value for the variable. For the function \(f(x) = 3x^2 + 2x - 1\), when we substitute \(x = -2\), we get \(f(-2) = 7\). Substit",0.33987605571746826,,
+18,What is an integral?,llm_summary,example,4,1890_example_2,,"Solve each of the following equations for \[x\].
+
+\[
+e^x + 6e^{-x} = 5
+\]
+
+\[
+e^x + 6e^{-x} = 5
+\]
+M",The example involves solving exponential equations by making substitutions to simplify them into quadratic forms. Key concepts include using substitutions like \[y = e^x\] to transform equations into ,0.3354135751724243,,
+18,What is an integral?,llm_summary,try_it,5,1867_try_it_1,,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the functi","When evaluating a function at a specific value, substitution is used by replacing the variable with the given value. For example, to find \(f(1)\) for \(f(x) = x^2 - 3x + 5\), substitute \(x=1\) to ge",0.32493478059768677,,
+19,Explain the fundamental theorem of calculus,llm_summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The learning objective focuses on understanding the concept of the area problem in integral calculus. Students will learn how to calculate the area under a curve using integration techniques. Key conc,0.5147256255149841,,
+19,Explain the fundamental theorem of calculus,llm_summary,LO,2,lo_1897,1897,Intuitive Definition of a Limit,The intuitive definition of a limit in calculus is the value that a function approaches as the input gets closer to a certain point. It helps us understand the behavior of functions near specific poin,0.494655966758728,,
+19,Explain the fundamental theorem of calculus,llm_summary,LO,3,lo_1915,1915,One-Sided and Infinite Limits,"In calculus, one-sided limits are used to determine the behavior of a function as it approaches a specific value from either the left or right side. Infinite limits occur when the function grows witho",0.47881880402565,,
+19,Explain the fundamental theorem of calculus,llm_summary,LO,4,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.44700390100479126,,
+19,Explain the fundamental theorem of calculus,llm_summary,LO,5,lo_1893,1893,The Tangent Problem and Differential Calculus,The learning objective focuses on understanding the tangent problem in differential calculus. Students will learn how to find the slope of a curve at a specific point using the concept of tangent line,0.43450355529785156,,
+19,Explain the fundamental theorem of calculus,llm_summary,example,1,1894_example_1,,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\","The example demonstrates estimating the area under the curve of the function \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] using three rectangles. The key concepts include calculating the area of a ",0.42442601919174194,,
+19,Explain the fundamental theorem of calculus,llm_summary,example,2,1876_example_2,,"In a big city, drivers are charged variable rates for parking in a parking garage. They are charged ","In a parking garage in a big city, drivers are charged variable rates based on the number of hours parked, with a maximum charge of $30 for the day. The cost function \[C(x)\] is defined piecewise, wi",0.36609718203544617,,
+19,Explain the fundamental theorem of calculus,llm_summary,example,3,1868_example_7,,"If a ball is dropped from a height of \[100\] ft, its height \[s\] at time \[t\] is given by the fun","In this example, a ball is dropped from a height of 100 ft, and its height at time t is given by the function s(t) = -16t^2 + 100. By creating a table with specific time values, we determine that the ",0.3498798608779907,,
+19,Explain the fundamental theorem of calculus,llm_summary,concept,4,1236_concept_1,,"# Combining Functions Using Algebraic Operations
+
+Function composition is only one way to combine ex","When combining functions using algebraic operations, we can add, subtract, multiply, and divide functions by performing operations on their outputs. For example, if we have functions \[f(x) = x - 1\] ",0.33977270126342773,,
+19,Explain the fundamental theorem of calculus,llm_summary,concept,5,981_concept_1,,"# Solving Right Triangle Problems
+
+We can now use all of the methods we have learned to solve proble","In solving right triangle problems, we apply the Pythagorean Theorem to find missing side lengths and angles. By modeling situations with right triangles, we can determine lengths and angles accuratel",0.323269784450531,,
+20,How do I find antiderivatives?,llm_summary,LO,1,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.3583493232727051,,
+20,How do I find antiderivatives?,llm_summary,LO,2,lo_1894,1894,The Area Problem and Integral Calculus,The learning objective focuses on understanding the concept of the area problem in integral calculus. Students will learn how to calculate the area under a curve using integration techniques. Key conc,0.3302108943462372,,
+20,How do I find antiderivatives?,llm_summary,LO,3,lo_1904,1904,Additional Limit Evaluation Techniques,"This learning objective covers additional techniques for evaluating limits in calculus. Students will learn methods such as L'Hôpital's Rule, squeeze theorem, and trigonometric limits to evaluate limi",0.3227533996105194,,
+20,How do I find antiderivatives?,llm_summary,LO,4,lo_1915,1915,One-Sided and Infinite Limits,"In calculus, one-sided limits are used to determine the behavior of a function as it approaches a specific value from either the left or right side. Infinite limits occur when the function grows witho",0.27883461117744446,,
+20,How do I find antiderivatives?,llm_summary,LO,5,lo_1908,1908,Types of Discontinuities,"This learning objective covers the different types of discontinuities in mathematics, including removable, jump, and infinite discontinuities. Students will learn to identify and understand these disc",0.278447687625885,,
+20,How do I find antiderivatives?,llm_summary,concept,1,970_concept_1,,"#  Using Half-Angle Formulas to Find Exact Values 
+
+The next set of identities is the set of half-an","The half-angle formulas allow us to find exact values for trigonometric functions when the angle is half the size of a special angle. By replacing the angle with half its value, we can determine the s",0.31101709604263306,,
+20,How do I find antiderivatives?,llm_summary,try_it,2,1867_try_it_1,,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the functi","When evaluating a function at a specific value, substitution is used by replacing the variable with the given value. For example, to find \(f(1)\) for \(f(x) = x^2 - 3x + 5\), substitute \(x=1\) to ge",0.30820727348327637,,
+20,How do I find antiderivatives?,llm_summary,example,3,1867_example_1,,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(-2)\]
+
+Substitute the given value for \[x\] ","In this example, we are evaluating a function by substituting a specific value for the variable. For the function \(f(x) = 3x^2 + 2x - 1\), when we substitute \(x = -2\), we get \(f(-2) = 7\). Substit",0.30341848731040955,,
+20,How do I find antiderivatives?,llm_summary,concept,4,960_concept_1,,"concept
+
+# Sum and Difference Identities
+
+### Learning Objectives
+In this section, you will:
+
+- Use ","In this section, you will learn about the sum and difference identities for cosine, sine, tangent, and cofunctions. These identities are essential for verifying trigonometric equations and simplifying",0.29630047082901,,
+20,How do I find antiderivatives?,llm_summary,try_it,5,1894_try_it_1,,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\)","In this try_it, the key concept is estimating the area under a curve using rectangles. The formula to calculate the area of a rectangle is Length x Width. The area of a rectangle with length 5 units a",0.2934706211090088,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The learning objective focuses on understanding the concept of the area problem in integral calculus. Students will learn how to calculate the area under a curve using integration techniques. Key conc,0.44665616750717163,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,LO,2,lo_1915,1915,One-Sided and Infinite Limits,"In calculus, one-sided limits are used to determine the behavior of a function as it approaches a specific value from either the left or right side. Infinite limits occur when the function grows witho",0.348882257938385,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,LO,3,lo_1875,1875,Transcendental Functions,"Transcendental functions are a class of functions that cannot be expressed in terms of algebraic operations. Examples include exponential, logarithmic, and trigonometric functions. Understanding trans",0.3107643127441406,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,LO,4,lo_960,960,Sum and Difference Identities,"The Sum and Difference Identities in trigonometry are formulas that express the sine, cosine, and tangent of the sum or difference of two angles in terms of the trigonometric functions of the individu",0.30172276496887207,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,LO,5,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.29803329706192017,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,try_it,1,1867_try_it_1,,"For \(f(x) = x^2 - 3x + 5\), evaluate \(f(1)\) and \(f(a + h)\).
+
+Substituting \[x=1\] in the functi","When evaluating a function at a specific value, substitution is used by replacing the variable with the given value. For example, to find \(f(1)\) for \(f(x) = x^2 - 3x + 5\), substitute \(x=1\) to ge",0.3433220684528351,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,example,2,1869_example_1,,"Given the functions \[f(x) = 2x - 3\] and \[g(x) = x^2 - 1\], find each of the following functions a","In the examples provided, the concept of combining functions through addition is demonstrated. By adding the given functions \[f(x)\] and \[g(x)\], the new function \[(f+g)(x)\] is obtained. The domai",0.33444252610206604,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,example,3,1873_example_3,,A company is interested in predicting the amount of revenue it will receive depending on the price i,"In this example, a company uses a quadratic function to model revenue based on item price. They predict revenue at specific prices, find zeros of the function, sketch a graph, and determine the price ",0.32060903310775757,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,example,4,1875_example_2,,"Classify each of the following functions, a. through c., as algebraic or transcendental.
+
+\[f(x) = 2","Algebraic functions involve basic algebraic operations, while transcendental functions involve complex operations. Transcendental functions cannot be expressed using a finite number of basic algebraic",0.3168796896934509,,
+21,What is the difference between definite and indefinite integrals?,llm_summary,concept,5,964_concept_1,,"# Using Sum and Difference Formulas for Cofunctions
+
+Now that we can find the sine, cosine, and tang","The concept of using sum and difference formulas for cofunctions involves understanding that the sine, cosine, and tangent functions of complementary angles are related. The cofunction identities stat",0.3100110590457916,,
+22,How do I solve differential equations?,llm_summary,LO,1,lo_976,976,Solving Equations Involving a Single Trigonometric Function,"This learning objective focuses on solving equations that involve a single trigonometric function, such as sine, cosine, or tangent. Students will learn to apply trigonometric identities and propertie",0.3389381170272827,,
+22,How do I solve differential equations?,llm_summary,LO,2,lo_1893,1893,The Tangent Problem and Differential Calculus,The learning objective focuses on understanding the tangent problem in differential calculus. Students will learn how to find the slope of a curve at a specific point using the concept of tangent line,0.2863447070121765,,
+22,How do I solve differential equations?,llm_summary,LO,3,lo_975,975,Solving Linear Trigonometric Equations in Sine and Cosine,The learning objective is to understand how to solve linear trigonometric equations involving sine and cosine functions. Students will learn to apply trigonometric identities and properties to simplif,0.2545871138572693,,
+22,How do I solve differential equations?,llm_summary,LO,4,lo_1233,1233,Analyzing the Toolkit Functions for Increasing or Decreasing Intervals,"This learning objective focuses on understanding how to analyze functions to determine intervals where they are increasing or decreasing. Students will learn to identify critical points, such as local",0.24694058299064636,,
+22,How do I solve differential equations?,llm_summary,LO,5,lo_963,963,Using the Sum and Difference Formulas for Tangent,The learning objective focuses on understanding and applying the sum and difference formulas for tangent functions. Students will learn how to express the tangent of the sum or difference of two angle,0.23488301038742065,,
+22,How do I solve differential equations?,llm_summary,concept,1,1069_concept_1,,"# Applications of Parametric Equations
+
+Many of the advantages of parametric equations become obviou","Parametric equations are useful for solving real-world problems by showing how the values of \(x\) and \(y\) change over time (\(t\)) for a moving object. In projectile motion, where an object is laun",0.2804189622402191,,
+22,How do I solve differential equations?,llm_summary,concept,2,960_concept_1,,"concept
+
+# Sum and Difference Identities
+
+### Learning Objectives
+In this section, you will:
+
+- Use ","In this section, you will learn about the sum and difference identities for cosine, sine, tangent, and cofunctions. These identities are essential for verifying trigonometric equations and simplifying",0.27449655532836914,,
+22,How do I solve differential equations?,llm_summary,example,3,1890_example_2,,"Solve each of the following equations for \[x\].
+
+\[
+e^x + 6e^{-x} = 5
+\]
+
+\[
+e^x + 6e^{-x} = 5
+\]
+M",The example involves solving exponential equations by making substitutions to simplify them into quadratic forms. Key concepts include using substitutions like \[y = e^x\] to transform equations into ,0.27447450160980225,,
+22,How do I solve differential equations?,llm_summary,concept,4,1064_concept_1,,"# Eliminating the Parameter
+
+In many cases, we may have a pair of parametric equations but find that","Eliminating the parameter involves converting parametric equations into equations involving only \(x\) and \(y\), making graphing curves simpler. To eliminate the parameter in polynomial, exponential,",0.27381208539009094,,
+22,How do I solve differential equations?,llm_summary,concept,5,975_concept_1,,"# Solving Linear Trigonometric Equations in Sine and Cosine
+
+Trigonometric equations are, as the nam",Trigonometric equations involve trigonometric functions and may have multiple solutions due to the periodic nature of these functions. When solving linear trigonometric equations in sine and cosine ov,0.2691606283187866,,
+23,What are piecewise functions?,llm_summary,LO,1,lo_1876,1876,Piecewise-Defined Functions,Piecewise-defined functions are functions that have different rules or formulas for different parts of their domain. Students will learn how to identify the different pieces of a piecewise function an,0.8105101585388184,,
+23,What are piecewise functions?,llm_summary,LO,2,lo_1229,1229,Graphing Piecewise-Defined Functions,"Students will learn how to graph piecewise-defined functions, which are functions defined by different rules for different intervals of the input. Key concepts include identifying the different rules ",0.6919997334480286,,
+23,What are piecewise functions?,llm_summary,LO,3,lo_1908,1908,Types of Discontinuities,"This learning objective covers the different types of discontinuities in mathematics, including removable, jump, and infinite discontinuities. Students will learn to identify and understand these disc",0.5180630087852478,,
+23,What are piecewise functions?,llm_summary,LO,4,lo_1915,1915,One-Sided and Infinite Limits,"In calculus, one-sided limits are used to determine the behavior of a function as it approaches a specific value from either the left or right side. Infinite limits occur when the function grows witho",0.47701066732406616,,
+23,What are piecewise functions?,llm_summary,LO,5,lo_1867,1867,Functions,"Functions are mathematical relationships between inputs and outputs, where each input corresponds to exactly one output. Key concepts include domain (set of all possible inputs) and range (set of all ",0.4759964644908905,,
+23,What are piecewise functions?,llm_summary,concept,1,1229_concept_1,,"# Graphing Piecewise-Defined Functions
+
+Sometimes, we come across a function that requires more than","A piecewise function involves using multiple formulas to define the output based on different parts of the input domain. For example, the absolute value function is a piecewise function with different",0.8342785835266113,,
+23,What are piecewise functions?,llm_summary,concept,2,1224_concept_1,,"concept
+
+# Domain and Range
+
+# Learning Objectives
+In this section, you will:
+- Find the domain of a","In this section, you will learn how to find the domain of a function defined by an equation and graph piecewise-defined functions. By analyzing data on horror movie earnings and ticket sales, you can ",0.6820011734962463,,
+23,What are piecewise functions?,llm_summary,example,3,1899_example_1,,For the function \[f(x) = \begin{cases} x + 1 & \text{if } x < 2 \\ x^2 - 4 & \text{if } x \geq 2 \e,"In the given piecewise function \[f(x) = \begin{cases} x + 1 & \text{if } x < 2 \\ x^2 - 4 & \text{if } x \geq 2 \end{cases}\], we evaluate the limits as \[x\] approaches 2 from the left and right. Fo",0.6188721060752869,,
+23,What are piecewise functions?,llm_summary,example,4,1876_example_1,,"Sketch a graph of the following piecewise-defined function:
+
+\[f(x) = 
+\begin{cases} 
+x + 3, & x < 1","The given piecewise function is \(f(x) = x + 3\) for \(x < 1\) and \(f(x) = (x - 2)^2\) for \(x \geq 1\). The graph of \(f(x) = x + 3\) is a linear function on the interval \((-∞, 1)\) with an open ci",0.5758916139602661,,
+23,What are piecewise functions?,llm_summary,concept,5,1233_concept_1,,"# Analyzing the Toolkit Functions for Increasing or Decreasing Intervals
+
+We will now return to our ","In this concept, we analyze toolkit functions to understand how they behave in terms of increasing or decreasing intervals. By examining graphical representations in Figures 10, 11, and 12, we can ide",0.5321418642997742,,
+24,Explain function transformations,llm_summary,LO,1,lo_1877,1877,Transformations of Functions,"The learning objective is to understand how functions can be transformed through translations, reflections, stretches, and compressions. Students will learn how these transformations affect the graph ",0.609020471572876,,
+24,Explain function transformations,llm_summary,LO,2,lo_1867,1867,Functions,"Functions are mathematical relationships between inputs and outputs, where each input corresponds to exactly one output. Key concepts include domain (set of all possible inputs) and range (set of all ",0.5020296573638916,,
+24,Explain function transformations,llm_summary,LO,3,lo_1868,1868,Representing Functions,"The learning objective ""Representing Functions"" focuses on understanding how functions can be represented graphically, algebraically, and numerically. Students will learn how to interpret and create g",0.48617807030677795,,
+24,Explain function transformations,llm_summary,LO,4,lo_1235,1235,Composition of Functions,The composition of functions involves combining two functions to create a new function. This process is done by applying one function to the output of another function. Understanding how to compose fu,0.47951066493988037,,
+24,Explain function transformations,llm_summary,LO,5,lo_1237,1237,Create a Function by Composition of Functions,The learning objective is to understand how to create a new function by combining two or more existing functions through composition. This involves applying one function to the output of another funct,0.4719761610031128,,
+24,Explain function transformations,llm_summary,try_it,1,1877_try_it_1,,Describe how the function \[f(x) = -(x + 1)^2 - 4\] can be graphed using the graph of \[y = x^2\] an,The function \[f(x) = -(x + 1)^2 - 4\] can be graphed by starting with the graph of \[y = x^2\] and shifting it 1 unit to the left to obtain \[y = (x+1)^2\]. This demonstrates how transformations can ,0.6308879852294922,,
+24,Explain function transformations,llm_summary,example,2,1877_example_2,,"For each of the following function, sketch a graph by using a sequence of transformations of a well-",This example demonstrates how to sketch the graph of the function \[f(x) = 3\sqrt{-x} + 1\] by applying a sequence of transformations to the function \[y = \sqrt{x}\]. The transformations involve refl,0.5545120239257812,,
+24,Explain function transformations,llm_summary,example,3,1877_example_1,,"For each of the following functions, sketch a graph by using a sequence of transformations of a well","The example demonstrates how to sketch a graph by applying a sequence of transformations to the function \[y = |x|\]. The function \[f(x) = -|x + 2| - 3\] is obtained by shifting 2 units to the left, ",0.5488073825836182,,
+24,Explain function transformations,llm_summary,concept,4,1235_concept_1,,"concept
+
+# Composition of Functions
+
+### Learning Objectives
+In this section, you will:
+
+- Combine f",Function composition involves combining functions by plugging one function into another. This process allows us to create a new function that represents the relationship between two original functions,0.5370779633522034,,
+24,Explain function transformations,llm_summary,example,5,1867_example_2,,"For the function \[f(x) = 3x^2 + 2x - 1\], evaluate \[f(\sqrt{2})\]
+
+Substitute the given value for ","In the given example, the function \(f(x) = 3x^2 + 2x - 1\) is evaluated at \(x = \sqrt{2}\) by substituting the value into the function. The result is \(f(\sqrt{2}) = 5 + 2\sqrt{2}\). Substitution is",0.5080443024635315,,
+25,How do I find the domain of a function?,llm_summary,LO,1,lo_1225,1225,Finding the Domain of a Function Defined by an Equation,The learning objective is to understand how to find the domain of a function defined by an equation. The domain of a function is the set of all possible input values that the function can accept. Stud,0.5473327040672302,,
+25,How do I find the domain of a function?,llm_summary,LO,2,lo_1224,1224,Domain and Range,The concept of domain and range in mathematics refers to the set of all possible input values (domain) and output values (range) of a function. Understanding domain and range is crucial for determinin,0.5346539616584778,,
+25,How do I find the domain of a function?,llm_summary,LO,3,lo_1228,1228,Finding Domains and Ranges of the Toolkit Functions,"This learning objective focuses on understanding how to determine the domains and ranges of basic functions commonly used in mathematics, such as linear, quadratic, exponential, and trigonometric func",0.5321648716926575,,
+25,How do I find the domain of a function?,llm_summary,LO,4,lo_1227,1227,Finding Domain and Range from Graphs,"The learning objective is to understand how to determine the domain and range of a function from its graph. The domain represents all possible input values of the function, while the range represents ",0.5153089165687561,,
+25,How do I find the domain of a function?,llm_summary,LO,5,lo_1239,1239,Finding the Domain of a Composite Function,The learning objective is to understand how to find the domain of a composite function. This involves determining the set of all possible input values that can be used in the composite function withou,0.47260868549346924,,
+25,How do I find the domain of a function?,llm_summary,example,1,1874_example_1,,"For each of the following functions, find the domain and range.
+
+\[f(x) = \frac{3x - 1}{5x + 2}\]
+
+D","The domain of a function is the set of all possible input values. For functions involving fractions, the domain is determined by ensuring the denominator is not zero. The range of a function is the se",0.7197387218475342,,
+25,How do I find the domain of a function?,llm_summary,example,2,1874_example_2,,"For each of the following functions, find the domain and range.
+
+\[f(x) = \sqrt{4 - x^2}\]
+
+Given \[","For the function \(f(x) = \sqrt{4 - x^2}\), the domain is found by solving the inequality \(4 - x^2 \geq 0\), which factors to \((2 - x)(2 + x) \geq 0\). The domain is \(-2 \leq x \leq 2\), as the squ",0.7126109004020691,,
+25,How do I find the domain of a function?,llm_summary,try_it,3,1867_try_it_2,,"Find the domain and range for \[f(x) = \sqrt{4 - 2x} + 5.\]
+
+Consider \[f(x) = \sqrt{4 - 2x} + 5.\]","For the function \[f(x) = \sqrt{4 - 2x} + 5\], the domain is \((-∞, 2]\) because the expression under the square root must be greater than or equal to 0. The range of the function is \([5, ∞)\) as the",0.665224552154541,,
+25,How do I find the domain of a function?,llm_summary,try_it,4,1869_try_it_1,,"For \[f(x) = x^2 + 3\] and \[g(x) = 2x - 5\], find \[(\frac{f}{g})(x)\] and state its domain.
+
+\[\le","In the given try_it, the task is to find \[(\frac{f}{g})(x)\] for functions \[f(x) = x^2 + 3\] and \[g(x) = 2x - 5\], resulting in \[\frac{x^2+3}{2x-5}\]. The domain is \[\{x | x \neq \frac{5}{2}\}\],",0.6543293595314026,,
+25,How do I find the domain of a function?,llm_summary,example,5,1874_example_5,,"For each of the following functions, determine the domain of the function.
+
+\[f(x) = \sqrt{4 - 3x}\]","The domain of a function is the set of values for which the function is defined. For functions involving square roots, the domain is restricted to values that make the expression under the square root",0.6504683494567871,,

@@ -1,0 +1,232 @@
+intent_id,query,method,entity_type,rank,doc_id,lo_id,title,snippet,score,relevance_score
+1,What is a derivative?,llm_full_context_gpt-5,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,1.0,
+1,What is a derivative?,llm_full_context_gpt-5,LO,2,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.9,
+1,What is a derivative?,llm_full_context_gpt-5,LO,3,lo_1230,1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,0.8,
+1,What is a derivative?,llm_full_context_gpt-5,LO,4,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.7,
+1,What is a derivative?,llm_full_context_gpt-5,LO,5,lo_1872,1872,Linear Functions and Slope,Linear Functions and Slope,0.6,
+1,What is a derivative?,llm_full_context_gpt-5,example,1,1893_example_1,,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",1.0,
+1,What is a derivative?,llm_full_context_gpt-5,example,2,1893_example_2,,The Tangent Problem and Differential Calculus,A rock is dropped from a height of \[64\] ft. It is determined that its height (in feet) above ground \[t\] seconds later (for \[0 \leq t \leq 2\]) is given by \[s(t) = -16t^2 + 64\]. Find the average,0.9,
+1,What is a derivative?,llm_full_context_gpt-5,try_it,3,1893_try_it_1,,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",0.8,
+1,What is a derivative?,llm_full_context_gpt-5,try_it,4,1893_try_it_2,,The Tangent Problem and Differential Calculus,An object moves along a coordinate axis so that its position at time \[t\] is given by \[s(t) = t^3\]. Estimate its instantaneous velocity at time \[t = 2\] by computing its average velocity over the ,0.7,
+1,What is a derivative?,llm_full_context_gpt-5,concept,5,1231_concept_1,,Finding the Average Rate of Change of a Function,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change because it describes how an output quantity changes relative to the change in the input quantity. We c",0.6,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,LO,1,lo_1873,1873,Polynomials,Polynomials,1.0,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,LO,2,lo_1874,1874,Algebraic Functions,Algebraic Functions,0.9,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,LO,3,lo_1877,1877,Transformations of Functions,Transformations of Functions,0.8,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,LO,4,lo_1223,1223,Identifying Basic Toolkit Functions,Identifying Basic Toolkit Functions,0.7,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,LO,5,lo_1868,1868,Representing Functions,Representing Functions,0.6,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,try_it,1,1873_try_it_1,,Polynomials,"Consider the quadratic function \[f(x) = 3x^2 - 6x + 2.\] Find the zeros of \[f.\] Does the parabola open upward or downward?
+
+Given function is \[f(x) = 3x^2 - 6x + 2\]
+To find the zeros of \(f\), u",1.0,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,example,2,1873_example_3,,Polynomials,"A company is interested in predicting the amount of revenue it will receive depending on the price it charges for a particular item. Using the data from Table 1.6, the company arrives at the following",0.9,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,example,3,1873_example_1,,Polynomials,"For the following functions a. and b., i. describe the behavior of \(f(x)\) as \(x \rightarrow \pm \infty\), ii. find all zeros of \(f\), and iii. sketch a graph of \(f\).
+
+\(f(x) = -2x^2 + 4x - 1\)
+
+",0.8,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,try_it,4,1868_try_it_1,,Representing Functions,"Find the zeros of \(f(x) = x^3 - 5x^2 + 6x.\)
+
+To find the zereos we will equate the function to \[0\] and then we will solve for \[x\]
+
+\[x^3-5x^2+6x=0\]
+
+Taking out common factor of \[x\] we get",0.7,
+2,How do I solve a quadratic equation?,llm_full_context_gpt-5,example,5,1868_example_1,,Representing Functions,"Consider the function \[f(x) = -4x + 2\].
+
+Find all zeros of \[f\].
+
+To find the zeros, solve \[f(x) = -4x + 2 = 0\].
+
+Subtracting \[4x\] from both the sides and dividing both the sides by \[4\]
+
+",0.6,
+3,Explain the chain rule,llm_full_context_gpt-5,LO,1,lo_1235,1235,Composition of Functions,Composition of Functions,1.0,
+3,Explain the chain rule,llm_full_context_gpt-5,LO,2,lo_1238,1238,Evaluating Composite Functions,Evaluating Composite Functions,0.9,
+3,Explain the chain rule,llm_full_context_gpt-5,LO,3,lo_1237,1237,Create a Function by Composition of Functions,Create a Function by Composition of Functions,0.8,
+3,Explain the chain rule,llm_full_context_gpt-5,LO,4,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,0.7,
+3,Explain the chain rule,llm_full_context_gpt-5,LO,5,lo_1239,1239,Finding the Domain of a Composite Function,Finding the Domain of a Composite Function,0.6,
+3,Explain the chain rule,llm_full_context_gpt-5,concept,1,1235_concept_1,,Composition of Functions,"concept
+
+# Composition of Functions
+
+### Learning Objectives
+In this section, you will:
+
+- Combine functions using algebraic operations.
+- Create a new function by composition of functions.
+- Evaluate",1.0,
+3,Explain the chain rule,llm_full_context_gpt-5,concept,2,1237_concept_1,,Create a Function by Composition of Functions,"# Create a Function by Composition of Functions
+
+Performing algebraic operations on functions combines them into a new function, but we can also create functions by composing functions. When we wanted",0.9,
+3,Explain the chain rule,llm_full_context_gpt-5,concept,3,1238_concept_1,,Evaluating Composite Functions,"# Evaluating Composite Functions
+
+Once we compose a new function from two existing functions, we need to be able to evaluate it for any input in its domain. We will do this with specific numerical inp",0.8,
+3,Explain the chain rule,llm_full_context_gpt-5,concept,4,1239_concept_1,,Finding the Domain of a Composite Function,"# Finding the Domain of a Composite Function
+
+As we discussed previously, the domain of a composite function such as \[f \circ g\] is dependent on the domain of \[g\] and the domain of \[f.\] It is im",0.7,
+3,Explain the chain rule,llm_full_context_gpt-5,concept,5,1236_concept_1,,Combining Functions Using Algebraic Operations,"# Combining Functions Using Algebraic Operations
+
+Function composition is only one way to combine existing functions. Another way is to carry out the usual algebraic operations on functions, such as a",0.6,
+4,How do I find limits?,llm_full_context_gpt-5,LO,1,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,1.0,
+4,How do I find limits?,llm_full_context_gpt-5,LO,2,lo_1904,1904,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,0.9,
+4,How do I find limits?,llm_full_context_gpt-5,LO,3,lo_1903,1903,Limits of Polynomial and Rational Functions,Limits of Polynomial and Rational Functions,0.8,
+4,How do I find limits?,llm_full_context_gpt-5,LO,4,lo_1915,1915,One-Sided and Infinite Limits,One-Sided and Infinite Limits,0.7,
+4,How do I find limits?,llm_full_context_gpt-5,LO,5,lo_1905,1905,The Squeeze Theorem,The Squeeze Theorem,0.6,
+4,How do I find limits?,llm_full_context_gpt-5,try_it,1,1902_try_it_1,,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",1.0,
+4,How do I find limits?,llm_full_context_gpt-5,try_it,2,1903_try_it_1,,Limits of Polynomial and Rational Functions,"Evaluate \[\lim_{{x \to -2}} (3x^3 - 2x + 7).\]
+
+We know, if \[p(x)\] is a polynomial functions and *a* is a real number. Then,
+\[lim_{{x\to a}}p(x)=p(a)\]
+We can calculate the limit by substituting *",0.9,
+4,How do I find limits?,llm_full_context_gpt-5,try_it,3,1904_try_it_1,,Additional Limit Evaluation Techniques,"Evaluate \[\lim_{{x \to -3}} \frac{{x^2 + 4x + 3}}{{x^2 - 9}}.\]
+
+The function \[f(x) = \frac{x^2+4x+3}{x^2-9}\] is undefined for \[x = -3\]. In fact, if we substitute -3 into the function we get \[\f",0.8,
+4,How do I find limits?,llm_full_context_gpt-5,try_it,4,1904_try_it_2,,Additional Limit Evaluation Techniques,"Evaluate \[\lim_{{x \to 5}} \frac{{\sqrt{{x - 1}} - 2}}{{x - 5}}.\]
+
+\[\frac{\sqrt{x-1} - 2}{x-5}\] has the form \[\frac{0}{0}\] at 5. Let’s begin by multiplying by \[\sqrt{x-1} + 2\], the conjugate o",0.7,
+4,How do I find limits?,llm_full_context_gpt-5,try_it,5,1905_try_it_1,,The Squeeze Theorem,"Use the squeeze theorem to evaluate \[\lim_{{x \to 0}} x^2 \sin \frac{1}{x}.\]
+
+Because \[-1 \leq sin\frac{1}{x} \leq 1\] for all *x*, we have \[-x^2 \leq x^2 sin\frac{1}{x} \leq x^2\] , multiplying b",0.6,
+5,What is continuity?,llm_full_context_gpt-5,LO,1,lo_1907,1907,Continuity at a Point,Continuity at a Point,1.0,
+5,What is continuity?,llm_full_context_gpt-5,LO,2,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,0.9,
+5,What is continuity?,llm_full_context_gpt-5,LO,3,lo_1908,1908,Types of Discontinuities,Types of Discontinuities,0.8,
+5,What is continuity?,llm_full_context_gpt-5,LO,4,lo_1911,1911,The Intermediate Value Theorem,The Intermediate Value Theorem,0.7,
+5,What is continuity?,llm_full_context_gpt-5,LO,5,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.6,
+5,What is continuity?,llm_full_context_gpt-5,try_it,1,1909_try_it_1,,Continuity over an Interval,"State the interval(s) over which the function \[f(x) = \sqrt{x + 3}\] is continuous.
+
+Calculate the limit using limit laws.
+
+For all \[a\in(-3,\infty)\],
+\[\lim_{x \to a}f(x)=\lim_{x \to a}\sqrt{(x",1.0,
+5,What is continuity?,llm_full_context_gpt-5,try_it,2,1907_try_it_1,,Continuity at a Point,"Using the definition, determine whether the function \[f(x) = \begin{cases} 2x + 1 & \text{if } x < 1 \\ 2 & \text{if } x = 1 \\ -x + 4 & \text{if } x > 1 \end{cases}\] is continuous at \(x = 1\). If ",0.9,
+5,What is continuity?,llm_full_context_gpt-5,try_it,3,1908_try_it_1,,Types of Discontinuities,"For \[f(x) = \begin{cases} x^2 & \text{if } x \neq 1 \\ 3 & \text{if } x = 1 \end{cases}\], decide whether \[f\] is continuous at \[1\]. If \[f\] is not continuous at \[1\], classify the discontinuity",0.8,
+5,What is continuity?,llm_full_context_gpt-5,try_it,4,1910_try_it_1,,Proof,"For what values of \[x\] is \[f(x) = 3x^4 - 4x^2\] continuous?
+
+Use the theorem about continuity of polynomials and rational functions.
+
+The domain of the polynomial \[f(x) = 3x^{4}-4x^{2}\] is \[\m",0.7,
+5,What is continuity?,llm_full_context_gpt-5,try_it,5,1911_try_it_1,,The Intermediate Value Theorem,"Show that \[f(x) = x^{3} - x^{2} - 3x + 1\] has a zero over the interval \[[0, 1]\].
+
+Use the theorem about the continuity of rational and polynomial functions.
+
+\[f(x) = x^{3} - x^{2} - 3x + 1\] is",0.6,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,1.0,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,LO,2,lo_1873,1873,Polynomials,Polynomials,0.9,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,LO,3,lo_1880,1880,The Six Basic Trigonometric Functions,The Six Basic Trigonometric Functions,0.8,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,LO,4,lo_1888,1888,Exponential Functions,Exponential Functions,0.7,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,LO,5,lo_1890,1890,Logarithmic Functions,Logarithmic Functions,0.6,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,try_it,1,1894_try_it_1,,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",1.0,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,example,2,1894_example_1,,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",0.9,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,try_it,3,1902_try_it_1,,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",0.8,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,try_it,4,1904_try_it_2,,Additional Limit Evaluation Techniques,"Evaluate \[\lim_{{x \to 5}} \frac{{\sqrt{{x - 1}} - 2}}{{x - 5}}.\]
+
+\[\frac{\sqrt{x-1} - 2}{x-5}\] has the form \[\frac{0}{0}\] at 5. Let’s begin by multiplying by \[\sqrt{x-1} + 2\], the conjugate o",0.7,
+6,Give me practice problems on integrals,llm_full_context_gpt-5,try_it,5,1905_try_it_1,,The Squeeze Theorem,"Use the squeeze theorem to evaluate \[\lim_{{x \to 0}} x^2 \sin \frac{1}{x}.\]
+
+Because \[-1 \leq sin\frac{1}{x} \leq 1\] for all *x*, we have \[-x^2 \leq x^2 sin\frac{1}{x} \leq x^2\] , multiplying b",0.6,
+7,How do I use the product rule?,llm_full_context_gpt-5,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,1.0,
+7,How do I use the product rule?,llm_full_context_gpt-5,LO,2,lo_1236,1236,Combining Functions Using Algebraic Operations,Combining Functions Using Algebraic Operations,0.9,
+7,How do I use the product rule?,llm_full_context_gpt-5,LO,3,lo_1869,1869,Combining Functions,Combining Functions,0.8,
+7,How do I use the product rule?,llm_full_context_gpt-5,LO,4,lo_1217,1217,Functions and Function Notation,Functions and Function Notation,0.7,
+7,How do I use the product rule?,llm_full_context_gpt-5,LO,5,lo_1230,1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,0.6,
+7,How do I use the product rule?,llm_full_context_gpt-5,try_it,1,1902_try_it_1,,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",1.0,
+7,How do I use the product rule?,llm_full_context_gpt-5,example,2,1888_example_3,,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(x^3y^{-1})^2}{(xy^2)^{-2}}\]
+
+Using the Power of a Product Rule we can write,
+
+\[\frac{{(x^3y^{-1})^2}}{{(xy^2)^{-2}}",0.9,
+7,How do I use the product rule?,llm_full_context_gpt-5,example,3,1888_example_2,,Exponential Functions,"Use the laws of exponents to simplify each of the following expressions.
+
+\[\frac{(2x^{\frac{2}{3}})^3}{(4x^{-\frac{1}{3}})^2}\]
+
+Using the Power of a Product Rule of exponents we can write,
+
+\[\frac{",0.8,
+7,How do I use the product rule?,llm_full_context_gpt-5,example,4,1890_example_4,,Logarithmic Functions,"Solve each of the following equations for \(x\).
+
+\[\log_{10}\sqrt{x} + \log_{10}x = 2\]
+
+Using the product property of the logarithmic function to combine the two terms on the left-hand side of the e",0.7,
+7,How do I use the product rule?,llm_full_context_gpt-5,concept,5,1236_concept_1,,Combining Functions Using Algebraic Operations,"# Combining Functions Using Algebraic Operations
+
+Function composition is only one way to combine existing functions. Another way is to carry out the usual algebraic operations on functions, such as a",0.6,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,1.0,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,LO,2,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.9,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,LO,3,lo_1230,1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,0.8,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,LO,4,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.7,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,LO,5,lo_1872,1872,Linear Functions and Slope,Linear Functions and Slope,0.6,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,example,1,1893_example_1,,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",1.0,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,example,2,1893_example_2,,The Tangent Problem and Differential Calculus,A rock is dropped from a height of \[64\] ft. It is determined that its height (in feet) above ground \[t\] seconds later (for \[0 \leq t \leq 2\]) is given by \[s(t) = -16t^2 + 64\]. Find the average,0.9,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,example,3,1897_example_1,,Intuitive Definition of a Limit,"Evaluate \[\lim_{{x \to 0}} \frac{{\sin x}}{x}\] using a table of functional values.
+
+We have calculated the values of \[f(x) = \frac{sin(x)}{x}\] for the values of *x*.
+
+| *x* | \[\frac{sin(x)}{x}\] ",0.8,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,example,4,1898_example_1,,The Existence of a Limit,"Evaluate \[\lim_{{x \to 0}} \sin(1/x)\] using a table of values.
+
+Table  lists values for the function \[\sin(\frac{1}{x})\] for the given values of *x*.
+
+| *x* | \[\sin(\frac{1}{x})\] | | *x* | \[\si",0.7,
+8,What is the difference between a limit and a derivative?,llm_full_context_gpt-5,try_it,5,1902_try_it_1,,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",0.6,
+9,Explain the tangent problem,llm_full_context_gpt-5,LO,1,lo_1893,1893,The Tangent Problem and Differential Calculus,The Tangent Problem and Differential Calculus,1.0,
+9,Explain the tangent problem,llm_full_context_gpt-5,LO,2,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.9,
+9,Explain the tangent problem,llm_full_context_gpt-5,LO,3,lo_1231,1231,Finding the Average Rate of Change of a Function,Finding the Average Rate of Change of a Function,0.8,
+9,Explain the tangent problem,llm_full_context_gpt-5,LO,4,lo_1230,1230,Rates of Change and Behavior of Graphs,Rates of Change and Behavior of Graphs,0.7,
+9,Explain the tangent problem,llm_full_context_gpt-5,LO,5,lo_1872,1872,Linear Functions and Slope,Linear Functions and Slope,0.6,
+9,Explain the tangent problem,llm_full_context_gpt-5,example,1,1893_example_1,,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding slopes of secant lines through \((1,1)\) and each of the following points on the graph of \(f(x) = x^2",1.0,
+9,Explain the tangent problem,llm_full_context_gpt-5,example,2,1893_example_2,,The Tangent Problem and Differential Calculus,A rock is dropped from a height of \[64\] ft. It is determined that its height (in feet) above ground \[t\] seconds later (for \[0 \leq t \leq 2\]) is given by \[s(t) = -16t^2 + 64\]. Find the average,0.9,
+9,Explain the tangent problem,llm_full_context_gpt-5,try_it,3,1893_try_it_1,,The Tangent Problem and Differential Calculus,"Estimate the slope of the tangent line (rate of change) to \(f(x) = x^2\) at \(x = 1\) by finding the slope of the secant line through \((1,1)\) and the point \(\left(\frac{5}{4}, \frac{25}{16}\right)",0.8,
+9,Explain the tangent problem,llm_full_context_gpt-5,try_it,4,1893_try_it_2,,The Tangent Problem and Differential Calculus,An object moves along a coordinate axis so that its position at time \[t\] is given by \[s(t) = t^3\]. Estimate its instantaneous velocity at time \[t = 2\] by computing its average velocity over the ,0.7,
+9,Explain the tangent problem,llm_full_context_gpt-5,concept,5,1231_concept_1,,Finding the Average Rate of Change of a Function,"# Finding the Average Rate of Change of a Function
+
+The price change per year is a rate of change because it describes how an output quantity changes relative to the change in the input quantity. We c",0.6,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,LO,1,lo_1894,1894,The Area Problem and Integral Calculus,The Area Problem and Integral Calculus,1.0,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,LO,2,lo_1897,1897,Intuitive Definition of a Limit,Intuitive Definition of a Limit,0.9,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,LO,3,lo_1902,1902,Evaluating Limits with the Limit Laws,Evaluating Limits with the Limit Laws,0.8,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,LO,4,lo_1904,1904,Additional Limit Evaluation Techniques,Additional Limit Evaluation Techniques,0.7,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,LO,5,lo_1909,1909,Continuity over an Interval,Continuity over an Interval,0.6,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,example,1,1894_example_1,,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \[f(x) = x^2 + 1\] over the interval \[[0, 3]\] by using the three rectangles shown in Figure 2.10.
+
+![A graph of the parabola f(x) – x^2 + 1 draw",1.0,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,try_it,2,1894_try_it_1,,The Area Problem and Integral Calculus,"Estimate the area between the x-axis and the graph of \(f(x) = x^2 + 1\) over the interval \([0,3]\) by using the three rectangles shown here:
+
+![A graph of the same parabola f(x) = x^2 + 1, but with ",0.9,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,example,3,1897_example_3,,Intuitive Definition of a Limit,"For \(g(x)\) shown in figure evaluate \(\lim_{{x \to -1}} g(x)\).
+
+
+
+Figure : The graph of \(g(x)\) includes one value not on a smooth curve.
+
+Despite the fact that \[g(-1) = 4,\] as the *x*-values ap",0.8,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,example,4,1897_example_2,,Intuitive Definition of a Limit,"Evaluate \[\lim_{{x \to 4}} \frac{{\sqrt{x} - 2}}{{x - 4}}\] using a table of functional values.
+
+We will use a table—in this case, Table —to list the values of the function for the given values of *x",0.7,
+10,How do I find the area under a curve?,llm_full_context_gpt-5,try_it,5,1902_try_it_1,,Evaluating Limits with the Limit Laws,"Use the limit laws to evaluate \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + 4}.\] In each step, indicate the limit law applied.
+
+Apply the product rule for limits 
+
+So, \[\lim_{{x \to 6}} (2x - 1) \sqrt{x + ",0.6,
