@@ -1,315 +1,477 @@
 """
-Coach agent tailored for the workflow demo that orchestrates tutoring and FAQ flows.
+Notebook-style multi-agent coach that routes between tutoring and FAQ sessions.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Dict, Optional
+import json
+import os
+from typing import Any, Dict, List, Optional
+
+from openai import OpenAI
 
 try:
-    from src.workflow_demo.models import SessionPlan
-    from src.workflow_demo.planner import FAQPlanner, PlannerResult, TutoringPlanner
+    from src.workflow_demo.planner import FAQPlanner, TutoringPlanner
     from src.workflow_demo.retriever import TeachingPackRetriever
-    from src.workflow_demo.tutor import FAQAgent, TutorAgent
+    from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
+    from src.workflow_demo.tutor import faq_bot, tutor_bot
 except ImportError:
-    from .models import SessionPlan
-    from .planner import FAQPlanner, PlannerResult, TutoringPlanner
+    from .planner import FAQPlanner, TutoringPlanner
     from .retriever import TeachingPackRetriever
-    from .tutor import FAQAgent, TutorAgent
+    from .session_memory import SessionMemory, create_handoff_context
+    from .tutor import faq_bot, tutor_bot
 
 
-@dataclass
-class CoachState:
-    """
-    Holds the mutable fields the Coach relies on between turns.
-    """
+COACH_GREETING = (
+    "Hi! I'm your learning coach. I can help you start a tutoring session or answer "
+    "questions about FAQs and syllabus. What would you like to work on?"
+)
 
-    current_intent: Optional[str] = None
-    subject: Optional[str] = None
-    learning_objective: Optional[str] = None
-    mode: Optional[str] = None
-    faq_topic: Optional[str] = None
-    active_plan: Optional[SessionPlan] = None
-    plan_pointer: int = 0
-    awaiting_confirmation: bool = False
-    student_profile: Dict = field(default_factory=lambda: {"lo_mastery": {}})
+COACH_SYSTEM_PROMPT = """
+You are the orchestrator of a learning assistant. The student only talks to you,
+but behind the scenes you can call tools (tutoring planner, FAQ planner, tutor bot, FAQ bot).
+
+INPUT: A JSON payload with:
+- conversation_history: last 10 messages between coach and student.
+- recent_sessions: up to 5 session summaries (tutoring or FAQ) with params and summaries.
+- last_tutoring_session: shortcut to the most recent tutoring session (or null).
+- planner_result: most recent planner call result, if any.
+- collected_params: currently known subject/topic/mode/faq topic metadata.
+- awaiting_confirmation: bool flag if the student has already seen a plan and we are waiting on approval.
+- returning_from_session: true when the student just came back from a tutor/FAQ session via a switch request.
+
+YOU MUST RETURN STRICT JSON:
+{
+  "message_to_student": "plain text or empty string when handing off",
+  "action": "none|call_tutoring_planner|call_faq_planner|start_tutor|start_faq",
+  "tool_params": {
+    "subject": "...",
+    "learning_objective": "...",
+    "mode": "conceptual_review|examples|practice",
+    "topic": "...",
+    "student_request": "original wording"
+  },
+  "conversation_summary": "short summary used when handing off (optional)"
+}
+
+Guidelines:
+1. Intent detection:
+   - Tutoring intent: wants to learn/practice/review a topic. Gather subject + learning_objective + mode.
+   - FAQ intent: wants logistics/policy info. Gather topic only.
+   - Topic switch or "back to" phrases after a session should jump straight into planning with the new topic. If the student says
+     "back to the previous topic", reuse last_tutoring_session.params (subject + learning_objective) as defaults.
+   - Mode switch ("switch to practice/examples/conceptual review") should reuse last_tutoring_session.params for subject + learning_objective,
+     override the mode, and immediately call the tutoring planner.
+2. Planner usage:
+   - When required info is missing, ask one clarifying question (message_to_student) and set action="none".
+   - Once all tutoring params are ready, call tutoring planner via action="call_tutoring_planner" with the params.
+   - Same for FAQ planner with action="call_faq_planner".
+   - When planner returns status need_info, relay the planner's message verbatim and continue collecting info.
+3. Confirmation + handoff:
+   - After receiving a complete plan, summarize it to the student unless they already confirmed.
+   - When the student agrees (positive confirmations like "yes", "let's go"), set action="start_tutor" (for tutoring) or "start_faq" (for FAQ)
+     and include conversation_summary describing why we are starting the session.
+   - Leave message_to_student empty when handing off so the tutor/FAQ bot can speak first.
+4. Returning from sessions:
+   - If returning_from_session is true, immediately honor the switch request contained in the latest message.
+   - Do NOT greet; instead analyze the request and call the appropriate planner or start a new plan, using last_tutoring_session when helpful.
+5. Always keep tool_params specific to the current intent. Do not mix FAQ params with tutoring params.
+"""
+
+
+def _coerce_json(raw: str) -> Dict[str, Any]:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lstrip().lower().startswith("json"):
+            raw = raw.split("\n", 1)[1]
+    return json.loads(raw)
 
 
 class CoachAgent:
     """
-    Conversational coordinator that mirrors the 9 Oct coach notebook behavior.
+    State machine that mirrors the multi-agent flow from the 9 Oct notebook.
     """
 
-    def __init__(self, retriever: Optional[TeachingPackRetriever] = None) -> None:
-        """
-        Wire planner + tutor stubs together for the demo pipeline.
-
-        Inputs:
-            retriever: Optional pre-built TeachingPackRetriever.
-
-        Outputs:
-            None. Instantiates planners, tutor stubs, and fresh state.
-        """
-
+    def __init__(
+        self,
+        retriever: Optional[TeachingPackRetriever] = None,
+        llm_model: Optional[str] = None,
+    ) -> None:
         self.retriever = retriever or TeachingPackRetriever()
+        self.session_memory = SessionMemory()
+        self.conversation_history: List[Dict[str, str]] = []
+        self.collected_params: Dict[str, Any] = {}
+        self.planner_result: Optional[Dict[str, Any]] = None
+        self.awaiting_confirmation = False
+        self.returning_from_session = False
+        self.in_bot_session = False
+        self.bot_type: Optional[str] = None
+        self.bot_handoff_context: Optional[Dict[str, Any]] = None
+        self.bot_conversation_history: List[Dict[str, str]] = []
+        self.student_profile: Dict[str, Any] = {"lo_mastery": {}}
+        self.pending_session_type: Optional[str] = None
+
+        self.llm_client: Optional[OpenAI] = None
+        self.llm_model: Optional[str] = None
+        self._init_llm(llm_model)
+
         self.tutoring_planner = TutoringPlanner(self.retriever)
         self.faq_planner = FAQPlanner()
-        self.tutor = TutorAgent()
-        self.faq_agent = FAQAgent()
-        self.state = CoachState()
+
+    def _init_llm(self, llm_model: Optional[str]) -> None:
+        API_KEY = os.getenv("OPENAI_API_KEY")
+        model_name = llm_model or os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
+        try:
+            if not API_KEY:
+                raise ValueError("OPENAI_API_KEY environment variable not set")
+            self.llm_client = OpenAI(api_key=API_KEY)
+            self.llm_model = model_name
+        except Exception as exc:
+            self.llm_client = None
+            self.llm_model = None
+            print(f"[Coach] Warning: failed to initialize OpenAI client ({exc}).")
+
+    def initial_greeting(self) -> str:
+        return COACH_GREETING
 
     def process_turn(self, user_input: str) -> str:
-        """
-        Primary entrypoint that routes between gathering info, planning, and execution.
+        if self.in_bot_session:
+            return self._handle_bot_turn(user_input)
+        return self._handle_coach_turn(user_input)
 
-        Inputs:
-            user_input: Raw student utterance for this turn.
+    # ------------------------------------------------------------------
+    # Coach loop
+    # ------------------------------------------------------------------
 
-        Outputs:
-            Coach response string (may include tutor output when executing a plan).
-        """
+    def _handle_coach_turn(self, user_input: str, synthetic: bool = False) -> str:
+        if user_input.strip():
+            self._record_message("student", user_input)
 
-        normalized = user_input.lower().strip()
+        if self.returning_from_session and not self.collected_params:
+            last_session = self.session_memory.last_tutoring_session()
+            if last_session:
+                params = last_session.get("params") or {}
+                for key in ("subject", "learning_objective", "mode"):
+                    value = params.get(key)
+                    if value:
+                        self.collected_params.setdefault(key, value)
 
-        if self._should_continue_plan(normalized):
-            return self._advance_plan()
-
-        if self.state.awaiting_confirmation:
+        normalized = user_input.strip().lower()
+        if self.awaiting_confirmation:
             if self._is_positive_confirmation(normalized):
-                self.state.awaiting_confirmation = False
-                return self._advance_plan(prelude=self.state.active_plan.first_question)
+                summary = (
+                    "Student confirmed the tutoring plan."
+                    if self.pending_session_type == "tutor"
+                    else "Student confirmed the FAQ plan."
+                )
+                bot_type = self.pending_session_type or "tutor"
+                return self._begin_bot_session(
+                    bot_type=bot_type,
+                    tool_params=dict(self.collected_params),
+                    conversation_summary=summary,
+                )
             if self._is_negative_confirmation(normalized):
-                self.state.active_plan = None
-                return "No problem. Tell me what you'd like to work on instead."
-            return "Whenever you're ready, just say the word and we'll kick off the plan."
+                self.awaiting_confirmation = False
+                self.pending_session_type = None
+                self.planner_result = None
+                self.collected_params = {}
+                return self._coach_reply("No problem. What would you like to work on instead?")
 
-        intent = self._classify_intent(normalized)
-        if intent == "faq":
-            self.state.current_intent = "faq"
-            topic = self._extract_faq_topic(normalized)
-            self.state.faq_topic = topic or self.state.faq_topic
-            plan_result = self.faq_planner.create_plan(self.state.faq_topic, user_input)
-            if plan_result.status != "complete":
-                return plan_result.message
-            answer = self.faq_agent.answer(
-                plan_result.metadata["script"],
-                plan_result.metadata["first_question"],
+        if not self.awaiting_confirmation:
+            faq_topic = self._detect_faq_topic(normalized)
+            if faq_topic:
+                self.collected_params.setdefault("topic", faq_topic)
+                self.collected_params["student_request"] = user_input
+
+        loop_guard = 0
+        while True:
+            loop_guard += 1
+            if loop_guard > 4:
+                return "Let's come back to this in a moment."
+
+            coach_directive = self._run_coach_brain()
+            action = coach_directive.get("action", "none")
+            message = (coach_directive.get("message_to_student") or "").strip()
+            tool_params = coach_directive.get("tool_params") or {}
+            self._update_collected_params(tool_params)
+
+            if action == "call_tutoring_planner":
+                self.planner_result = self._call_tutoring_planner(tool_params)
+                if self.planner_result.get("status") == "need_info":
+                    msg = self.planner_result.get("message") or "Could you clarify that a bit more?"
+                    return self._coach_reply(msg)
+                continue
+
+            if action == "call_faq_planner":
+                self.planner_result = self._call_faq_planner(tool_params)
+                if self.planner_result.get("status") == "need_info":
+                    msg = self.planner_result.get("message") or "Which FAQ topic should we cover?"
+                    return self._coach_reply(msg)
+                continue
+
+            if action == "start_tutor":
+                return self._begin_bot_session(
+                    bot_type="tutor",
+                    tool_params=tool_params,
+                    conversation_summary=coach_directive.get("conversation_summary") or "Student requested tutoring.",
+                )
+
+            if action == "start_faq":
+                return self._begin_bot_session(
+                    bot_type="faq",
+                    tool_params=tool_params,
+                    conversation_summary=coach_directive.get("conversation_summary") or "Student requested FAQ help.",
+                )
+
+            # action == "none"
+            if message:
+                return self._coach_reply(message)
+            return ""
+
+    def _run_coach_brain(self) -> Dict[str, Any]:
+        payload = {
+            "conversation_history": self.conversation_history[-10:],
+            "recent_sessions": self.session_memory.get_recent_sessions(),
+            "last_tutoring_session": self.session_memory.last_tutoring_session(),
+            "planner_result": self.planner_result,
+            "collected_params": self.collected_params,
+            "awaiting_confirmation": self.awaiting_confirmation,
+            "returning_from_session": self.returning_from_session,
+        }
+        self.returning_from_session = False
+        if not self.llm_client or not self.llm_model:
+            raise RuntimeError("LLM client is not available; coach flow requires it.")
+
+        response = self.llm_client.chat.completions.create(
+            model=self.llm_model,
+            temperature=0,
+            messages=[
+                {"role": "system", "content": COACH_SYSTEM_PROMPT},
+                {"role": "user", "content": json.dumps(payload, indent=2)},
+            ],
+        )
+        return _coerce_json(response.choices[0].message.content)
+
+    def _coach_reply(self, message: str) -> str:
+        self._record_message("assistant", message)
+        return message
+
+    def _update_collected_params(self, tool_params: Dict[str, Any]) -> None:
+        if not tool_params:
+            return
+        for key, value in tool_params.items():
+            if value:
+                self.collected_params[key] = value
+
+    # ------------------------------------------------------------------
+    # Planner calls
+    # ------------------------------------------------------------------
+
+    def _call_tutoring_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        print("\n🔧 Tutoring Session Planner")
+        print(json.dumps(params, indent=2))
+        result = self.tutoring_planner.create_plan(
+            {
+                **params,
+                "student_profile": self.student_profile,
+            }
+        )
+        print("📩 Planner response:")
+        print(json.dumps(result, indent=2))
+        if result.get("status") == "complete":
+            self.awaiting_confirmation = True
+            self.pending_session_type = "tutor"
+        return result
+
+    def _call_faq_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        print("\n🔧 FAQ/Syllabus Planner")
+        print(json.dumps(params, indent=2))
+        result = self.faq_planner.create_plan(params)
+        print("📩 Planner response:")
+        print(json.dumps(result, indent=2))
+        if result.get("status") == "complete":
+            self.awaiting_confirmation = True
+            self.pending_session_type = "faq"
+        return result
+
+    # ------------------------------------------------------------------
+    # Bot orchestration
+    # ------------------------------------------------------------------
+
+    def _begin_bot_session(
+        self,
+        bot_type: str,
+        tool_params: Dict[str, Any],
+        conversation_summary: str,
+    ) -> str:
+        plan = (self.planner_result or {}).get("plan") or {}
+        session_params = {
+            **plan,
+            **{k: v for k, v in tool_params.items() if v},
+        }
+        plan_teaching_pack = (self.planner_result or {}).get("plan", {}).get("teaching_pack")
+        if plan_teaching_pack and "teaching_pack" not in session_params:
+            session_params["teaching_pack"] = plan_teaching_pack
+        student_request = session_params.get("student_request") or self._last_student_message()
+        session_params["student_request"] = student_request
+
+        context = create_handoff_context(
+            from_agent="coach",
+            to_agent=bot_type,
+            session_params=session_params,
+            conversation_summary=conversation_summary,
+            session_memory=self.session_memory,
+            student_state=self.student_profile,
+        )
+
+        self.in_bot_session = True
+        self.bot_type = bot_type
+        self.bot_handoff_context = context
+        self.bot_conversation_history = []
+        self.awaiting_confirmation = False
+        self.collected_params = {}
+        self.planner_result = None
+        self.pending_session_type = None
+
+        return self._invoke_bot(initial=True)
+
+    def _handle_bot_turn(self, user_input: str) -> str:
+        self.bot_conversation_history.append({"speaker": "student", "text": user_input})
+        return self._invoke_bot()
+
+    def _invoke_bot(self, initial: bool = False) -> str:
+        if not self.bot_type or not self.bot_handoff_context:
+            self._reset_after_session()
+            return self.initial_greeting()
+
+        history = self.bot_conversation_history
+        if initial:
+            history = []
+
+        if not self.llm_client or not self.llm_model:
+            raise RuntimeError("LLM client is required for tutor/FAQ bots.")
+
+        if self.bot_type == "tutor":
+            bot_response = tutor_bot(
+                llm_client=self.llm_client,
+                llm_model=self.llm_model,
+                handoff_context=self.bot_handoff_context,
+                conversation_history=history,
             )
-            self._reset_state(keep_profile=True)
-            return answer
+        else:
+            bot_response = faq_bot(
+                llm_client=self.llm_client,
+                llm_model=self.llm_model,
+                handoff_context=self.bot_handoff_context,
+                conversation_history=history,
+            )
 
-        self.state.current_intent = "tutor"
-        subject = self._infer_subject(normalized) or self.state.subject
-        learning_objective = self._extract_learning_objective(user_input) or self.state.learning_objective
-        mode = self._extract_mode(normalized) or self.state.mode
-        self.state.subject = subject
-        self.state.learning_objective = learning_objective
-        self.state.mode = mode
+        message = (bot_response.get("message_to_student") or "").strip()
+        if message:
+            self.bot_conversation_history.append({"speaker": "assistant", "text": message})
 
-        missing = [
-            label
-            for label, value in [
-                ("subject", subject),
-                ("topic", learning_objective),
-                ("mode", mode),
-            ]
-            if not value
-        ]
-        if missing:
-            return self._prompt_for_missing(missing[0])
+        if bot_response.get("end_activity"):
+            return self._finalize_bot_session(bot_response)
 
-        plan_result = self.tutoring_planner.create_plan(
-            subject=subject,
-            learning_objective=learning_objective,
-            mode=mode,
-            student_request=user_input,
-            student_profile=self.state.student_profile,
-        )
+        return message or ""
 
-        if plan_result.status != "complete":
-            return plan_result.message
+    def _finalize_bot_session(self, bot_response: Dict[str, Any]) -> str:
+        summary = bot_response.get("session_summary") or {}
+        session_type = self.bot_type or "tutor"
+        params = (self.bot_handoff_context or {}).get("session_params", {})
+        exchanges = list(self.bot_conversation_history)
+        self.session_memory.add_session(session_type, params, summary, exchanges)
 
-        self.state.active_plan = plan_result.session_plan
-        self.state.plan_pointer = 0
-        self.state.awaiting_confirmation = True
-        summary = self._summarize_plan(plan_result.session_plan)
-        return summary
+        switch_topic = summary.get("switch_topic_request")
+        switch_mode = summary.get("switch_mode_request")
 
-    def _advance_plan(self, prelude: Optional[str] = None) -> str:
-        """
-        Move the tutoring session forward by a single step.
+        self._reset_after_session()
 
-        Inputs:
-            prelude: Optional string (e.g., first question) prepended to tutor output.
+        if switch_topic:
+            self.returning_from_session = True
+            return self._handle_coach_turn(switch_topic, synthetic=True)
 
-        Outputs:
-            Full assistant message for this turn.
-        """
+        if switch_mode:
+            self.returning_from_session = True
+            return self._handle_coach_turn(switch_mode, synthetic=True)
 
-        plan = self.state.active_plan
-        if not plan:
-            return "We don't have an active plan yet. What would you like to learn?"
+        greeting = self.initial_greeting()
+        self._record_message("assistant", greeting)
+        return greeting
 
-        tutor_result = self.tutor.deliver_step(
-            plan,
-            self.state.plan_pointer,
-            student_profile=self.state.student_profile,
-        )
-        self.state.plan_pointer = tutor_result.new_pointer
-        self.state.student_profile = tutor_result.updated_profile
+    def _reset_after_session(self) -> None:
+        self.in_bot_session = False
+        self.bot_type = None
+        self.bot_handoff_context = None
+        self.bot_conversation_history = []
+        self.collected_params = {}
+        self.planner_result = None
+        self.awaiting_confirmation = False
 
-        if tutor_result.completed:
-            self.state.active_plan = None
-            self.state.plan_pointer = 0
+    # ------------------------------------------------------------------
+    # Conversation helpers
+    # ------------------------------------------------------------------
 
-        if prelude:
-            return f"{prelude}\n\n{tutor_result.message}"
-        return tutor_result.message
+    def _record_message(self, speaker: str, text: str) -> None:
+        text = (text or "").strip()
+        if not text:
+            return
+        self.conversation_history.append({"speaker": speaker, "text": text})
+        if len(self.conversation_history) > 20:
+            self.conversation_history = self.conversation_history[-20:]
 
-    def _should_continue_plan(self, normalized_input: str) -> bool:
-        """
-        Decide whether the current utterance should advance the active plan.
-        """
-
-        if not self.state.active_plan:
-            return False
-        if self.state.awaiting_confirmation:
-            return False
-        keywords = {"continue", "next", "yes", "sure", "go on", "ready"}
-        return any(keyword in normalized_input for keyword in keywords)
-
-    def _reset_state(self, keep_profile: bool = False) -> None:
-        """
-        Clear contextual state while optionally keeping student proficiency.
-        """
-
-        profile = self.state.student_profile if keep_profile else {"lo_mastery": {}}
-        self.state = CoachState(student_profile=profile)
+    def _last_student_message(self) -> str:
+        for message in reversed(self.conversation_history):
+            if message["speaker"] == "student":
+                return message["text"]
+        return ""
 
     @staticmethod
     def _is_positive_confirmation(normalized_input: str) -> bool:
-        """
-        Detect if the student agreed to start the plan.
-        """
-
-        positives = {"yes", "yep", "sure", "let's go", "start", "ready"}
+        positives = {
+            "yes",
+            "yep",
+            "sure",
+            "let's go",
+            "ready",
+            "start",
+            "absolutely",
+            "yeah",
+            "ok let's do it",
+        }
         return any(token in normalized_input for token in positives)
 
     @staticmethod
     def _is_negative_confirmation(normalized_input: str) -> bool:
-        """
-        Detect if the student declined the plan.
-        """
-
-        negatives = {"no", "not now", "later", "another"}
+        negatives = {
+            "no",
+            "not now",
+            "later",
+            "another time",
+            "change",
+            "switch",
+            "stop",
+        }
         return any(token in normalized_input for token in negatives)
 
     @staticmethod
-    def _classify_intent(normalized_input: str) -> str:
-        """
-        Classify user intent between tutoring and FAQ requests.
-        """
-
-        faq_terms = {"exam", "quiz", "policy", "schedule", "syllabus", "office hours"}
-        if any(term in normalized_input for term in faq_terms):
-            return "faq"
-        tutoring_terms = {"teach", "learn", "practice", "explain", "help", "review"}
-        if any(term in normalized_input for term in tutoring_terms):
-            return "tutor"
-        return "tutor"
-
-    @staticmethod
-    def _extract_mode(normalized_input: str) -> Optional[str]:
-        """
-        Extract tutoring mode from user utterance.
-        """
-
-        if any(word in normalized_input for word in ["practice", "problems", "exercise"]):
-            return "practice"
-        if "example" in normalized_input or "walk through" in normalized_input:
-            return "examples"
-        if "concept" in normalized_input or "review" in normalized_input:
-            return "conceptual_review"
-        return None
-
-    @staticmethod
-    def _extract_learning_objective(user_input: str) -> Optional[str]:
-        """
-        Use a lightweight heuristic to select the learning objective string.
-        """
-
-        keywords = ["chain rule", "derivative", "integral", "differential", "trigonometric", "limits"]
-        lowered = user_input.lower()
-        for phrase in keywords:
-            if phrase in lowered:
-                return phrase.title()
-        return user_input.strip() if len(user_input.split()) <= 6 else None
-
-    @staticmethod
-    def _infer_subject(normalized_input: str) -> Optional[str]:
-        """
-        Infer subject label from the utterance.
-        """
-
-        subject_map = {
-            "calculus": "calculus",
-            "derivative": "calculus",
-            "integral": "calculus",
-            "algebra": "algebra",
-            "trig": "trigonometry",
-            "geometry": "geometry",
+    def _detect_faq_topic(normalized_input: str) -> Optional[str]:
+        keyword_map = {
+            "exam": "exam schedule",
+            "quiz": "quiz schedule",
+            "homework": "homework policy",
+            "grading": "grading policy",
+            "grade": "grading policy",
+            "office hours": "office hours",
+            "syllabus": "exam schedule",
+            "faq": "exam schedule",
         }
-        for token, subject in subject_map.items():
-            if token in normalized_input:
-                return subject
-        return None
-
-    @staticmethod
-    def _extract_faq_topic(normalized_input: str) -> Optional[str]:
-        """
-        Map FAQ utterances to canonical topics.
-        """
-
+        for key, topic in keyword_map.items():
+            if key in normalized_input:
+                return topic
         for topic in FAQPlanner.FAQ_TOPICS.keys():
             if topic in normalized_input:
                 return topic
-        if "exam" in normalized_input:
-            return "exam schedule"
-        if "quiz" in normalized_input:
-            return "quiz schedule"
-        if "grade" in normalized_input:
-            return "grading policy"
-        if "homework" in normalized_input:
-            return "homework policy"
         return None
-
-    def _prompt_for_missing(self, field: str) -> str:
-        """
-        Ask the student for whichever field is still needed.
-        """
-
-        prompts = {
-            "subject": "Which subject should we focus on? (e.g., calculus, algebra, trigonometry)",
-            "topic": "Great! What specific topic or learning objective should we target?",
-            "mode": "How would you like to learn—practice problems, conceptual review, or examples?",
-        }
-        return prompts.get(field, "Could you clarify a bit more?")
-
-    @staticmethod
-    def _summarize_plan(plan: SessionPlan) -> str:
-        """
-        Produce a student-friendly summary of the generated plan.
-        """
-
-        steps = "\n".join(f"- {step.step_type.title()}: {step.goal}" for step in plan.current_plan)
-        future = (
-            ", ".join(step.goal for step in plan.future_plan[:2]) if plan.future_plan else "additional review as needed"
-        )
-        return (
-            f"Here's the plan for {plan.learning_objective} via {plan.mode.replace('_', ' ')}:\n"
-            f"{steps}\n"
-            f"Up next we can explore: {future}.\n"
-            f"Say 'yes' when you're ready and we'll begin with: {plan.first_question}"
-        )
 

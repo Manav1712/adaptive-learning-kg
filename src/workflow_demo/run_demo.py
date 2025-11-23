@@ -34,8 +34,26 @@ def build_demo_coach() -> CoachAgent:
         CoachAgent instance ready for conversation.
     """
 
-    retriever = TeachingPackRetriever()
-    return CoachAgent(retriever=retriever)
+    print("Initializing retriever (this may take a moment on first run)...")
+    try:
+        retriever = TeachingPackRetriever()
+        print("Retriever initialized successfully!")
+    except Exception as e:
+        print(f"Error initializing retriever: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
+    
+    print("Initializing coach...")
+    try:
+        coach = CoachAgent(retriever=retriever)
+        print("Coach initialized successfully!\n")
+        return coach
+    except Exception as e:
+        print(f"Error initializing coach: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 def interactive_loop(coach: CoachAgent) -> None:
@@ -49,10 +67,21 @@ def interactive_loop(coach: CoachAgent) -> None:
         None. Prints assistant responses until the user exits.
     """
 
+    import sys
+    
     print("Adaptive Learning Coach Demo\nType 'quit' to exit.\n")
+    sys.stdout.flush()
+
+    greeting = coach.initial_greeting()
+    if greeting:
+        print(f"Assistant: {greeting}\n")
+        sys.stdout.flush()
+    
     while True:
         try:
-            user_text = input("You: ").strip()
+            sys.stdout.write("You: ")
+            sys.stdout.flush()
+            user_text = input().strip()
         except (EOFError, KeyboardInterrupt):
             print("\nEnding demo. Goodbye!")
             break
@@ -63,8 +92,17 @@ def interactive_loop(coach: CoachAgent) -> None:
             print("Goodbye!")
             break
 
-        response = coach.process_turn(user_text)
-        print(f"Coach: {response}\n")
+        try:
+            response = coach.process_turn(user_text)
+            if response:
+                print(f"Assistant: {response}\n")
+                sys.stdout.flush()
+        except Exception as e:
+            print(f"Error processing turn: {e}")
+            import traceback
+
+            traceback.print_exc()
+            sys.stdout.flush()
 
 
 def main() -> None:

@@ -48,4 +48,7 @@ class SessionPlan:
     future_plan: List[PlanStep]
     first_question: str
     teaching_pack: TeachingPack
+    book: Optional[str] = None
+    unit: Optional[str] = None
+    chapter: Optional[str] = None
 

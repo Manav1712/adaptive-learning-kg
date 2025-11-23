@@ -5,16 +5,13 @@ Exports convenience factories for quickly instantiating the demo pipeline.
 """
 
 from .coach import CoachAgent
+from .planner import FAQPlanner, TutoringPlanner
 from .retriever import TeachingPackRetriever
-from .planner import TutoringPlanner, FAQPlanner
-from .tutor import TutorAgent, FAQAgent
 
 __all__ = [
     "CoachAgent",
     "TeachingPackRetriever",
     "TutoringPlanner",
     "FAQPlanner",
-    "TutorAgent",
-    "FAQAgent",
 ]
 

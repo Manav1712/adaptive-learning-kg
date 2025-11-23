@@ -1,141 +1,153 @@
 """
-Tutor and FAQ execution stubs that simulate downstream tool behavior.
+Tutor and FAQ LLM bots used during multi-agent handoffs.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Optional
+import json
+import re
+from typing import Any, Dict, List
 
-try:
-    from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack
-except ImportError:
-    from .models import PlanStep, SessionPlan, TeachingPack
+from openai import OpenAI
 
 
-@dataclass
-class TutorTurnResult:
-    """
-    Result payload returned after running a tutoring step.
-    """
+TUTOR_SYSTEM_PROMPT = """You are the learning tutor mode of the assistant. The student thinks they are still
+talking to the same assistant, so keep tone consistent and grounded in the provided materials.
 
-    message: str
-    new_pointer: int
-    completed: bool
-    updated_profile: Dict
+You receive:
+- handoff_context: session_params (subject, book, unit, chapter, learning_objective, mode, student_request,
+  teaching_pack with key_points/examples/practice/prerequisites/citations), conversation_summary,
+  recent_sessions (with previous transcripts), and student_state metadata.
+- conversation_history: messages inside THIS tutoring session only.
 
+Goals:
+1. Teach exactly ONE learning objective at a time using the requested mode (conceptual_review, examples, practice).
+2. Always ground explanations in teaching_pack:
+   - Reference key_points by name (mention the book/unit when helpful).
+   - When sharing examples/practice, cite the snippet or describe it explicitly (e.g., "Example 1223_concept_1 explains...").
+   - Use prerequisites for quick refreshers when the student seems unsure.
+3. When starting, check recent sessions with the same learning objective + mode:
+   - if conversation_exchanges exist, ask whether to continue or restart.
+   - otherwise, dive directly into teaching with the first key point or example.
+4. Detect MODE switches:
+   - phrases like "switch to practice problems/examples/conceptual review" → ask for confirmation,
+     set needs_mode_confirmation=true, requested_mode="...".
+   - If the student confirms, end the session silently (end_activity=true, silent_end=true) with
+     session_summary.switch_mode_request recorded as "switch to ...".
+5. Detect TOPIC switches:
+   - phrases like "teach me derivatives instead" or "I need to know my exam date" →
+     ask "Is there anything else..." and wait for confirmation. When confirmed, end silently with
+     session_summary.switch_topic_request equal to the student's wording.
+   - Do NOT set switch_topic_request for generic acknowledgements like "thanks" or "no" unless the student
+     clearly names a new topic.
+6. Completion cues:
+   - Phrases such as "thanks", "that helps", "I'm good", "no that's all" mean the student is satisfied.
+     Give a concise recap, set end_activity=true, silent_end=false, and leave both switch requests null.
 
-class TutorAgent:
-    """
-    Simple tutor stub that consumes SessionPlan steps sequentially.
-    """
+Output STRICT JSON:
+{
+  "message_to_student": "...",
+  "end_activity": bool,
+  "silent_end": bool,
+  "needs_mode_confirmation": bool,
+  "needs_topic_confirmation": bool,
+  "requested_mode": null or "examples",
+  "session_summary": {
+    "topics_covered": ["learning objective"],
+    "student_understanding": "excellent|good|needs_practice",
+    "suggested_next_topic": null or "text",
+    "switch_topic_request": null or "student text",
+    "switch_mode_request": null or "student text",
+    "notes": "extra metadata"
+  }
+}
 
-    def deliver_step(
-        self,
-        plan: SessionPlan,
-        pointer: int,
-        student_profile: Optional[Dict] = None,
-    ) -> TutorTurnResult:
-        """
-        Execute the current plan step and craft a natural language response.
-
-        Inputs:
-            plan: Active SessionPlan to follow.
-            pointer: Index of the step in plan.current_plan to execute.
-            student_profile: Mutable profile dict tracking proficiency signals.
-
-        Outputs:
-            TutorTurnResult with assistant message, new pointer, completion flag,
-            and updated student profile.
-        """
-
-        profile = student_profile or {"lo_mastery": {}}
-        steps = plan.current_plan
-        if pointer >= len(steps):
-            return TutorTurnResult(
-                message="We have already completed the current plan. Ready for the next learning goal!",
-                new_pointer=pointer,
-                completed=True,
-                updated_profile=profile,
-            )
-
-        step = steps[pointer]
-        response = self._format_step_response(step, plan.teaching_pack)
-
-        mastery = profile.setdefault("lo_mastery", {})
-        lo_key = plan.learning_objective
-        mastery[lo_key] = min(0.95, mastery.get(lo_key, 0.4) + 0.12)
-
-        new_pointer = pointer + 1
-        completed = new_pointer >= len(steps)
-
-        if completed and plan.future_plan:
-            response += (
-                "\n\nNext up, we can explore: "
-                + ", ".join(step.goal for step in plan.future_plan[:2])
-                + "."
-            )
-
-        return TutorTurnResult(
-            message=response,
-            new_pointer=new_pointer,
-            completed=completed,
-            updated_profile=profile,
-        )
-
-    def _format_step_response(self, step: PlanStep, pack: TeachingPack) -> str:
-        """
-        Map PlanStep types to conversational snippets that reference the teaching pack.
-        """
-
-        if step.step_type == "prereq_review" and pack.prerequisites:
-            target = pack.prerequisites[0]
-            return (
-                f"Let's briefly revisit {target['title']}—"
-                f"{target['note']} Do you recall how it connects to our main topic?"
-            )
-
-        if step.step_type == "explain":
-            bullets = pack.key_points[:2] if pack.key_points else []
-            bullet_text = "\n- ".join(bullets) if bullets else "We'll clarify the core idea together."
-            return (
-                f"Here's the high-level intuition for {step.goal}:\n- {bullet_text}"
-                "\nWhat stands out or feels fuzzy so far?"
-            )
-
-        if step.step_type == "example" and pack.examples:
-            example = pack.examples[0]
-            return (
-                f"Let's walk a concrete example ({example['content_id']} - {example['content_type']}):\n"
-                f"{example['snippet']}\n\nWhat would be your next move?"
-            )
-
-        if step.step_type == "practice" and pack.practice:
-            practice = pack.practice[0]
-            return (
-                f"Your turn: try this practice check ({practice['content_id']}):\n"
-                f"{practice['snippet']}\n\nTalk me through your reasoning and we'll compare."
-            )
-
-        return f"Let's keep building: {step.goal}"
+Never mention tools or handoffs. Stay encouraging and focused on the learning objective.
+"""
 
 
-class FAQAgent:
-    """
-    Stub that returns canned FAQ answers plus a nudge back to the Coach.
-    """
+FAQ_SYSTEM_PROMPT = """You are the FAQ/syllabus answering mode of the assistant.
 
-    def answer(self, topic_script: str, first_question: str) -> str:
-        """
-        Format a short FAQ response.
+Inputs:
+- handoff_context with session_params.topic + canonical script, conversation_summary, recent_sessions.
+- conversation_history inside the FAQ session.
 
-        Inputs:
-            topic_script: Canonical answer for the topic.
-            first_question: Clarifying follow-up question.
+Rules:
+1. Answer using ONLY the provided script (session_params.script). Rephrase but do not invent facts.
+2. Finish with the supplied follow-up question (session_params.first_question).
+3. If the student explicitly asks about another topic (e.g., "What about derivatives?"), confirm whether they
+   want to switch topics. On confirmation, end silently with session_summary.switch_topic_request set to
+   their exact wording.
+4. Completion cues such as "thanks", "no that's all", "I'm good" should end the session normally:
+   give a brief closing, end_activity=true, silent_end=false, and do NOT set switch_topic_request.
 
-        Outputs:
-            Friendly FAQ string.
-        """
+Output STRICT JSON:
+{
+  "message_to_student": "...",
+  "end_activity": bool,
+  "silent_end": bool,
+  "needs_topic_confirmation": bool,
+  "session_summary": {
+    "topics_addressed": ["topic"],
+    "questions_answered": ["student question"],
+    "switch_topic_request": null or "student text",
+    "notes": "optional"
+  }
+}
+"""
 
-        return f"{topic_script}\n\n{first_question}"
+
+def tutor_bot(
+    llm_client: OpenAI,
+    llm_model: str,
+    handoff_context: Dict[str, Any],
+    conversation_history: List[Dict[str, str]],
+) -> Dict[str, Any]:
+    payload = {
+        "handoff_context": handoff_context,
+        "conversation_history": conversation_history[-12:],
+    }
+    response = llm_client.chat.completions.create(
+        model=llm_model,
+        temperature=0,
+        messages=[
+            {"role": "system", "content": TUTOR_SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(payload, indent=2)},
+        ],
+    )
+    return _coerce_json(response.choices[0].message.content)
+
+
+def faq_bot(
+    llm_client: OpenAI,
+    llm_model: str,
+    handoff_context: Dict[str, Any],
+    conversation_history: List[Dict[str, str]],
+) -> Dict[str, Any]:
+    payload = {
+        "handoff_context": handoff_context,
+        "conversation_history": conversation_history[-12:],
+    }
+    response = llm_client.chat.completions.create(
+        model=llm_model,
+        temperature=0,
+        messages=[
+            {"role": "system", "content": FAQ_SYSTEM_PROMPT},
+            {"role": "user", "content": json.dumps(payload, indent=2)},
+        ],
+    )
+    return _coerce_json(response.choices[0].message.content)
+
+
+def _coerce_json(raw: str) -> Dict[str, Any]:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.strip("`")
+        if raw.lstrip().lower().startswith("json"):
+            raw = raw.split("\n", 1)[1]
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        fixed = re.sub(r"\\([^\"\\/bfnrtu])", r"\\\\\1", raw)
+        return json.loads(fixed)
 

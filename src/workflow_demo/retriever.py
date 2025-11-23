@@ -4,11 +4,14 @@ Embedding-based retriever that assembles lightweight teaching packs from the dem
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
+
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 try:
     from src.workflow_demo.data_loader import KnowledgeGraphData, load_demo_frames
@@ -38,10 +41,13 @@ class EmbeddingBackend:
         try:
             from sentence_transformers import SentenceTransformer
 
+            print(f"    Loading SentenceTransformer model: {model_name}")
             self._encoder = SentenceTransformer(model_name)
             self._vectorizer = None
             self._mode = "st"
-        except Exception:
+            print(f"    SentenceTransformer loaded successfully")
+        except Exception as e:
+            print(f"    SentenceTransformer not available ({e}), falling back to TF-IDF")
             from sklearn.feature_extraction.text import TfidfVectorizer
 
             self._encoder = None
@@ -135,20 +141,28 @@ class TeachingPackRetriever:
 
         repo_root = Path(__file__).resolve().parents[2]
         self.data_dir = data_dir or (repo_root / "demo")
+        print(f"  Loading knowledge graph from {self.data_dir}...")
         self.kg: KnowledgeGraphData = load_demo_frames(self.data_dir)
+        print(f"  Loaded {len(self.kg.los)} LOs and {len(self.kg.content)} content items")
 
+        print(f"  Initializing embedding backend ({embedding_model})...")
         self.embedding_backend = EmbeddingBackend(model_name=embedding_model)
+        print(f"  Embedding backend ready")
 
+        print("  Building corpus...")
         self.lo_corpus = self._build_lo_corpus()
         self.content_corpus = self._build_content_corpus()
+        print(f"  Built {len(self.lo_corpus)} LO entries and {len(self.content_corpus)} content entries")
 
         lo_texts = [item["text"] for item in self.lo_corpus]
         content_texts = [item["text"] for item in self.content_corpus]
         all_texts = lo_texts + content_texts
 
+        print(f"  Computing embeddings for {len(all_texts)} texts (this may take a moment)...")
         embeddings = self.embedding_backend.fit_transform(all_texts)
         self.lo_embeddings = embeddings[: len(lo_texts)]
         self.content_embeddings = embeddings[len(lo_texts) :]
+        print("  Embeddings computed successfully!")
 
     def retrieve_plan(
         self,
@@ -201,6 +215,9 @@ class TeachingPackRetriever:
             future_plan=future_plan,
             first_question=first_question,
             teaching_pack=teaching_pack,
+            book=primary_lo.get("book"),
+            unit=primary_lo.get("unit"),
+            chapter=primary_lo.get("chapter"),
         )
 
     def _build_lo_corpus(self) -> List[Dict[str, str]]:
@@ -217,6 +234,7 @@ class TeachingPackRetriever:
                     "lo_id": int(row.lo_id),
                     "text": text,
                     "raw_title": row.learning_objective,
+                    "learning_objective": row.learning_objective,  # Alias for consistency
                     "unit": row.unit,
                     "chapter": row.chapter,
                     "book": row.book,
