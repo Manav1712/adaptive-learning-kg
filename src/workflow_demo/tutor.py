@@ -7,7 +7,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from .models import PlanStep, SessionPlan, TeachingPack
+try:
+    from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack
+except ImportError:
+    from .models import PlanStep, SessionPlan, TeachingPack
 
 
 @dataclass

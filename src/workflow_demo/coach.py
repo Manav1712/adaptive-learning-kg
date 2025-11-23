@@ -7,10 +7,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
-from .models import SessionPlan
-from .planner import FAQPlanner, PlannerResult, TutoringPlanner
-from .retriever import TeachingPackRetriever
-from .tutor import FAQAgent, TutorAgent
+try:
+    from src.workflow_demo.models import SessionPlan
+    from src.workflow_demo.planner import FAQPlanner, PlannerResult, TutoringPlanner
+    from src.workflow_demo.retriever import TeachingPackRetriever
+    from src.workflow_demo.tutor import FAQAgent, TutorAgent
+except ImportError:
+    from .models import SessionPlan
+    from .planner import FAQPlanner, PlannerResult, TutoringPlanner
+    from .retriever import TeachingPackRetriever
+    from .tutor import FAQAgent, TutorAgent
 
 
 @dataclass

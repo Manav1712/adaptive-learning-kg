@@ -5,8 +5,22 @@ CLI entrypoint that runs the Coach → Retriever → Tutor workflow end-to-end.
 from __future__ import annotations
 
 import argparse
-from .coach import CoachAgent
-from .retriever import TeachingPackRetriever
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports when running directly
+if __name__ == "__main__":
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+try:
+    from src.workflow_demo.coach import CoachAgent
+    from src.workflow_demo.retriever import TeachingPackRetriever
+except ImportError:
+    # Fallback to relative imports when run as module
+    from .coach import CoachAgent
+    from .retriever import TeachingPackRetriever
 
 
 def build_demo_coach() -> CoachAgent:

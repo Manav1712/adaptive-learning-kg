@@ -7,8 +7,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from .models import SessionPlan
-from .retriever import TeachingPackRetriever
+try:
+    from src.workflow_demo.models import SessionPlan
+    from src.workflow_demo.retriever import TeachingPackRetriever
+except ImportError:
+    from .models import SessionPlan
+    from .retriever import TeachingPackRetriever
 
 
 @dataclass

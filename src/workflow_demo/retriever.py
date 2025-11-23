@@ -10,8 +10,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from .data_loader import KnowledgeGraphData, load_demo_frames
-from .models import PlanStep, SessionPlan, TeachingPack
+try:
+    from src.workflow_demo.data_loader import KnowledgeGraphData, load_demo_frames
+    from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack
+except ImportError:
+    from .data_loader import KnowledgeGraphData, load_demo_frames
+    from .models import PlanStep, SessionPlan, TeachingPack
 
 
 class EmbeddingBackend:
