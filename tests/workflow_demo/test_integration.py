@@ -58,7 +58,11 @@ def test_coach_planner_to_tutor_flow(monkeypatch, coach_agent, mock_retriever):
         }
     )
 
-    reply = coach_agent.process_turn("I want help with derivatives")
+    summary = coach_agent.process_turn("I want help with derivatives")
+    assert "here's what i put together" in summary.lower()
+    assert coach_agent.awaiting_confirmation
+
+    reply = coach_agent.process_turn("yes")
     assert reply == "Tutor taking over now."
     assert mock_retriever.calls, "Planner should invoke the retriever."
     assert tutor_messages == ["calculus"]

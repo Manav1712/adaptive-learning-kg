@@ -76,6 +76,17 @@ def test_faq_planner_known_topic(monkeypatch):
 
 
 @pytest.mark.unit
+def test_faq_planner_syllabus_topics(monkeypatch):
+    """FAQ planner should support the syllabus topics overview."""
+    planner = FAQPlanner()
+    planner.llm_enabled = False
+    response = planner.create_plan({"topic": "syllabus_topics", "student_request": "List the major concepts"})
+    assert response["status"] == "complete"
+    assert response["plan"]["topic"] == "syllabus_topics"
+    assert "Limits and continuity" in response["plan"]["script"]
+
+
+@pytest.mark.unit
 def test_faq_planner_unknown_topic(monkeypatch):
     """Unknown topics should prompt for clarification."""
     planner = FAQPlanner()

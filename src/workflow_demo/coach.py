@@ -12,15 +12,72 @@ from openai import OpenAI
 
 try:
     from src.workflow_demo.planner import FAQPlanner, TutoringPlanner
-    from src.workflow_demo.retriever import TeachingPackRetriever
-    from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
-    from src.workflow_demo.tutor import faq_bot, tutor_bot
 except ImportError:
     from .planner import FAQPlanner, TutoringPlanner
-    from .retriever import TeachingPackRetriever
+
+try:
+    from src.workflow_demo.retriever import TeachingPackRetriever
+except ImportError:from .retriever import TeachingPackRetriever
+
+try:
+    from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
+except ImportError:
     from .session_memory import SessionMemory, create_handoff_context
+
+try:
+    from src.workflow_demo.tutor import faq_bot, tutor_bot
+except ImportError:
     from .tutor import faq_bot, tutor_bot
 
+
+SUBJECT_KEYWORDS = {
+    "calculus": {
+        "calculus",
+        "derivative",
+        "derivatives",
+        "differential",
+        "differentials",
+        "integral",
+        "integrals",
+        "limit",
+        "limits",
+        "tangent",
+        "rate of change",
+    },
+    "algebra": {
+        "algebra",
+        "quadratic",
+        "quadratics",
+        "polynomial",
+        "polynomials",
+        "equation",
+        "equations",
+        "linear",
+        "system of equations",
+    },
+    "trigonometry": {
+        "trigonometry",
+        "trig",
+        "sine",
+        "cosine",
+        "tangent function",
+        "angle",
+        "angles",
+    },
+}
+
+SYLLABUS_FAQ_TOPIC = "syllabus_topics"
+SYLLABUS_CLARIFICATION_LIMIT = 2
+SYLLABUS_KEYWORDS = {
+    "syllabus",
+    "course outline",
+    "course-outline",
+    "topics in this course",
+    "topics for this course",
+    "major concepts",
+    "course topics",
+    "syllabus topics",
+}
 
 COACH_GREETING = (
     "Hi! I'm your learning coach. I can help you start a tutoring session or answer "
@@ -58,6 +115,7 @@ Guidelines:
 1. Intent detection:
    - Tutoring intent: wants to learn/practice/review a topic. Gather subject + learning_objective + mode.
    - FAQ intent: wants logistics/policy info. Gather topic only.
+   - Syllabus / course-outline / \"major concepts\" questions should go to FAQ mode using topic "syllabus_topics" and student_request containing the learner's wording.
    - Topic switch or "back to" phrases after a session should jump straight into planning with the new topic. If the student says
      "back to the previous topic", reuse last_tutoring_session.params (subject + learning_objective) as defaults.
    - Mode switch ("switch to practice/examples/conceptual review") should reuse last_tutoring_session.params for subject + learning_objective,
@@ -68,10 +126,11 @@ Guidelines:
    - Same for FAQ planner with action="call_faq_planner".
    - When planner returns status need_info, relay the planner's message verbatim and continue collecting info.
 3. Confirmation + handoff:
-   - After receiving a complete plan, summarize it to the student unless they already confirmed.
-   - When the student agrees (positive confirmations like "yes", "let's go"), set action="start_tutor" (for tutoring) or "start_faq" (for FAQ)
-     and include conversation_summary describing why we are starting the session.
-   - Leave message_to_student empty when handing off so the tutor/FAQ bot can speak first.
+   - After receiving a complete plan, summarize it back to the student (subject, objective, mode, book) and explicitly ask if they want to begin.
+   - Planner calls and tutor/FAQ handoffs must never happen in the same student turn. Always wait for the next student reply after presenting a plan before emitting a start_* action.
+   - While awaiting_confirmation == true, NEVER emit action="start_tutor" or "start_faq". Respond with action="none" and either (a) repeat the plan summary or (b) capture any requested adjustments until the student clearly says yes/no.
+   - When the student agrees, set action="start_tutor" (for tutoring) or "start_faq" (for FAQ) and include conversation_summary describing why we are starting the session, then leave message_to_student empty so the bot can speak first.
+   - If the student declines, clear awaiting_confirmation and gather new requirements before calling planners again.
 4. Returning from sessions:
    - If returning_from_session is true, immediately honor the switch request contained in the latest message.
    - Do NOT greet; instead analyze the request and call the appropriate planner or start a new plan, using last_tutoring_session when helpful.
@@ -111,6 +170,10 @@ class CoachAgent:
         self.bot_conversation_history: List[Dict[str, str]] = []
         self.student_profile: Dict[str, Any] = {"lo_mastery": {}}
         self.pending_session_type: Optional[str] = None
+        self.awaiting_confirmation_prompted = False
+        self.plan_confirmation_summary: Optional[str] = None
+        self.syllabus_request_active = False
+        self.syllabus_clarification_count = 0
 
         self.llm_client: Optional[OpenAI] = None
         self.llm_model: Optional[str] = None
@@ -158,6 +221,12 @@ class CoachAgent:
                         self.collected_params.setdefault(key, value)
 
         normalized = user_input.strip().lower()
+        latest_request = user_input.strip()
+        if self._contains_syllabus_keyword(normalized):
+            if not self.syllabus_request_active:
+                self.syllabus_clarification_count = 0
+            self.syllabus_request_active = True
+            self.collected_params.setdefault("topic", SYLLABUS_FAQ_TOPIC)
         if self.awaiting_confirmation:
             if self._is_positive_confirmation(normalized):
                 summary = (
@@ -176,7 +245,19 @@ class CoachAgent:
                 self.pending_session_type = None
                 self.planner_result = None
                 self.collected_params = {}
+                self.awaiting_confirmation_prompted = False
+                self.plan_confirmation_summary = None
+                self._reset_syllabus_escalation()
                 return self._coach_reply("No problem. What would you like to work on instead?")
+
+            if not self.awaiting_confirmation_prompted or not self.plan_confirmation_summary:
+                summary_message = self._present_plan_for_confirmation()
+            else:
+                summary_message = self.plan_confirmation_summary
+            return self._coach_reply(
+                summary_message
+                or "I have a plan ready - say 'yes' to start or 'no' if you'd like to adjust it."
+            )
 
         if not self.awaiting_confirmation:
             faq_topic = self._detect_faq_topic(normalized)
@@ -194,20 +275,47 @@ class CoachAgent:
             action = coach_directive.get("action", "none")
             message = (coach_directive.get("message_to_student") or "").strip()
             tool_params = coach_directive.get("tool_params") or {}
+            # ensure student_request reflects latest utterance unless planner override provided
+            if latest_request:
+                tool_params["student_request"] = latest_request
+            elif "student_request" not in tool_params:
+                last_message = self._last_student_message()
+                if last_message:
+                    tool_params["student_request"] = last_message
+
             self._update_collected_params(tool_params)
+
+            if self.awaiting_confirmation:
+                summary_message = self.plan_confirmation_summary or self._present_plan_for_confirmation()
+                fallback = "I have a plan ready - say 'yes' to start or 'no' if you'd like to adjust it."
+                return self._coach_reply(summary_message or fallback)
 
             if action == "call_tutoring_planner":
                 self.planner_result = self._call_tutoring_planner(tool_params)
-                if self.planner_result.get("status") == "need_info":
+                status = self.planner_result.get("status")
+                if status == "need_info":
                     msg = self.planner_result.get("message") or "Could you clarify that a bit more?"
                     return self._coach_reply(msg)
+                if status == "complete":
+                    summary_message = self._present_plan_for_confirmation()
+                    return self._coach_reply(
+                        summary_message
+                        or "I have a plan ready - say 'yes' to start or 'no' if you'd like to adjust it."
+                    )
                 continue
 
             if action == "call_faq_planner":
                 self.planner_result = self._call_faq_planner(tool_params)
-                if self.planner_result.get("status") == "need_info":
+                status = self.planner_result.get("status")
+                if status == "need_info":
                     msg = self.planner_result.get("message") or "Which FAQ topic should we cover?"
                     return self._coach_reply(msg)
+                if status == "complete":
+                    summary_message = self._present_plan_for_confirmation()
+                    return self._coach_reply(
+                        summary_message
+                        or "I have a plan ready - say 'yes' to start or 'no' if you'd like to adjust it."
+                    )
                 continue
 
             if action == "start_tutor":
@@ -225,6 +333,9 @@ class CoachAgent:
                 )
 
             # action == "none"
+            forced_summary = self._maybe_force_syllabus_plan(latest_request)
+            if forced_summary:
+                return self._coach_reply(forced_summary)
             if message:
                 return self._coach_reply(message)
             return ""
@@ -270,10 +381,19 @@ class CoachAgent:
 
     def _call_tutoring_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
         print("\n🔧 Tutoring Session Planner")
-        print(json.dumps(params, indent=2))
+        planner_params = dict(params)
+        inferred_subject = self._infer_subject(planner_params)
+        subject = planner_params.get("subject")
+        if inferred_subject and (not subject or subject.lower() != inferred_subject):
+            planner_params["subject"] = inferred_subject
+
+        if not planner_params.get("student_request"):
+            planner_params["student_request"] = self._last_student_message() or "Student requested tutoring."
+
+        print(json.dumps(planner_params, indent=2))
         result = self.tutoring_planner.create_plan(
             {
-                **params,
+                **planner_params,
                 "student_profile": self.student_profile,
             }
         )
@@ -282,17 +402,25 @@ class CoachAgent:
         if result.get("status") == "complete":
             self.awaiting_confirmation = True
             self.pending_session_type = "tutor"
+            self.awaiting_confirmation_prompted = False
+            self.plan_confirmation_summary = None
         return result
 
     def _call_faq_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
         print("\n🔧 FAQ/Syllabus Planner")
-        print(json.dumps(params, indent=2))
-        result = self.faq_planner.create_plan(params)
+        planner_params = dict(params)
+        if not planner_params.get("student_request"):
+            planner_params["student_request"] = self._last_student_message() or "Student requested FAQ help."
+        print(json.dumps(planner_params, indent=2))
+        result = self.faq_planner.create_plan(planner_params)
         print("📩 Planner response:")
         print(json.dumps(result, indent=2))
         if result.get("status") == "complete":
             self.awaiting_confirmation = True
             self.pending_session_type = "faq"
+            self.awaiting_confirmation_prompted = False
+            self.plan_confirmation_summary = None
+            self._reset_syllabus_escalation()
         return result
 
     # ------------------------------------------------------------------
@@ -333,6 +461,9 @@ class CoachAgent:
         self.collected_params = {}
         self.planner_result = None
         self.pending_session_type = None
+        self.awaiting_confirmation_prompted = False
+        self.plan_confirmation_summary = None
+        self._reset_syllabus_escalation()
 
         return self._invoke_bot(initial=True)
 
@@ -408,6 +539,9 @@ class CoachAgent:
         self.collected_params = {}
         self.planner_result = None
         self.awaiting_confirmation = False
+        self.awaiting_confirmation_prompted = False
+        self.plan_confirmation_summary = None
+        self._reset_syllabus_escalation()
 
     # ------------------------------------------------------------------
     # Conversation helpers
@@ -426,6 +560,59 @@ class CoachAgent:
             if message["speaker"] == "student":
                 return message["text"]
         return ""
+
+    def _infer_subject(self, params: Dict[str, Any]) -> Optional[str]:
+        phrases = " ".join(
+            filter(
+                None,
+                [
+                    params.get("subject"),
+                    params.get("learning_objective"),
+                    params.get("student_request"),
+                    self._last_student_message(),
+                ],
+            )
+        ).lower()
+        for subject, keywords in SUBJECT_KEYWORDS.items():
+            if any(keyword in phrases for keyword in keywords):
+                return subject
+        return None
+
+    def _present_plan_for_confirmation(self) -> Optional[str]:
+        plan = (self.planner_result or {}).get("plan")
+        if not plan:
+            return None
+        topic = plan.get("topic")
+        if topic:
+            summary = [
+                "Here's what I found:",
+                f"- Topic: {topic}",
+            ]
+            script = plan.get("script")
+            if script:
+                summary.append(f"- Plan details: {script}")
+            if topic == SYLLABUS_FAQ_TOPIC:
+                summary.append("- We'll recap the major course concepts from your syllabus.")
+            summary.append("Would you like me to walk through this info now?")
+        else:
+            subject = plan.get("subject", "this subject")
+            learning_objective = plan.get("learning_objective", "this topic")
+            mode = plan.get("mode", "").replace("_", " ")
+            book = plan.get("book")
+            summary = [
+                "Here's what I put together:",
+                f"- Subject: {subject}",
+                f"- Learning objective: {learning_objective}",
+            ]
+            if book:
+                summary.append(f"- Book/unit: {book}")
+            if mode:
+                summary.append(f"- Mode: {mode}")
+            summary.append("Would you like to start with this plan?")
+        summary_text = "\n".join(summary)
+        self.awaiting_confirmation_prompted = True
+        self.plan_confirmation_summary = summary_text
+        return summary_text
 
     @staticmethod
     def _is_positive_confirmation(normalized_input: str) -> bool:
@@ -464,8 +651,12 @@ class CoachAgent:
             "grading": "grading policy",
             "grade": "grading policy",
             "office hours": "office hours",
-            "syllabus": "exam schedule",
             "faq": "exam schedule",
+            "syllabus": SYLLABUS_FAQ_TOPIC,
+            "course outline": SYLLABUS_FAQ_TOPIC,
+            "course-outline": SYLLABUS_FAQ_TOPIC,
+            "major concepts": SYLLABUS_FAQ_TOPIC,
+            "course topics": SYLLABUS_FAQ_TOPIC,
         }
         for key, topic in keyword_map.items():
             if key in normalized_input:
@@ -474,4 +665,32 @@ class CoachAgent:
             if topic in normalized_input:
                 return topic
         return None
+
+    def _contains_syllabus_keyword(self, normalized_input: str) -> bool:
+        return any(keyword in normalized_input for keyword in SYLLABUS_KEYWORDS)
+
+    def _reset_syllabus_escalation(self) -> None:
+        self.syllabus_request_active = False
+        self.syllabus_clarification_count = 0
+
+    def _maybe_force_syllabus_plan(self, latest_request: str) -> Optional[str]:
+        if not self.syllabus_request_active:
+            return None
+        self.syllabus_clarification_count += 1
+        if self.syllabus_clarification_count < SYLLABUS_CLARIFICATION_LIMIT:
+            return None
+
+        params = {
+            "topic": SYLLABUS_FAQ_TOPIC,
+            "student_request": latest_request
+            or self._last_student_message()
+            or "Student asked about the syllabus topics.",
+        }
+        self.planner_result = self._call_faq_planner(params)
+        self._reset_syllabus_escalation()
+        status = self.planner_result.get("status")
+        if status == "need_info":
+            return self.planner_result.get("message") or "Could you clarify which part of the syllabus you need?"
+        summary_message = self._present_plan_for_confirmation()
+        return summary_message or "I put together a syllabus overview—would you like to go through it?"
 

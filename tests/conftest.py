@@ -124,6 +124,21 @@ def sample_faq_response() -> Dict[str, Any]:
 
 
 @pytest.fixture
+def sample_syllabus_faq_plan() -> Dict[str, Any]:
+    """FAQ planner output for syllabus topics."""
+    return {
+        "status": "complete",
+        "plan": {
+            "topic": "syllabus_topics",
+            "script": "Major calculus concepts: limits, derivatives, applications, integrals, FTC.",
+            "student_request": "Can you list the major concepts?",
+            "first_question": "Which concept would you like to dive into next?",
+        },
+        "message": None,
+    }
+
+
+@pytest.fixture
 def sample_planner_response() -> Dict[str, Any]:
     """Canonical planner response structure."""
     return {

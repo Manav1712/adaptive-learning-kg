@@ -111,3 +111,53 @@ def test_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
         for entry in coach_agent.session_memory.get_recent_sessions()
         if entry["type"] == "faq"
     )
+
+
+@pytest.mark.e2e
+def test_syllabus_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
+    """Ensure syllabus-style questions route to FAQ flow instead of looping."""
+
+    def _syllabus_faq_bot(**kwargs):
+        return {
+            "message_to_student": "Here are the major calculus concepts...",
+            "end_activity": True,
+            "silent_end": False,
+            "needs_topic_confirmation": False,
+            "session_summary": {
+                "topics_addressed": ["syllabus_topics"],
+                "questions_answered": ["Can you list out the major concepts in my syllabus?"],
+                "switch_topic_request": None,
+                "notes": "Syllabus FAQ",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.coach.faq_bot", _syllabus_faq_bot)
+
+    coach_agent.llm_client._queued.clear()
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "Let me pull up the syllabus topics for you.",
+            "action": "call_faq_planner",
+            "tool_params": {"topic": "syllabus_topics", "student_request": "Can you list the major concepts?"},
+            "conversation_summary": "",
+        }
+    )
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "I have the syllabus overview ready—shall we go through it?",
+            "action": "none",
+            "tool_params": {},
+            "conversation_summary": "",
+        }
+    )
+
+    reply1 = coach_agent.process_turn("Can you list out the major concepts in my syllabus?")
+    assert "syllabus" in reply1.lower()
+
+    reply2 = coach_agent.process_turn("yes")
+    assert reply2.startswith("Hi! I'm your learning coach")
+    assert any(
+        entry["summary"].get("notes") == "Syllabus FAQ"
+        for entry in coach_agent.session_memory.get_recent_sessions()
+        if entry["type"] == "faq"
+    )

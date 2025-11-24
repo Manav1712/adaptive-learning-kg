@@ -227,6 +227,7 @@ class FAQPlanner:
         "grading policy": "Grades weight: Exams 50%, Quizzes 20%, Homework 20%, Participation 10%.",
         "office hours": "Office hours run Tuesdays 2-4 PM (Room 301) and Thursdays 10-11 AM (Zoom).",
         "late work": "Late work receives a 10% penalty per day, up to three days.",
+        "syllabus_topics": "\nHere are the major concept buckets for this calculus course:\n1. Limits and continuity\n2. Derivatives and rates of change\n3. Applications of derivatives (optimization, related rates)\n4. Integrals and area-under-the-curve reasoning\n5. Fundamental Theorem of Calculus and connecting derivatives to integrals",
     }
 
     def __init__(self) -> None:
