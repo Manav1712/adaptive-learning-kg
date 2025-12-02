@@ -17,7 +17,8 @@ except ImportError:
 
 try:
     from src.workflow_demo.retriever import TeachingPackRetriever
-except ImportError:from .retriever import TeachingPackRetriever
+except ImportError:
+    from .retriever import TeachingPackRetriever
 
 try:
     from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
@@ -100,7 +101,7 @@ INPUT: A JSON payload with:
 YOU MUST RETURN STRICT JSON:
 {
   "message_to_student": "plain text or empty string when handing off",
-  "action": "none|call_tutoring_planner|call_faq_planner|start_tutor|start_faq",
+  "action": "none|call_tutoring_planner|call_faq_planner|start_tutor|start_faq|show_proficiency",
   "tool_params": {
     "subject": "...",
     "learning_objective": "...",
@@ -115,6 +116,8 @@ Guidelines:
 1. Intent detection:
    - Tutoring intent: wants to learn/practice/review a topic. Gather subject + learning_objective + mode.
    - FAQ intent: wants logistics/policy info. Gather topic only.
+   - Proficiency intent: wants to see their learning progress. Phrases like "show my proficiency", "how am I doing",
+     "what's my progress", "show my scores", "my learning progress" → set action="show_proficiency".
    - Syllabus / course-outline / \"major concepts\" questions should go to FAQ mode using topic "syllabus_topics" and student_request containing the learner's wording.
    - Topic switch or "back to" phrases after a session should jump straight into planning with the new topic. If the student says
      "back to the previous topic", reuse last_tutoring_session.params (subject + learning_objective) as defaults.
@@ -152,13 +155,22 @@ class CoachAgent:
     State machine that mirrors the multi-agent flow from the 9 Oct notebook.
     """
 
+    UNDERSTANDING_TO_MASTERY: Dict[str, float] = {
+        "excellent": 0.9,
+        "good": 0.7,
+        "satisfactory": 0.6,
+        "needs_practice": 0.4,
+        "struggling": 0.3,
+    }
+
     def __init__(
         self,
         retriever: Optional[TeachingPackRetriever] = None,
         llm_model: Optional[str] = None,
+        session_memory_path: Optional[str] = None,
     ) -> None:
         self.retriever = retriever or TeachingPackRetriever()
-        self.session_memory = SessionMemory()
+        self.session_memory = SessionMemory(persistence_path=session_memory_path)
         self.conversation_history: List[Dict[str, str]] = []
         self.collected_params: Dict[str, Any] = {}
         self.planner_result: Optional[Dict[str, Any]] = None
@@ -168,7 +180,7 @@ class CoachAgent:
         self.bot_type: Optional[str] = None
         self.bot_handoff_context: Optional[Dict[str, Any]] = None
         self.bot_conversation_history: List[Dict[str, str]] = []
-        self.student_profile: Dict[str, Any] = {"lo_mastery": {}}
+        self.student_profile: Dict[str, Any] = self.session_memory.student_profile
         self.pending_session_type: Optional[str] = None
         self.awaiting_confirmation_prompted = False
         self.plan_confirmation_summary: Optional[str] = None
@@ -331,6 +343,9 @@ class CoachAgent:
                     tool_params=tool_params,
                     conversation_summary=coach_directive.get("conversation_summary") or "Student requested FAQ help.",
                 )
+
+            if action == "show_proficiency":
+                return self._coach_reply(self._format_proficiency_report())
 
             # action == "none"
             forced_summary = self._maybe_force_syllabus_plan(latest_request)
@@ -514,6 +529,11 @@ class CoachAgent:
         exchanges = list(self.bot_conversation_history)
         self.session_memory.add_session(session_type, params, summary, exchanges)
 
+        # Update per-LO proficiency from tutor session summary
+        if session_type == "tutor":
+            self._update_lo_mastery(params, summary)
+            self.session_memory.save()
+
         switch_topic = summary.get("switch_topic_request")
         switch_mode = summary.get("switch_mode_request")
 
@@ -527,7 +547,7 @@ class CoachAgent:
             self.returning_from_session = True
             return self._handle_coach_turn(switch_mode, synthetic=True)
 
-        greeting = self.initial_greeting()
+        greeting = self._build_return_greeting(params, session_type)
         self._record_message("assistant", greeting)
         return greeting
 
@@ -542,6 +562,98 @@ class CoachAgent:
         self.awaiting_confirmation_prompted = False
         self.plan_confirmation_summary = None
         self._reset_syllabus_escalation()
+
+    def _update_lo_mastery(self, params: Dict[str, Any], summary: Dict[str, Any]) -> None:
+        """
+        Map the tutor's student_understanding assessment to a numeric mastery score and
+        store it in student_profile["lo_mastery"] keyed by learning_objective.
+        """
+        understanding = summary.get("student_understanding") or ""
+        lo_key = params.get("learning_objective") or params.get("lo_id")
+        if not lo_key:
+            return
+        score = self.UNDERSTANDING_TO_MASTERY.get(understanding.lower(), 0.4)
+        self.student_profile.setdefault("lo_mastery", {})[lo_key] = score
+
+    def _format_proficiency_report(self) -> str:
+        """
+        Format lo_mastery scores into a readable summary for the student.
+        
+        Returns:
+            Formatted string showing proficiency levels for each learning objective.
+        """
+        lo_mastery = self.student_profile.get("lo_mastery", {})
+        
+        if not lo_mastery:
+            return (
+                "You haven't completed any tutoring sessions yet, so I don't have proficiency data. "
+                "Start a tutoring session and I'll track your progress!"
+            )
+        
+        # Score to label mapping (reverse of UNDERSTANDING_TO_MASTERY)
+        def score_to_label(score: float) -> str:
+            if score >= 0.85:
+                return "Excellent"
+            elif score >= 0.65:
+                return "Good"
+            elif score >= 0.5:
+                return "Satisfactory"
+            elif score >= 0.35:
+                return "Needs Practice"
+            else:
+                return "Struggling"
+        
+        # Sort by score descending
+        sorted_items = sorted(lo_mastery.items(), key=lambda x: -x[1])
+        
+        # Separate into strong and needs work
+        strong = [(lo, score) for lo, score in sorted_items if score >= 0.65]
+        needs_work = [(lo, score) for lo, score in sorted_items if score < 0.65]
+        
+        lines = ["Your Learning Progress:"]
+        lines.append("")
+        
+        if strong:
+            lines.append("Strong areas:")
+            for lo, score in strong:
+                pct = int(score * 100)
+                label = score_to_label(score)
+                lines.append(f"  - {lo}: {pct}% ({label})")
+        
+        if needs_work:
+            if strong:
+                lines.append("")
+            lines.append("Areas to focus on:")
+            for lo, score in needs_work:
+                pct = int(score * 100)
+                label = score_to_label(score)
+                lines.append(f"  - {lo}: {pct}% ({label})")
+        
+        # Add suggestion for lowest score
+        if needs_work:
+            lowest_lo = needs_work[-1][0]
+            lines.append("")
+            lines.append(f"Tip: Consider practicing '{lowest_lo}' next to strengthen your foundation.")
+        
+        return "\n".join(lines)
+
+    def _build_return_greeting(self, params: Dict[str, Any], session_type: str) -> str:
+        """
+        Produce a continuity-aware greeting referencing the just-completed session.
+        Falls back to generic greeting if required info is missing.
+        """
+        lo = params.get("learning_objective")
+        mode = params.get("mode")
+        if session_type == "tutor" and lo:
+            mode_str = (mode or "").replace("_", " ")
+            if mode_str:
+                return f"Nice work on {lo} in {mode_str} mode! What would you like to work on next?"
+            return f"Nice work on {lo}! What would you like to work on next?"
+        if session_type == "faq":
+            topic = params.get("topic")
+            if topic:
+                return f"Glad I could help with {topic}. What else would you like to explore?"
+        return COACH_GREETING
 
     # ------------------------------------------------------------------
     # Conversation helpers

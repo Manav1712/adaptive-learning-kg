@@ -16,31 +16,34 @@ talking to the same assistant, so keep tone consistent and grounded in the provi
 
 You receive:
 - handoff_context: session_params (subject, book, unit, chapter, learning_objective, mode, student_request,
-  teaching_pack with key_points/examples/practice/prerequisites/citations), conversation_summary,
-  recent_sessions (with previous transcripts), and student_state metadata.
+  current_plan[], future_plan[], optionally teaching_pack), conversation_summary, recent_sessions, and student_state.
+  - student_state may include lo_mastery: a dict mapping learning objectives to numeric scores (0-1).
+    Use this only as a soft signal; if mastery is low (<0.5), spend more time on foundational explanations;
+    if high (>0.7), you can skip basics and move to deeper applications. Never mention scores directly.
 - conversation_history: messages inside THIS tutoring session only.
 
 Goals:
 1. Teach exactly ONE learning objective at a time using the requested mode (conceptual_review, examples, practice).
-2. Always ground explanations in teaching_pack:
-   - Reference key_points by name (mention the book/unit when helpful).
-   - When sharing examples/practice, cite the snippet or describe it explicitly (e.g., "Example 1223_concept_1 explains...").
-   - Use prerequisites for quick refreshers when the student seems unsure.
+2. Follow the `current_plan` steps sequentially. Each step provides `how_to_teach` and `why_to_teach` guidance—use
+   that wording to frame your explanations and to justify the approach to the student.
 3. When starting, check recent sessions with the same learning objective + mode:
    - if conversation_exchanges exist, ask whether to continue or restart.
-   - otherwise, dive directly into teaching with the first key point or example.
-4. Detect MODE switches:
+   - otherwise, dive directly into teaching with the first plan step.
+4. Use the `future_plan` only when proposing next steps or wrap-up suggestions.
+5. If teaching_pack information is present, it can provide extra facts or examples, but the plan guidance is the
+   source of truth. Keep references grounded and cite snippets when you quote them.
+6. Detect MODE switches:
    - phrases like "switch to practice problems/examples/conceptual review" → ask for confirmation,
      set needs_mode_confirmation=true, requested_mode="...".
    - If the student confirms, end the session silently (end_activity=true, silent_end=true) with
      session_summary.switch_mode_request recorded as "switch to ...".
-5. Detect TOPIC switches:
+7. Detect TOPIC switches:
    - phrases like "teach me derivatives instead" or "I need to know my exam date" →
      ask "Is there anything else..." and wait for confirmation. When confirmed, end silently with
      session_summary.switch_topic_request equal to the student's wording.
    - Do NOT set switch_topic_request for generic acknowledgements like "thanks" or "no" unless the student
      clearly names a new topic.
-6. Completion cues:
+8. Completion cues:
    - Phrases such as "thanks", "that helps", "I'm good", "no that's all" mean the student is satisfied.
      Give a concise recap, set end_activity=true, silent_end=false, and leave both switch requests null.
 
@@ -68,7 +71,7 @@ Never mention tools or handoffs. Stay encouraging and focused on the learning ob
 
 FAQ_SYSTEM_PROMPT = """You are the FAQ/syllabus answering mode of the assistant.
 
-Inputs:
+        Inputs:
 - handoff_context with session_params.topic + canonical script, conversation_summary, recent_sessions.
 - conversation_history inside the FAQ session.
 
@@ -138,16 +141,64 @@ def faq_bot(
     )
     return _coerce_json(response.choices[0].message.content)
 
-
 def _coerce_json(raw: str) -> Dict[str, Any]:
+    """
+    Parse JSON from LLM response, handling markdown code blocks and invalid escape sequences.
+    
+    Args:
+        raw: Raw string response from LLM (may contain markdown or invalid escapes).
+        
+    Returns:
+        Parsed JSON dictionary.
+        
+    Raises:
+        json.JSONDecodeError: If JSON cannot be parsed even after repair attempts.
+    """
     raw = raw.strip()
+    
+    # Extract JSON from markdown code blocks
     if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lstrip().lower().startswith("json"):
-            raw = raw.split("\n", 1)[1]
+        # Remove markdown code fence
+        lines = raw.split("\n")
+        if len(lines) > 1:
+            # Skip first line (```json or ```)
+            start_idx = 1
+            # Find closing ```
+            end_idx = len(lines)
+            for i, line in enumerate(lines[1:], start=1):
+                if line.strip() == "```":
+                    end_idx = i
+                    break
+            raw = "\n".join(lines[start_idx:end_idx])
+    
+    # Try parsing directly first
     try:
         return json.loads(raw)
-    except json.JSONDecodeError:
-        fixed = re.sub(r"\\([^\"\\/bfnrtu])", r"\\\\\1", raw)
-        return json.loads(fixed)
+    except json.JSONDecodeError as e:
+        # Attempt to fix common escape sequence issues
+        # Fix invalid escape sequences (like \x, \u with invalid hex, or standalone \)
+        # This regex finds backslashes not followed by valid escape characters
+        fixed = re.sub(r"\\(?![\"\\/bfnrtux0-9a-fA-F])", r"\\\\", raw)
+        
+        # Also handle invalid \x and \u sequences by escaping them
+        # Fix \x followed by non-hex or incomplete hex
+        fixed = re.sub(r"\\x(?![0-9a-fA-F]{2})", r"\\\\x", fixed)
+        # Fix \u followed by non-hex or incomplete hex (needs 4 hex digits)
+        fixed = re.sub(r"\\u(?![0-9a-fA-F]{4})", r"\\\\u", fixed)
+        
+        try:
+            return json.loads(fixed)
+        except json.JSONDecodeError:
+            # Last resort: try to find JSON object boundaries
+            # Look for first { and last }
+            start = raw.find("{")
+            end = raw.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                try:
+                    return json.loads(raw[start:end+1])
+                except json.JSONDecodeError:
+                    pass
+            
+            # If all else fails, raise the original error
+            raise e
 

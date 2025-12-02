@@ -5,8 +5,14 @@ CLI entrypoint that runs the Coach → Retriever → Tutor workflow end-to-end.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
+
+# Default session memory file (in project root by default)
+SESSION_MEMORY_FILE = os.path.join(
+    Path(__file__).resolve().parents[2], "session_memory.json"
+)
 
 # Add parent directory to path for imports when running directly
 if __name__ == "__main__":
@@ -46,8 +52,8 @@ def build_demo_coach() -> CoachAgent:
     
     print("Initializing coach...")
     try:
-        coach = CoachAgent(retriever=retriever)
-        print("Coach initialized successfully!\n")
+        coach = CoachAgent(retriever=retriever, session_memory_path=SESSION_MEMORY_FILE)
+        print(f"Coach initialized successfully! (session memory: {SESSION_MEMORY_FILE})\n")
         return coach
     except Exception as e:
         print(f"Error initializing coach: {e}")
@@ -68,7 +74,7 @@ def interactive_loop(coach: CoachAgent) -> None:
     """
 
     import sys
-    
+
     print("Adaptive Learning Coach Demo\nType 'quit' to exit.\n")
     sys.stdout.flush()
 
