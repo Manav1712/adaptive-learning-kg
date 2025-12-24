@@ -55,7 +55,7 @@ In the steps below, we'll explicitly say which section to edit/replace.
 
 ## What we are changing (high-level)
 
-The baseline is “pure LLM routing + toy OpenStax lists”. We will upgrade it to:
+We will upgrade the baseline to:
 
 1. **File-based KG**: load LOs and prereq edges from CSVs at runtime
 2. **Retriever**: use embeddings to retrieve Top‑K LO candidates (text + image)
@@ -65,7 +65,7 @@ The baseline is “pure LLM routing + toy OpenStax lists”. We will upgrade it 
 
 ---
 
-## Runtime Data Files (expected)
+## Runtime Data Files
 
 You can keep these paths as-is inside the single cell (relative to project root):
 
@@ -88,20 +88,78 @@ If you use different paths, update the constants in Step 1.
 
 ---
 
+## Dependencies (exact versions)
+
+Install these packages before running. The versions below are tested and known to work together.
+
+**Core runtime (required):**
+
+```
+openai==1.107.2
+numpy==1.26.4
+pandas==2.3.2
+sentence-transformers==5.1.2
+pillow==11.3.0
+pydantic==2.11.9
+python-dotenv==1.1.1
+```
+
+**To install:**
+
+```bash
+pip install openai==1.107.2 numpy==1.26.4 pandas==2.3.2 sentence-transformers==5.1.2 pillow==11.3.0 pydantic==2.11.9 python-dotenv==1.1.1
+```
+
+**Or use the project's `requirements.txt`:**
+
+```bash
+pip install -r requirements.txt
+```
+
+**What each package does:**
+
+| Package | Purpose |
+|---------|---------|
+| `openai` | LLM API calls (GPT-5.1, GPT-4o, embeddings) |
+| `numpy` | Embedding matrices, cosine similarity |
+| `pandas` | Load KG CSVs (`lo_index.csv`, `edges_prereqs.csv`, `image_metadata.csv`) |
+| `sentence-transformers` | CLIP model for image embeddings |
+| `pillow` | Image loading for CLIP |
+| `pydantic` | Data validation (optional but recommended) |
+| `python-dotenv` | Load `OPENAI_API_KEY` from `.env` file |
+
+**Environment variable:**
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+Or create a `.env` file in the project root:
+
+```
+OPENAI_API_KEY=sk-...
+```
+
+---
+
 ## Step 1 — Add configuration + imports (single cell)
 
 **Input:** none  
 **Process:** add constants + imports near the top of the cell (after `DEBUG_MODE`)  
 **Output:** the rest of the cell can use consistent config
 
-Add:
+Add all imports at the top of the cell:
 
 ```python
 import os
-from pathlib import Path
+import json
 import base64
+from pathlib import Path
+from typing import Optional
 import numpy as np
 import pandas as pd
+from sentence_transformers import SentenceTransformer
+from PIL import Image
 
 # Models
 # - Use GPT‑5.1 for all text-only reasoning (coach routing, plan-guard, planner, tutor when no image)
@@ -149,13 +207,13 @@ MODEL_NAME = CHAT_MODEL
 
 And keep `_chat_json` using `model=MODEL_NAME`.
 
-### 1.2 Install missing packages (only if needed)
+### 1.2 Verify dependencies
 
-If your notebook env doesn’t have these installed, run (still within the single cell, at the very top):
+Ensure all packages from the **Dependencies** section above are installed. If running in a fresh notebook environment, you can install inline:
 
 ```python
-# Optional: install deps in-notebook
-# !pip install -q numpy pandas sentence-transformers pillow
+# Uncomment to install in-notebook (first run only)
+# !pip install -q openai==1.107.2 numpy==1.26.4 pandas==2.3.2 sentence-transformers==5.1.2 pillow==11.3.0 pydantic==2.11.9 python-dotenv==1.1.1
 ```
 
 ---
@@ -172,35 +230,55 @@ Planner must output:
 
 ```json
 {
-  "subject": "calculus|algebra|trigonometry",
-  "mode": "conceptual_review|examples|practice",
+  "subject": "calculus",
+  "mode": "conceptual_review",
   "current_plan": [
     {
       "lo_id": 42,
       "title": "The Chain Rule",
       "proficiency": 0.35,
-      "notes": "short note",
+      "notes": "Student is new to this topic. Start with intuition about nested functions before introducing notation.",
       "is_primary": true,
-      "how_to_teach": "string",
-      "why_to_teach": "string"
+      "how_to_teach": "Start with the intuition: when one function is inside another, the rate of change depends on both. Use the notation dy/dx = (dy/du)(du/dx). Walk through simple examples like (x^2 + 1)^3 before moving to trigonometric compositions.",
+      "why_to_teach": "The chain rule is essential for differentiating composite functions, which appear constantly in real-world applications. Without it, students cannot handle nested expressions or implicit differentiation."
+    },
+    {
+      "lo_id": 41,
+      "title": "Differentiation Rules",
+      "proficiency": 0.65,
+      "notes": "Prerequisite — student has solid understanding, quick review only.",
+      "is_primary": false,
+      "how_to_teach": "Cover power rule, product rule, and quotient rule systematically. Emphasize pattern recognition and when to apply each rule.",
+      "why_to_teach": "These foundational rules are prerequisites for the chain rule and all advanced differentiation techniques."
     }
   ],
   "future_plan": [
     {
-      "lo_id": 45,
+      "lo_id": 43,
       "title": "Implicit Differentiation",
       "proficiency": 0.0,
-      "notes": "",
+      "notes": "Natural next step after mastering the chain rule.",
       "is_primary": false,
-      "how_to_teach": "string",
-      "why_to_teach": "string"
+      "how_to_teach": "Show how to differentiate equations where y is not isolated. Emphasize the chain rule connection.",
+      "why_to_teach": "Extends chain rule to equations that cannot be solved for y explicitly."
     }
   ],
-  "book": "string",
-  "unit": "string",
-  "chapter": "string"
+  "book": "Calculus Volume 1",
+  "unit": "Derivatives",
+  "chapter": "Differentiation Rules"
 }
 ```
+
+**Type Constraints:**
+- `subject`: string, must be one of `"calculus"`, `"algebra"`, `"trigonometry"`
+- `mode`: string, must be one of `"conceptual_review"`, `"examples"`, `"practice"`
+- `lo_id`: integer, must exist in `lo_index.csv`
+- `proficiency`: float, range `[0.0, 1.0]` (0.0 = new/struggling, 1.0 = mastered)
+- `notes`: string, can be empty, typically 10-100 characters
+- `is_primary`: boolean, exactly one `true` in `current_plan`, always `false` in `future_plan`
+- `how_to_teach`: string, non-empty, pedagogical guidance (typically 50-300 characters)
+- `why_to_teach`: string, non-empty, rationale for teaching this LO (typically 50-200 characters)
+- `book`, `unit`, `chapter`: strings, non-empty, from the primary LO's metadata
 
 **Rules**
 - `current_plan`: length 1–3
@@ -212,18 +290,69 @@ Planner must output:
 
 ```python
 def validate_plan(plan: dict) -> None:
+    """Validate simplified plan JSON contract.
+    
+    Raises ValueError with descriptive message if validation fails.
+    """
     if not isinstance(plan, dict):
         raise ValueError("plan must be a dict")
-    for k in ["subject", "mode", "current_plan", "future_plan"]:
+    
+    # Check required top-level keys
+    required_keys = ["subject", "mode", "current_plan", "future_plan", "book", "unit", "chapter"]
+    for k in required_keys:
         if k not in plan:
             raise ValueError(f"plan missing key: {k}")
+    
+    # Validate subject and mode are from allowed sets
+    allowed_subjects = {"calculus", "algebra", "trigonometry"}
+    if plan["subject"] not in allowed_subjects:
+        raise ValueError(f"subject must be one of {allowed_subjects}, got: {plan['subject']}")
+    
+    allowed_modes = {"conceptual_review", "examples", "practice"}
+    if plan["mode"] not in allowed_modes:
+        raise ValueError(f"mode must be one of {allowed_modes}, got: {plan['mode']}")
+    
+    # Validate current_plan length
+    if not isinstance(plan["current_plan"], list):
+        raise ValueError("current_plan must be a list")
     if not (1 <= len(plan["current_plan"]) <= 3):
-        raise ValueError("current_plan must have 1-3 items")
+        raise ValueError(f"current_plan must have 1-3 items, got {len(plan['current_plan'])}")
+    
+    # Validate future_plan length
+    if not isinstance(plan["future_plan"], list):
+        raise ValueError("future_plan must be a list")
+    if len(plan["future_plan"]) != 1:
+        raise ValueError(f"future_plan must have exactly 1 item, got {len(plan['future_plan'])}")
+    
+    # Validate each LO item
+    required_lo_fields = ["lo_id", "title", "proficiency", "notes", "is_primary", "how_to_teach", "why_to_teach"]
+    all_items = plan["current_plan"] + plan["future_plan"]
+    
+    for i, item in enumerate(all_items):
+        if not isinstance(item, dict):
+            raise ValueError(f"Plan item {i} must be a dict")
+        for field in required_lo_fields:
+            if field not in item:
+                raise ValueError(f"Plan item {i} missing required field: {field}")
+        
+        # Validate types
+        if not isinstance(item["lo_id"], int):
+            raise ValueError(f"Plan item {i}: lo_id must be int, got {type(item['lo_id'])}")
+        if not isinstance(item["proficiency"], (int, float)) or not (0.0 <= item["proficiency"] <= 1.0):
+            raise ValueError(f"Plan item {i}: proficiency must be float in [0.0, 1.0], got {item['proficiency']}")
+        if not isinstance(item["is_primary"], bool):
+            raise ValueError(f"Plan item {i}: is_primary must be bool, got {type(item['is_primary'])}")
+    
+    # Check exactly one primary in current_plan
     primaries = [x for x in plan["current_plan"] if x.get("is_primary") is True]
     if len(primaries) != 1:
-        raise ValueError("current_plan must contain exactly one primary LO")
-    if len(plan["future_plan"]) != 1:
-        raise ValueError("future_plan must contain exactly one LO")
+        raise ValueError(f"current_plan must contain exactly one primary LO (is_primary=true), found {len(primaries)}")
+    
+    # Check all items use same mode (rule: all items use the same mode)
+    # Note: mode is set at top-level, but we verify no conflicting mode fields in items
+    for i, item in enumerate(all_items):
+        if "mode" in item and item["mode"] != plan["mode"]:
+            raise ValueError(f"Plan item {i} has mode '{item['mode']}' but top-level mode is '{plan['mode']}'. All items must use the same mode.")
 ```
 
 ---
@@ -234,7 +363,7 @@ def validate_plan(plan: dict) -> None:
 **Process:** load both files and build fast lookups  
 **Output:** `lo_by_id` and `prereqs_by_lo`
 
-### 3.1 Required KG fields surfaced to downstream components
+### 3.1 KG fields used by downstream components
 
 From `lo_index.csv`:
 - `lo_id` (int)
@@ -246,36 +375,148 @@ From `edges_prereqs.csv`:
 - `source_lo_id` (prereq)
 - `target_lo_id` (dependent)
 
-### 3.2 Loader (add to cell)
+### 3.2 CSV Schema
+
+**`lo_index.csv` format:**
+
+Required columns:
+- `lo_id` (integer): Unique learning objective identifier
+- `learning_objective` (string, non-empty): Full title of the LO
+
+Optional columns:
+- `book` (string): e.g., "Calculus Volume 1"
+- `unit` (string): e.g., "Derivatives"
+- `chapter` (string): e.g., "Differentiation Rules"
+- `how_to_teach` (string): Pedagogical guidance for teaching this LO
+- `why_to_teach` (string): Rationale for why this LO is important
+
+**File encoding:** UTF-8
+
+Example row:
+```csv
+lo_id,learning_objective,book,unit,chapter,how_to_teach,why_to_teach
+42,"The Chain Rule","Calculus Volume 1","Derivatives","Differentiation Rules","Start with the intuition: when one function is inside another, the rate of change depends on both.","The chain rule is essential for differentiating composite functions."
+```
+
+**`edges_prereqs.csv` format:**
+
+Required columns:
+- `source_lo_id` (integer): Prerequisite LO ID
+- `target_lo_id` (integer): Dependent LO ID (the LO that requires the prerequisite)
+
+**File encoding:** UTF-8
+
+Example row:
+```csv
+source_lo_id,target_lo_id
+41,42
+40,42
+```
+
+This means: LO 41 and LO 40 are prerequisites for LO 42.
+
+**Note:** Both files must exist in `demo/` directory (as specified in Step 1).
+
+### 3.3 Loader (add to cell)
+
+**When to call:** Call `load_kg()` once at startup (before Step 5 retrieval or Step 6 planning).
+
+**Usage:** The returned `lo_by_id` and `prereqs_by_lo` are used in:
+- Step 5: `build_candidate()` function to add KG fields (book, unit, chapter, how_to_teach, why_to_teach, prereq_lo_ids) to retrieval candidates
+- Step 6: Planner uses these fields when generating the simplified plan
 
 ```python
-def load_kg():
+def load_kg() -> tuple[dict[int, dict], dict[int, list[int]]]:
+    """Load knowledge graph from CSVs and build lookup dictionaries.
+    
+    Returns:
+        tuple: (lo_by_id, prereqs_by_lo)
+            - lo_by_id: dict mapping lo_id -> LO metadata dict with keys:
+              lo_id, title, book, unit, chapter, how_to_teach, why_to_teach
+            - prereqs_by_lo: dict mapping lo_id -> list of prerequisite lo_ids
+    
+    Raises:
+        FileNotFoundError: If CSV files are missing
+        ValueError: If CSV format is invalid, required columns missing, or data integrity checks fail
+    
+    Edge cases:
+    - If file not found, pd.read_csv() raises FileNotFoundError
+    - If file is empty, pd.read_csv() raises pd.errors.EmptyDataError
+    - If required columns missing, validation will raise ValueError
+    """
+    # Load CSVs
     lo_df = pd.read_csv(KG_DIR / "lo_index.csv")
     prereq_df = pd.read_csv(KG_DIR / "edges_prereqs.csv")
-
-    lo_by_id = {}
+    
+    # Validate required columns
+    required_lo_cols = ["lo_id", "learning_objective"]
+    missing = [c for c in required_lo_cols if c not in lo_df.columns]
+    if missing:
+        raise ValueError(f"lo_index.csv missing required columns: {missing}")
+    
+    required_edge_cols = ["source_lo_id", "target_lo_id"]
+    missing = [c for c in required_edge_cols if c not in prereq_df.columns]
+    if missing:
+        raise ValueError(f"edges_prereqs.csv missing required columns: {missing}")
+    
+    # Build lo_by_id lookup with validation
+    lo_by_id: dict[int, dict] = {}
     for _, row in lo_df.iterrows():
-        lo_id = int(row["lo_id"])
+        # Validate and convert lo_id
+        try:
+            lo_id = int(row["lo_id"])
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid lo_id (must be integer): {row['lo_id']}")
+        
+        # Check for duplicates
+        if lo_id in lo_by_id:
+            raise ValueError(f"Duplicate lo_id in lo_index.csv: {lo_id}")
+        
+        # Validate learning_objective (required, non-empty)
+        learning_obj = str(row["learning_objective"]).strip()
+        if not learning_obj:
+            raise ValueError(f"Empty learning_objective for lo_id {lo_id}")
+        
         lo_by_id[lo_id] = {
             "lo_id": lo_id,
-            "title": str(row["learning_objective"]),
-            "book": str(row.get("book", "")),
-            "unit": str(row.get("unit", "")),
-            "chapter": str(row.get("chapter", "")),
-            "how_to_teach": str(row.get("how_to_teach", "")),
-            "why_to_teach": str(row.get("why_to_teach", "")),
+            "title": learning_obj,
+            "book": str(row.get("book", "")).strip(),
+            "unit": str(row.get("unit", "")).strip(),
+            "chapter": str(row.get("chapter", "")).strip(),
+            "how_to_teach": str(row.get("how_to_teach", "")).strip(),
+            "why_to_teach": str(row.get("why_to_teach", "")).strip(),
         }
-
-    prereqs_by_lo = {}
+    
+    # Build prereqs_by_lo lookup with validation
+    prereqs_by_lo: dict[int, list[int]] = {}
+    valid_lo_ids = set(lo_by_id.keys())
+    
     for _, row in prereq_df.iterrows():
-        src = int(row["source_lo_id"])
-        tgt = int(row["target_lo_id"])
+        # Validate and convert IDs
+        try:
+            src = int(row["source_lo_id"])
+            tgt = int(row["target_lo_id"])
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid lo_id in edges_prereqs.csv: source={row.get('source_lo_id')}, target={row.get('target_lo_id')}")
+        
+        # Validate references exist
+        if src not in valid_lo_ids:
+            raise ValueError(f"edges_prereqs.csv references non-existent source_lo_id: {src}")
+        if tgt not in valid_lo_ids:
+            raise ValueError(f"edges_prereqs.csv references non-existent target_lo_id: {tgt}")
+        
+        # Prevent self-loops
+        if src == tgt:
+            raise ValueError(f"edges_prereqs.csv contains self-loop: lo_id {src}")
+        
         prereqs_by_lo.setdefault(tgt, []).append(src)
-
+    
     return lo_by_id, prereqs_by_lo
 ```
 
-**Concrete output example**
+**Concrete output examples**
+
+**Example 1: `lo_by_id` lookup**
 
 Input: `lo_by_id[42]`  
 Output:
@@ -287,48 +528,201 @@ Output:
   "book": "Calculus Volume 1",
   "unit": "Derivatives",
   "chapter": "Differentiation Rules",
-  "how_to_teach": "...",
-  "why_to_teach": "..."
+  "how_to_teach": "Start with the intuition: when one function is inside another, the rate of change depends on both. Use the notation dy/dx = (dy/du)(du/dx). Walk through simple examples like (x^2 + 1)^3 before moving to trigonometric compositions.",
+  "why_to_teach": "The chain rule is essential for differentiating composite functions, which appear constantly in real-world applications. Without it, students cannot handle nested expressions or implicit differentiation."
 }
 ```
+
+**Example 2: `prereqs_by_lo` lookup**
+
+Input: `prereqs_by_lo[42]`  
+Output: `[41, 40]`  // List of prerequisite LO IDs for LO 42
+
+Input: `prereqs_by_lo[10]`  
+Output: `[]`  // Empty list if LO 10 has no prerequisites
+
+**Data type notes:**
+- `lo_id` values are integers (not strings)
+- Empty optional fields (book, unit, chapter, how_to_teach, why_to_teach) are stored as empty strings `""`
+- `prereqs_by_lo` values are lists of integers (prerequisite lo_ids)
+- If an LO has no prerequisites, the list is empty `[]`
 
 ---
 
 ## Step 4 — Load offline embedding artifacts (runtime only loads)
 
 **Input:** embedding `.npy` matrices + row index CSVs  
-**Process:** load them once at startup  
+**Process:** load into memory at startup  
 **Output:** in-memory matrices for cosine similarity search
+
+**When to call:** Call `load_text_artifacts()` and `load_image_artifacts()` once at startup (before Step 5 retrieval).
+
+**Usage:** The returned embeddings and metadata are used in Step 5 for cosine similarity search. These artifacts are precomputed offline (as stated in Overview) and loaded into memory at runtime.
+
+**Memory note:** These matrices are loaded entirely into RAM. For a typical KG with ~150 LOs and ~300 images, expect ~2-3 MB total. For larger KGs, scale accordingly.
 
 ### 4.1 Expected artifact formats
 
-Text:
-- `lo_embeddings.npy`: `(num_los, dim)` float32 **L2-normalized row-wise**
-- `lo_row_index.csv`: `row_index, lo_id`
+**Text artifacts:**
 
-Image:
-- `image_embeddings.npy`: `(num_images, 512)` float32 **L2-normalized row-wise**
-- `image_metadata.csv`: at least `image_id, path, lo_id, description, keywords`
+`lo_embeddings.npy`:
+- Shape: `(num_los, dim)` where `dim` is the embedding dimension (3072 for `text-embedding-3-large`)
+- Dtype: `float32`
+- Normalization: Each row must be L2-normalized (unit vector, norm = 1.0)
+- Row order: Must match `lo_row_index.csv` row order (row 0 → first LO, row 1 → second LO, etc.)
+
+`lo_row_index.csv`:
+- Columns: `row_index` (int, required), `lo_id` (int, required)
+- Encoding: UTF-8
+- Must be sorted by `row_index` in ascending order (0, 1, 2, ...)
+- Each `lo_id` must exist in `lo_index.csv` (loaded in Step 3)
+- Example:
+  ```csv
+  row_index,lo_id
+  0,42
+  1,41
+  2,40
+  ```
+
+**Image artifacts:**
+
+`image_embeddings.npy`:
+- Shape: `(num_images, 512)` where 512 is the CLIP embedding dimension (fixed for `clip-ViT-B-32`)
+- Dtype: `float32`
+- Normalization: Each row must be L2-normalized (unit vector, norm = 1.0)
+- Row order: Must match `image_metadata.csv` row order
+
+`image_metadata.csv`:
+- Required columns: `image_id` (int or string), `path` (string), `lo_id` (int)
+- Optional columns: `description` (string), `keywords` (string)
+- Encoding: UTF-8
+- Each `lo_id` must exist in `lo_index.csv` (loaded in Step 3)
+- Example:
+  ```csv
+  image_id,path,lo_id,description,keywords
+  1,"derivatives/chain_rule_example.png",42,"Visual example of chain rule","chain rule,derivative,composite"
+  ```
 
 ### 4.2 Loader (add to cell)
 
 ```python
-def load_text_artifacts():
+def load_text_artifacts() -> tuple[np.ndarray, list[int]]:
+    """Load text embedding artifacts.
+    
+    Returns:
+        tuple: (lo_embeddings, lo_ids_by_row)
+            - lo_embeddings: numpy array shape (num_los, dim), float32, L2-normalized rows
+            - lo_ids_by_row: list of lo_ids matching embedding row order
+    
+    Raises:
+        FileNotFoundError: If artifact files are missing
+        ValueError: If files are invalid or don't match expected format
+    
+    Edge cases:
+    - If file not found, np.load() raises FileNotFoundError
+    - If file is corrupted, np.load() raises ValueError
+    - If file is empty or has wrong shape, validation will raise ValueError
+    """
+    # Load embeddings
     emb = np.load(ARTIFACT_DIR / "lo_embeddings.npy").astype("float32")
-    rows = pd.read_csv(ARTIFACT_DIR / "lo_row_index.csv").sort_values("row_index")
+    
+    # Validate shape
+    if len(emb.shape) != 2:
+        raise ValueError(f"lo_embeddings.npy must be 2D array, got shape {emb.shape}")
+    
+    # Verify L2-normalization
+    row_norms = np.linalg.norm(emb, axis=1)
+    if not np.allclose(row_norms, 1.0, atol=1e-5):
+        raise ValueError("lo_embeddings.npy rows are not L2-normalized (expected norm = 1.0)")
+    
+    # Load row index
+    rows = pd.read_csv(ARTIFACT_DIR / "lo_row_index.csv")
+    
+    # Validate required columns
+    required_cols = ["row_index", "lo_id"]
+    missing = [c for c in required_cols if c not in rows.columns]
+    if missing:
+        raise ValueError(f"lo_row_index.csv missing required columns: {missing}")
+    
+    # Sort and extract lo_ids
+    rows = rows.sort_values("row_index")
     lo_ids_by_row = [int(x) for x in rows["lo_id"].tolist()]
+    
+    # Validate row count matches
     if emb.shape[0] != len(lo_ids_by_row):
-        raise ValueError("lo_embeddings rows != lo_row_index rows")
+        raise ValueError(f"lo_embeddings.npy has {emb.shape[0]} rows but lo_row_index.csv has {len(lo_ids_by_row)} rows")
+    
     return emb, lo_ids_by_row
 
 
-def load_image_artifacts():
+def load_image_artifacts() -> tuple[np.ndarray, pd.DataFrame]:
+    """Load image embedding artifacts.
+    
+    Returns:
+        tuple: (image_embeddings, image_metadata)
+            - image_embeddings: numpy array shape (num_images, 512), float32, L2-normalized rows
+            - image_metadata: DataFrame with columns image_id, path, lo_id, (optional) description, keywords
+    
+    Raises:
+        FileNotFoundError: If artifact files are missing
+        ValueError: If files are invalid or don't match expected format
+    
+    Edge cases:
+    - If file not found, np.load() raises FileNotFoundError
+    - If file is corrupted, np.load() raises ValueError
+    - If file is empty or has wrong shape, validation will raise ValueError
+    """
+    # Load embeddings
     emb = np.load(IMAGE_CORPUS_DIR / "image_embeddings.npy").astype("float32")
+    
+    # Validate shape
+    if len(emb.shape) != 2:
+        raise ValueError(f"image_embeddings.npy must be 2D array, got shape {emb.shape}")
+    if emb.shape[1] != 512:
+        raise ValueError(f"image_embeddings.npy must have 512 columns (CLIP dimension), got {emb.shape[1]}")
+    
+    # Verify L2-normalization
+    row_norms = np.linalg.norm(emb, axis=1)
+    if not np.allclose(row_norms, 1.0, atol=1e-5):
+        raise ValueError("image_embeddings.npy rows are not L2-normalized (expected norm = 1.0)")
+    
+    # Load metadata
     meta = pd.read_csv(IMAGE_CORPUS_DIR / "image_metadata.csv")
+    
+    # Validate required columns
+    required_cols = ["image_id", "path", "lo_id"]
+    missing = [c for c in required_cols if c not in meta.columns]
+    if missing:
+        raise ValueError(f"image_metadata.csv missing required columns: {missing}")
+    
+    # Validate row count matches
     if emb.shape[0] != len(meta):
-        raise ValueError("image_embeddings rows != image_metadata rows")
+        raise ValueError(f"image_embeddings.npy has {emb.shape[0]} rows but image_metadata.csv has {len(meta)} rows")
+    
     return emb, meta
 ```
+
+**Concrete output examples**
+
+**Example 1: `load_text_artifacts()`**
+
+Input: Files `demo/runtime_artifacts/lo_embeddings.npy` (shape: 138, 3072) and `demo/runtime_artifacts/lo_row_index.csv`  
+Output:
+- `lo_embeddings`: numpy array shape `(138, 3072)`, dtype `float32`, L2-normalized rows
+- `lo_ids_by_row`: `[42, 41, 40, 39, 38, 37, 36, ...]`  // List of 138 lo_ids matching embedding row order
+
+**Example 2: `load_image_artifacts()`**
+
+Input: Files `src/workflow_demo/image_corpus/image_embeddings.npy` (shape: 270, 512) and `src/workflow_demo/image_corpus/image_metadata.csv`  
+Output:
+- `image_embeddings`: numpy array shape `(270, 512)`, dtype `float32`, L2-normalized rows
+- `image_metadata`: DataFrame with 270 rows:
+  ```
+  image_id,path,lo_id,description,keywords
+  1,derivatives/chain_rule_example.png,42,Visual example of chain rule,chain rule,derivative
+  2,derivatives/product_rule.png,41,Product rule diagram,product rule,derivative
+  ...
+  ```
 
 ---
 
@@ -337,6 +731,10 @@ def load_image_artifacts():
 **Input:** `student_text`, optional `ocr_text`, optional `image_path`  
 **Process:** retrieve Top‑K candidates from text embeddings and image embeddings in parallel; merge  
 **Output:** `merged_candidates` to feed the planner
+
+**When to call:** Call `retrieve_candidates()` from the coach when a new tutoring request is received (after OCR if image provided).
+
+**Usage:** The returned merged candidates are passed to the planner (Step 6) to generate the simplified plan. The function handles both text-only queries and image queries (with optional OCR text).
 
 ### 5.1 Cosine similarity (exact)
 
@@ -363,6 +761,14 @@ def l2_normalize(v: np.ndarray) -> np.ndarray:
     return (v / n).astype("float32")
 
 def embed_text_query(text: str) -> np.ndarray:
+    """Embed text query using OpenAI embeddings API.
+    
+    Edge cases:
+    - If text is empty, raises ValueError
+    - If API call fails, raises RuntimeError (handle at coach level)
+    """
+    if not text.strip():
+        raise ValueError("Query text cannot be empty")
     resp = client.embeddings.create(model=TEXT_EMBED_MODEL, input=text)
     vec = np.array(resp.data[0].embedding, dtype="float32")
     return l2_normalize(vec)
@@ -370,16 +776,24 @@ def embed_text_query(text: str) -> np.ndarray:
 
 ### 5.3 Image query embedding (runtime, CLIP)
 
-Add:
+Initialize the CLIP model once at startup (add after imports in Step 1):
 
 ```python
-from sentence_transformers import SentenceTransformer
-from PIL import Image
-
 CLIP_MODEL_NAME = "clip-ViT-B-32"
 clip_model = SentenceTransformer(CLIP_MODEL_NAME)
+```
 
+Then add the embedding function (add to retrieval section):
+
+```python
 def embed_image_query(image_path: str) -> np.ndarray:
+    """Embed image query using CLIP model.
+    
+    Edge cases:
+    - If image file not found, Image.open() raises FileNotFoundError
+    - If image is corrupted, Image.open() raises PIL.UnidentifiedImageError
+    - Handle these at coach level
+    """
     img = Image.open(image_path).convert("RGB")
     vec = clip_model.encode([img], convert_to_numpy=True, normalize_embeddings=True)[0]
     return vec.astype("float32")
@@ -416,18 +830,33 @@ def merge_candidates(text_cands: list, image_cands: list) -> list:
     return merged[:TOP_K_MERGED]
 
 
-def retrieve_candidates(student_text: str, ocr_text: str, image_path: str, lo_embeddings, lo_ids_by_row, lo_by_id, prereqs_by_lo, image_embeddings, image_meta):
+def retrieve_candidates(
+    student_text: str,
+    ocr_text: str | None,
+    image_path: str | None,
+    lo_embeddings: np.ndarray,
+    lo_ids_by_row: list[int],
+    lo_by_id: dict[int, dict],
+    prereqs_by_lo: dict[int, list[int]],
+    image_embeddings: np.ndarray,
+    image_meta: pd.DataFrame
+) -> list[dict]:
     query = "\\n".join([x for x in [student_text, ocr_text] if x]).strip()
+    
+    if not query and not image_path:
+        raise ValueError("At least one of student_text, ocr_text, or image_path must be provided")
 
     # Text retrieval
-    q = embed_text_query(query)
-    scores = lo_embeddings @ q
-    top_idx = np.argsort(scores)[::-1][:TOP_K_TEXT]
-    text_cands = [
-        build_candidate(lo_ids_by_row[i], float(scores[i]), "text", lo_by_id, prereqs_by_lo)
-        for i in top_idx
-        if lo_ids_by_row[i] in lo_by_id
-    ]
+    text_cands = []
+    if query:
+        q = embed_text_query(query)
+        scores = lo_embeddings @ q
+        top_idx = np.argsort(scores)[::-1][:TOP_K_TEXT]
+        text_cands = [
+            build_candidate(lo_ids_by_row[i], float(scores[i]), "text", lo_by_id, prereqs_by_lo)
+            for i in top_idx
+            if lo_ids_by_row[i] in lo_by_id
+        ]
 
     # Image retrieval (optional)
     image_cands = []
@@ -441,8 +870,12 @@ def retrieve_candidates(student_text: str, ocr_text: str, image_path: str, lo_em
                 image_cands.append(build_candidate(lo_id, float(s_img[i]), "image", lo_by_id, prereqs_by_lo))
 
     merged = merge_candidates(text_cands, image_cands)
+    
+    if not merged:
+        raise ValueError("No candidates found. Check that lo_by_id contains valid LO entries.")
 
-    if DEBUG_MODE:
+    # Debug output (DEBUG_MODE should be defined in Step 1 or baseline)
+    if globals().get("DEBUG_MODE", False):
         print("\\n=== RETRIEVAL DEBUG ===")
         print("Query:", query[:120])
         print("Text Top:")
@@ -477,12 +910,33 @@ Planner candidates must include:
 **Process:** call LLM with strict prompt; validate plan JSON  
 **Output:** `active_plan` stored in coach state
 
+**When to call:** Call `planner_llm()` from the coach after retrieving candidates (Step 5) and before starting the tutor session.
+
+**Usage:** The returned plan is stored in coach state as `active_plan` and passed to the tutor (Step 7). The planner enriches candidates with proficiency scores and generates a structured plan matching the simplified plan schema (Step 2).
+
+**Retry logic:** The planner uses `_chat_json()` which does not have retry logic (retry logic is coach-only per Step 1). If the LLM call fails, the function will raise an exception. The coach should handle retries at a higher level if needed.
+
 ### 6.1 Proficiency + notes (coach-owned)
+
+**Note:** The `lo_mastery` dict format:
+- Keys: `lo_id` as strings (e.g., `"42"`, `"41"`)
+- Values: Proficiency scores as floats in range `[0.0, 1.0]`
+  - `0.0` = new/struggling (no prior knowledge)
+  - `1.0` = mastered (complete understanding)
+- Example: `{"42": 0.35, "41": 0.65, "40": 0.0}`
 
 Add:
 
 ```python
 def proficiency_note(p: float) -> str:
+    """Generate teaching guidance note based on proficiency score.
+    
+    Args:
+        p: Proficiency score in range [0.0, 1.0]
+    
+    Returns:
+        Short teaching guidance string for the planner to use in notes field
+    """
     if p >= 0.85:
         return "High mastery — move quickly, focus on nuances."
     if p >= 0.65:
@@ -495,7 +949,28 @@ def proficiency_note(p: float) -> str:
 ### 6.2 Planner input payload (exact)
 
 ```python
-def build_planner_input(student_request: str, mode: str, merged: list, lo_mastery: dict) -> dict:
+def build_planner_input(student_request: str, mode: str, merged: list[dict], lo_mastery: dict[str, float]) -> dict:
+    """Build planner input payload with enriched candidates.
+    
+    Args:
+        student_request: Student's learning request text
+        mode: Teaching mode (must be one of: "conceptual_review", "examples", "practice")
+        merged: List of merged candidate dicts from Step 5 (each with lo_id, title, score, etc.)
+        lo_mastery: Dict mapping lo_id (as string) to proficiency score (0.0-1.0)
+    
+    Returns:
+        Dict with keys: student_request, mode, candidates (enriched with proficiency and suggested_notes)
+    
+    Raises:
+        ValueError: If merged is empty or mode is invalid
+    """
+    if not merged:
+        raise ValueError("merged candidates list cannot be empty")
+    
+    allowed_modes = {"conceptual_review", "examples", "practice"}
+    if mode not in allowed_modes:
+        raise ValueError(f"mode must be one of {allowed_modes}, got: {mode}")
+    
     cands = []
     for c in merged:
         prof = float(lo_mastery.get(str(c["lo_id"]), 0.0))
@@ -532,12 +1007,112 @@ Return ONLY valid JSON matching the plan schema (no extra keys).\"\"\"
 ### 6.4 Planner call (add to cell)
 
 ```python
-def planner_llm(student_request: str, mode: str, merged: list, lo_mastery: dict) -> dict:
+def planner_llm(student_request: str, mode: str, merged: list[dict], lo_mastery: dict[str, float]) -> dict:
+    """Generate simplified tutoring plan from merged candidates.
+    
+    Args:
+        student_request: Student's learning request text
+        mode: Teaching mode (conceptual_review|examples|practice)
+        merged: List of merged candidate dicts from Step 5
+        lo_mastery: Dict mapping lo_id (as string) to proficiency score (0.0-1.0)
+    
+    Returns:
+        Plan dict matching simplified plan schema (Step 2), validated
+    
+    Raises:
+        ValueError: If merged is empty, mode is invalid, or plan validation fails
+        RuntimeError: If LLM API call fails (no retry logic - handled by coach if needed)
+    
+    Edge cases:
+    - If merged is empty, raises ValueError before calling LLM
+    - If LLM returns invalid JSON, _chat_json will raise an exception
+    - If plan validation fails, raises ValueError with descriptive message
+    - Handle API failures at coach level
+    """
+    if not merged:
+        raise ValueError("Cannot create plan: no candidates provided")
     payload = build_planner_input(student_request, mode, merged, lo_mastery)
     user = "INPUT_JSON:\\n" + json.dumps(payload, indent=2)
     plan = _chat_json(PLANNER_SYSTEM_PROMPT, user, temperature=0.0)
     validate_plan(plan)
     return plan
+```
+
+**Concrete example:**
+
+**Input:**
+```python
+student_request = "I want to learn derivatives"
+mode = "conceptual_review"
+merged = [
+    {
+        "lo_id": 42,
+        "title": "The Chain Rule",
+        "score": 0.92,
+        "source": "merged",
+        "book": "Calculus Volume 1",
+        "unit": "Derivatives",
+        "chapter": "Differentiation Rules",
+        "how_to_teach": "Start with the intuition: when one function is inside another...",
+        "why_to_teach": "The chain rule is essential for differentiating composite functions...",
+        "prereq_lo_ids": [41, 40]
+    },
+    {
+        "lo_id": 41,
+        "title": "Differentiation Rules",
+        "score": 0.78,
+        "source": "merged",
+        "book": "Calculus Volume 1",
+        "unit": "Derivatives",
+        "chapter": "Differentiation Rules",
+        "how_to_teach": "Cover power rule, product rule, and quotient rule...",
+        "why_to_teach": "These foundational rules are prerequisites...",
+        "prereq_lo_ids": []
+    }
+]
+lo_mastery = {"42": 0.35, "41": 0.65, "40": 0.0}
+```
+
+**Output (plan dict):**
+```json
+{
+  "subject": "calculus",
+  "mode": "conceptual_review",
+  "current_plan": [
+    {
+      "lo_id": 42,
+      "title": "The Chain Rule",
+      "proficiency": 0.35,
+      "notes": "Student is new to this topic. Start with intuition about nested functions before introducing notation.",
+      "is_primary": true,
+      "how_to_teach": "Start with the intuition: when one function is inside another...",
+      "why_to_teach": "The chain rule is essential for differentiating composite functions..."
+    },
+    {
+      "lo_id": 41,
+      "title": "Differentiation Rules",
+      "proficiency": 0.65,
+      "notes": "Prerequisite — student has solid understanding, quick review only.",
+      "is_primary": false,
+      "how_to_teach": "Cover power rule, product rule, and quotient rule...",
+      "why_to_teach": "These foundational rules are prerequisites..."
+    }
+  ],
+  "future_plan": [
+    {
+      "lo_id": 43,
+      "title": "Implicit Differentiation",
+      "proficiency": 0.0,
+      "notes": "Natural next step after mastering the chain rule.",
+      "is_primary": false,
+      "how_to_teach": "Show how to differentiate equations where y is not isolated...",
+      "why_to_teach": "Extends chain rule to equations that cannot be solved for y explicitly."
+    }
+  ],
+  "book": "Calculus Volume 1",
+  "unit": "Derivatives",
+  "chapter": "Differentiation Rules"
+}
 ```
 
 
@@ -550,16 +1125,51 @@ def planner_llm(student_request: str, mode: str, merged: list, lo_mastery: dict)
 **Process:** tutor teaches from plan; off-plan → ask to end + hand off to coach  
 **Output:** strict JSON with `switch_topic_request` when off-plan
 
+**When to call:** Call `tutor_llm()` or `tutor_llm_with_optional_image()` from the coach during an active tutoring session (after plan is created in Step 6). Use `tutor_llm_with_optional_image` when student provides an image, otherwise use `tutor_llm`.
+
+**Usage:** The returned dict contains `message_to_student` (displayed to user) and `switch_topic_request` (used by coach to handle topic switches). The tutor follows the `current_plan` without asking for confirmation.
+
+**Error handling:** Tutor calls use `_chat_json()` which does not have retry logic (retry logic is coach-only). If the LLM call fails, the function will raise an exception. Handle empty/null responses and API failures at the coach level.
+
 ### 7.1 Exact coach → tutor handoff payload
 
 **Important:** only pass `current_plan` (coach keeps `future_plan`).
+
+**Edge cases:**
+- If `current_plan` is empty, raise `ValueError` before calling tutor
+- If `conversation_history` is empty, pass empty list `[]`
+- `conversation_history` format: list of dicts with `speaker` ("student" or "tutor") and `text` (string)
+- `image` should be `null` if no image, or the image path string if provided
+
+**Concrete example:**
 
 ```json
 {
   "mode": "conceptual_review",
   "subject": "calculus",
-  "current_plan": [ ... ],
-  "conversation_history": [ {"speaker":"student","text":"..."} ],
+  "current_plan": [
+    {
+      "lo_id": 42,
+      "title": "The Chain Rule",
+      "proficiency": 0.35,
+      "notes": "Student is new to this topic. Start with intuition about nested functions before introducing notation.",
+      "is_primary": true,
+      "how_to_teach": "Start with the intuition: when one function is inside another, the rate of change depends on both. Use the notation dy/dx = (dy/du)(du/dx). Walk through simple examples like (x^2 + 1)^3 before moving to trigonometric compositions.",
+      "why_to_teach": "The chain rule is essential for differentiating composite functions, which appear constantly in real-world applications. Without it, students cannot handle nested expressions or implicit differentiation."
+    },
+    {
+      "lo_id": 41,
+      "title": "Differentiation Rules",
+      "proficiency": 0.65,
+      "notes": "Prerequisite — student has solid understanding, quick review only.",
+      "is_primary": false,
+      "how_to_teach": "Cover power rule, product rule, and quotient rule systematically. Emphasize pattern recognition and when to apply each rule.",
+      "why_to_teach": "These foundational rules are prerequisites for the chain rule and all advanced differentiation techniques."
+    }
+  ],
+  "conversation_history": [
+    {"speaker": "student", "text": "I want to learn derivatives"}
+  ],
   "image": null
 }
 ```
@@ -602,18 +1212,45 @@ Return ONLY valid JSON:
 
 ```python
 def tutor_llm(handoff_payload: dict) -> dict:
+    """Call tutor LLM with handoff payload.
+    
+    Args:
+        handoff_payload: Dict with keys: mode, subject, current_plan, conversation_history, image
+    
+    Returns:
+        Dict with keys: message_to_student, end_activity, silent_end, needs_topic_confirmation,
+        switch_topic_request, session_summary
+    
+    Edge cases:
+    - If current_plan is empty, raise ValueError before calling
+    - If LLM returns invalid JSON, _chat_json will raise an exception
+    """
+    if not handoff_payload.get("current_plan"):
+        raise ValueError("handoff_payload must contain non-empty current_plan")
     user = "INPUT_JSON:\\n" + json.dumps(handoff_payload, indent=2)
     return _chat_json(TUTOR_SYSTEM_PROMPT, user, temperature=0.0)
 ```
 
 ### 7.4 Passing the raw image to the Tutor (native vision)
 
-If you want the tutor to “see” the image, you must pass it as an `image_url` message part (data URL for local files).
+If you want the tutor to "see" the image, you must pass it as an `image_url` message part (data URL for local files).
 
 Add:
 
 ```python
 def image_path_to_openai_part(image_path: str) -> dict:
+    """Convert image file path to OpenAI vision API format.
+    
+    Args:
+        image_path: Path to image file
+    
+    Returns:
+        Dict with type "image_url" and base64-encoded data URL
+    
+    Edge cases:
+    - If file not found, Path.read_bytes() will raise FileNotFoundError
+    - Assumes image format can be detected (defaults to PNG in data URL)
+    """
     b = Path(image_path).read_bytes()
     b64 = base64.b64encode(b).decode("utf-8")
     return {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}
@@ -621,6 +1258,21 @@ def image_path_to_openai_part(image_path: str) -> dict:
 from typing import Optional
 
 def tutor_llm_with_optional_image(handoff_payload: dict, image_path: Optional[str]) -> dict:
+    """Call tutor LLM with optional image support.
+    
+    Args:
+        handoff_payload: Dict with keys: mode, subject, current_plan, conversation_history, image
+        image_path: Optional path to student's image file
+    
+    Returns:
+        Dict with keys: message_to_student, end_activity, silent_end, needs_topic_confirmation,
+        switch_topic_request, session_summary
+    
+    Edge cases:
+    - If image_path is None or empty, falls back to tutor_llm() (text-only)
+    - If image file not found, raises FileNotFoundError
+    - If LLM response is empty/null, _coerce_json will raise an exception
+    """
     if not image_path:
         return tutor_llm(handoff_payload)
     parts = [
@@ -643,16 +1295,22 @@ def tutor_llm_with_optional_image(handoff_payload: dict, image_path: Optional[st
 **Process:** maintain `active_plan`; decide plan vs tutor vs topic switch  
 **Output:** assistant message each turn; update `active_plan` / memory
 
+**When to call:** The coach state machine runs in the main loop (`run_seamless_assistant_v2()`), processing each student message turn-by-turn.
+
+**Usage:** This orchestrates the entire system: maintains plan state (`active_plan`, `lo_mastery`), routes to retriever/planner/tutor based on current state, and handles topic switches via plan-guard evaluation.
+
+**Error handling:** Failures in retrieval, planning, or tutoring should be handled gracefully. If LLM calls fail, provide fallback messages to the student. The main loop should continue even if individual steps fail (log errors but don't crash).
+
 ### 8.1 Coach state (add globals near main loop)
 
 ```python
 active_plan = None  # dict matching simplified plan schema
-lo_mastery = {}     # {"42": 0.7, ...}
+lo_mastery = {}     # {"42": 0.7, ...} — see Step 6.1 for format details
 current_image_path = None
 current_ocr_text = ""
 ```
 
-### 8.1 Plan-guard: coach-level “is this still on-plan?”
+### 8.2 Plan-guard: coach-level "is this still on-plan?"
 
 Requirement: the coach evaluates *every* new student message in conjunction with the current plan.
 
@@ -674,6 +1332,24 @@ Rules:
 \"\"\"
 
 def plan_guard(active_plan: dict, student_text: str) -> dict:
+    """Evaluate if student message is within current plan.
+    
+    Args:
+        active_plan: Plan dict matching simplified plan schema (must not be None)
+        student_text: Student's message text
+    
+    Returns:
+        Dict with keys: decision ("continue"|"switch_topic"|"end_session"), 
+        switch_topic_request (str or None)
+    
+    Edge cases:
+    - If active_plan is None, raises ValueError (caller should check first)
+    - If current_plan is empty, returns decision="end_session"
+    - If LLM call fails, raises RuntimeError (handle at coach level)
+    
+    """
+    if active_plan is None:
+        raise ValueError("active_plan cannot be None")
     payload = {
         "current_plan_titles": [x.get("title") for x in active_plan.get("current_plan", [])],
         "student_text": student_text,
@@ -682,7 +1358,7 @@ def plan_guard(active_plan: dict, student_text: str) -> dict:
     return _chat_json(PLAN_GUARD_PROMPT, user, temperature=0.0)
 ```
 
-### 8.2 OCR (minimal)
+### 8.3 OCR (minimal)
 
 For now, OCR can be a simple vision call that returns `{extracted_text, query}`. You can replace this later.
 
@@ -691,6 +1367,21 @@ OCR_SYSTEM_PROMPT = \"\"\"Extract any visible text/math from the image. Return J
 { "extracted_text": "...", "query": "short retrieval query", "confidence": 0.0 }\"\"\"
 
 def ocr_image(image_path: str, user_text: str) -> dict:
+    """Extract text and generate query from image using vision model.
+    
+    Args:
+        image_path: Path to image file
+        user_text: Optional user-provided text context
+    
+    Returns:
+        Dict with keys: extracted_text (str), query (str), confidence (float)
+    
+    Edge cases:
+    - If image file not found, Path.read_bytes() raises FileNotFoundError
+    - If image is corrupted, raises PIL.UnidentifiedImageError
+    - If LLM response is invalid, _coerce_json will raise an exception
+    - Handle these at coach level
+    """
     # Build OpenAI vision input as base64 data url
     b = Path(image_path).read_bytes()
     b64 = base64.b64encode(b).decode("utf-8")
@@ -707,16 +1398,41 @@ def ocr_image(image_path: str, user_text: str) -> dict:
     return _coerce_json(resp.choices[0].message.content)
 ```
 
-### 8.3 Image detection (so a user can provide an image path in the REPL)
+### 8.4 Image detection (so a user can provide an image path in the REPL)
 
 Add this helper (works in notebook REPL style):
 
 ```python
 def looks_like_image_path(token: str) -> bool:
+    """Check if a token looks like an image file path.
+    
+    Args:
+        token: String token to check
+    
+    Returns:
+        True if token is an existing file with image extension
+    
+    Edge cases:
+    - If path doesn't exist, returns False
+    - Case-insensitive extension matching
+    """
     p = Path(token)
     return p.exists() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 def detect_image_in_text(user_input: str) -> tuple[str | None, str]:
+    """Detect image path in user input and extract remaining text.
+    
+    Args:
+        user_input: User's input string (may contain image path)
+    
+    Returns:
+        Tuple of (image_path or None, remaining_text)
+    
+    Edge cases:
+    - If no image path found, returns (None, user_input)
+    - If multiple tokens match, returns first match
+    - Resolves relative paths to absolute paths
+    """
     tokens = user_input.split()
     for t in tokens:
         if looks_like_image_path(t):
@@ -725,7 +1441,7 @@ def detect_image_in_text(user_input: str) -> tuple[str | None, str]:
     return None, user_input
 ```
 
-### 8.4 Per-turn algorithm (replace the `# ---------- MAIN LOOP ----------` logic)
+### 8.5 Per-turn algorithm (replace the `# ---------- MAIN LOOP ----------` logic)
 
 Replace the baseline “in_bot_session” branching with this:
 
@@ -741,7 +1457,7 @@ Replace the baseline “in_bot_session” branching with this:
 - Retriever → Planner: `{student_request, mode, candidates[] with KG fields + proficiency}`
 - Coach → Tutor: `{subject, mode, current_plan, conversation_history, image}`
 
-### 8.5 Minimal reference implementation (paste to replace the baseline `run_seamless_assistant()` body)
+### 8.6 Minimal reference implementation (paste to replace the baseline `run_seamless_assistant()` body)
 
 This is the *shape* of the final orchestration. You will need to connect it to your existing debug prints.
 
@@ -793,6 +1509,7 @@ def run_seamless_assistant_v2():
 
         # If we have a plan, coach evaluates the message with the plan in mind
         if active_plan is not None:
+            # Validate active_plan is not None (plan_guard will raise if None)
             guard = plan_guard(active_plan, text_only)
             if guard.get("decision") == "end_session":
                 active_plan = None
@@ -831,6 +1548,10 @@ def run_seamless_assistant_v2():
             "image": None,
         }
         bot = tutor_llm_with_optional_image(tutor_payload, current_image_path)
+        # Validate tutor response structure
+        if not isinstance(bot, dict) or "message_to_student" not in bot:
+            print("Assistant: Sorry, I encountered an error. Let's try again.\\n")
+            continue
         msg = (bot.get("message_to_student") or "").strip()
         if msg:
             print(f"Assistant: {msg}\\n")
@@ -838,62 +1559,13 @@ def run_seamless_assistant_v2():
             tutor_history.append({"speaker": "assistant", "text": msg})
 ```
 
-### 8.6 Exact runtime boundary payloads (copy/paste reference)
+### 8.7 Runtime boundary payloads (quick reference)
 
-**Coach → Retriever (function args):**
-
-- `student_text`: the student’s latest text
-- `ocr_text`: OCR-extracted text/query (may be empty)
-- `image_path`: raw image path (may be None)
-
-**Retriever → Planner (INPUT_JSON):**
-
-```json
-{
-  "student_request": "Help me with the chain rule",
-  "mode": "conceptual_review",
-  "candidates": [
-    {
-      "lo_id": 42,
-      "title": "The Chain Rule",
-      "score": 0.8921,
-      "source": "merged",
-      "book": "Calculus Volume 1",
-      "unit": "Derivatives",
-      "chapter": "Differentiation Rules",
-      "prereq_lo_ids": [41, 10],
-      "how_to_teach": "...",
-      "why_to_teach": "...",
-      "proficiency": 0.35,
-      "suggested_notes": "New/struggling — start from fundamentals..."
-    }
-  ]
-}
-```
-
-**Coach → Tutor (INPUT_JSON):**
-
-```json
-{
-  "subject": "calculus",
-  "mode": "conceptual_review",
-  "current_plan": [
-    {
-      "lo_id": 42,
-      "title": "The Chain Rule",
-      "proficiency": 0.35,
-      "notes": "New/struggling — start from fundamentals...",
-      "is_primary": true,
-      "how_to_teach": "...",
-      "why_to_teach": "..."
-    }
-  ],
-  "conversation_history": [
-    {"speaker": "student", "text": "Help me with the chain rule"}
-  ],
-  "image": null
-}
-```
+| Boundary | Keys / Args | See Details |
+|----------|-------------|-------------|
+| Coach → Retriever | `student_text`, `ocr_text`, `image_path` | Step 5.4 `retrieve_candidates()` |
+| Retriever → Planner | `student_request`, `mode`, `candidates[]` | Step 6.2 `build_planner_input()` |
+| Coach → Tutor | `subject`, `mode`, `current_plan`, `conversation_history`, `image` | Step 7.1 (full example) |
 
 ---
 
@@ -947,134 +1619,34 @@ Merged Top:
 ========================
 ```
 
-**Merged candidates (passed to planner):**
+**Merged candidates:** Top 2 shown (format matches Step 5.4 `build_candidate()` output + proficiency fields):
 
-```json
-[
-  {
-    "lo_id": 42,
-    "title": "The Chain Rule",
-    "score": 0.891,
-    "source": "merged",
-    "book": "Calculus Volume 1",
-    "unit": "Derivatives",
-    "chapter": "Differentiation Rules",
-    "prereq_lo_ids": [41, 40],
-    "how_to_teach": "Start with the intuition: when one function is inside another, the rate of change depends on both. Use the notation dy/dx = (dy/du)(du/dx). Walk through simple examples like (x^2 + 1)^3 before moving to trigonometric compositions.",
-    "why_to_teach": "The chain rule is essential for differentiating composite functions, which appear constantly in real-world applications. Without it, students cannot handle nested expressions or implicit differentiation.",
-    "proficiency": 0.0,
-    "suggested_notes": "New/struggling — start from fundamentals and go step-by-step."
-  },
-  {
-    "lo_id": 41,
-    "title": "Differentiation Rules",
-    "score": 0.823,
-    "source": "merged",
-    "book": "Calculus Volume 1",
-    "unit": "Derivatives",
-    "chapter": "Differentiation Rules",
-    "prereq_lo_ids": [39, 40],
-    "how_to_teach": "Cover power rule, product rule, and quotient rule systematically. Emphasize pattern recognition and when to apply each rule.",
-    "why_to_teach": "These foundational rules are prerequisites for the chain rule and all advanced differentiation techniques.",
-    "proficiency": 0.65,
-    "suggested_notes": "Solid understanding — emphasize applications."
-  }
-]
-```
+| lo_id | title | score | proficiency | suggested_notes |
+|-------|-------|-------|-------------|-----------------|
+| 42 | The Chain Rule | 0.891 | 0.0 | New/struggling |
+| 41 | Differentiation Rules | 0.823 | 0.65 | Solid understanding |
 
 ---
 
 **Step 4: Planner LLM call**
 
-**Input to planner:**
+Input: `{student_request, mode, candidates}` (see Step 6.2)
 
-```json
-{
-  "student_request": "Help me understand the chain rule",
-  "mode": "conceptual_review",
-  "candidates": [ ... as above ... ]
-}
-```
+**Planner output** (matches Step 2 schema):
 
-**Planner output (validated by `validate_plan`):**
-
-```json
-{
-  "subject": "calculus",
-  "mode": "conceptual_review",
-  "current_plan": [
-    {
-      "lo_id": 42,
-      "title": "The Chain Rule",
-      "proficiency": 0.0,
-      "notes": "Student is new to this topic. Start with intuition about nested functions before introducing notation.",
-      "is_primary": true,
-      "how_to_teach": "Start with the intuition: when one function is inside another, the rate of change depends on both. Use the notation dy/dx = (dy/du)(du/dx). Walk through simple examples like (x^2 + 1)^3 before moving to trigonometric compositions.",
-      "why_to_teach": "The chain rule is essential for differentiating composite functions, which appear constantly in real-world applications."
-    },
-    {
-      "lo_id": 41,
-      "title": "Differentiation Rules",
-      "proficiency": 0.65,
-      "notes": "Prerequisite — student has solid understanding, quick review only.",
-      "is_primary": false,
-      "how_to_teach": "Cover power rule, product rule, and quotient rule systematically.",
-      "why_to_teach": "These foundational rules are prerequisites for the chain rule."
-    }
-  ],
-  "future_plan": [
-    {
-      "lo_id": 43,
-      "title": "Implicit Differentiation",
-      "proficiency": 0.0,
-      "notes": "Natural next step after mastering the chain rule.",
-      "is_primary": false,
-      "how_to_teach": "Show how to differentiate equations where y is not isolated.",
-      "why_to_teach": "Extends chain rule to equations that cannot be solved for y explicitly."
-    }
-  ],
-  "book": "Calculus Volume 1",
-  "unit": "Derivatives",
-  "chapter": "Differentiation Rules"
-}
-```
+| Field | Value |
+|-------|-------|
+| subject | calculus |
+| mode | conceptual_review |
+| current_plan | LO 42 (primary, proficiency 0.0) + LO 41 (prereq, proficiency 0.65) |
+| future_plan | LO 43 (Implicit Differentiation) |
+| book/unit/chapter | Calculus Volume 1 / Derivatives / Differentiation Rules |
 
 ---
 
 **Step 5: Tutor handoff**
 
-**Payload sent to tutor:**
-
-```json
-{
-  "subject": "calculus",
-  "mode": "conceptual_review",
-  "current_plan": [
-    {
-      "lo_id": 42,
-      "title": "The Chain Rule",
-      "proficiency": 0.0,
-      "notes": "Student is new to this topic. Start with intuition about nested functions before introducing notation.",
-      "is_primary": true,
-      "how_to_teach": "Start with the intuition: when one function is inside another, the rate of change depends on both. Use the notation dy/dx = (dy/du)(du/dx). Walk through simple examples like (x^2 + 1)^3 before moving to trigonometric compositions.",
-      "why_to_teach": "The chain rule is essential for differentiating composite functions, which appear constantly in real-world applications."
-    },
-    {
-      "lo_id": 41,
-      "title": "Differentiation Rules",
-      "proficiency": 0.65,
-      "notes": "Prerequisite — student has solid understanding, quick review only.",
-      "is_primary": false,
-      "how_to_teach": "Cover power rule, product rule, and quotient rule systematically.",
-      "why_to_teach": "These foundational rules are prerequisites for the chain rule."
-    }
-  ],
-  "conversation_history": [
-    {"speaker": "student", "text": "Help me understand the chain rule"}
-  ],
-  "image": null
-}
-```
+Payload matches Step 7.1 schema with `current_plan` from planner output (excludes `future_plan`).
 
 ---
 
@@ -1097,21 +1669,7 @@ Merged Top:
 }
 ```
 
-**Printed to student:**
-
-```
-Assistant: Great question! The chain rule helps us differentiate composite functions — that's when one function is 'inside' another.
-
-Think of it like this: if you have f(g(x)), you're applying f to the output of g. To find how fast the whole thing changes, you need to consider both how fast g changes AND how fast f reacts to that change.
-
-The formula is: (f(g(x)))' = f'(g(x)) · g'(x)
-
-Let's try a simple example: find the derivative of (x² + 1)³.
-
-Here, the 'outer' function is u³ and the 'inner' function is u = x² + 1.
-
-Can you tell me what you think the derivative of the outer function u³ is, treating u as the variable?
-```
+**Printed to student:** The `message_to_student` field from above.
 
 ---
 
@@ -1240,5 +1798,3 @@ The chain rule is identified as the primary topic because the image shows a comp
 4. OCR + image embedding retrieval both run (when image present) and merge candidates
 5. Planner produces simplified plan JSON that passes `validate_plan`
 6. Tutor starts teaching immediately and stays on `current_plan` (no confirmation)
-
-
