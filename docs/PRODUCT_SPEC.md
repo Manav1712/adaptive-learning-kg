@@ -183,6 +183,9 @@ IMAGE_CORPUS_DIR = REPO_ROOT / "src" / "workflow_demo" / "image_corpus"
 MAX_RETRIES = 3
 RETRY_BASE_SECONDS = 1.0
 RETRY_MAX_SECONDS = 12.0
+
+# Debug (set to True to see retrieval/planner debug output)
+DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() == "true"
 ```
 
 ### 1.1 Update the baseline model variables + helper to use `CHAT_MODEL`
@@ -874,8 +877,8 @@ def retrieve_candidates(
     if not merged:
         raise ValueError("No candidates found. Check that lo_by_id contains valid LO entries.")
 
-    # Debug output (DEBUG_MODE should be defined in Step 1 or baseline)
-    if globals().get("DEBUG_MODE", False):
+    # Debug output
+    if DEBUG_MODE:
         print("\\n=== RETRIEVAL DEBUG ===")
         print("Query:", query[:120])
         print("Text Top:")
@@ -1255,7 +1258,6 @@ def image_path_to_openai_part(image_path: str) -> dict:
     b64 = base64.b64encode(b).decode("utf-8")
     return {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}}
 
-from typing import Optional
 
 def tutor_llm_with_optional_image(handoff_payload: dict, image_path: Optional[str]) -> dict:
     """Call tutor LLM with optional image support.
@@ -1483,6 +1485,7 @@ def run_seamless_assistant_v2():
             break
 
         # Handle switch confirmation (yes/no) if we previously asked
+        confirmed_switch = False
         if pending_switch_request is not None:
             norm = user_input.strip().lower()
             if norm in {"yes", "y", "yep", "sure", "ok", "okay"}:
@@ -1491,6 +1494,7 @@ def run_seamless_assistant_v2():
                 pending_switch_request = None
                 active_plan = None
                 tutor_history = []
+                confirmed_switch = True  # Skip image detection (already done on original request)
                 print("Assistant: Got it — switching topics.\\n")
             elif norm in {"no", "n", "nope"}:
                 pending_switch_request = None
@@ -1500,12 +1504,13 @@ def run_seamless_assistant_v2():
                 print("Assistant: Please answer 'yes' or 'no'.\\n")
                 continue
 
-        # Image detection + OCR
-        img, text_only = detect_image_in_text(user_input)
-        if img:
-            current_image_path = img
-            ocr = ocr_image(img, text_only)
-            current_ocr_text = (ocr.get("extracted_text") or "") + "\\n" + (ocr.get("query") or "")
+        # Image detection + OCR (skip if processing a confirmed topic switch)
+        if not confirmed_switch:
+            img, text_only = detect_image_in_text(user_input)
+            if img:
+                current_image_path = img
+                ocr = ocr_image(img, text_only)
+                current_ocr_text = (ocr.get("extracted_text") or "") + "\\n" + (ocr.get("query") or "")
 
         # If we have a plan, coach evaluates the message with the plan in mind
         if active_plan is not None:
