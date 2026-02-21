@@ -1,0 +1,49 @@
+{
+  "sessions": [
+    {
+      "timestamp": "2026-02-21T12:43:50.672985",
+      "type": "faq",
+      "params": {
+        "topic": "syllabus_topics",
+        "student_request": "I want to ask a question about the syllabus",
+        "script": "Major calculus concepts include limits, derivatives, integrals, FTC.",
+        "first_question": "Which concept would you like to dive into next?"
+      },
+      "summary": {
+        "topics_covered": [
+          "syllabus_topics"
+        ]
+      },
+      "conversation_exchanges": [
+        {
+          "speaker": "assistant",
+          "text": "Here is the syllabus."
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-02-21T12:43:50.866792",
+      "type": "faq",
+      "params": {
+        "topic": "syllabus_topics",
+        "student_request": "Just give me the syllabus",
+        "script": "Major calculus concepts include limits, derivatives, integrals, FTC.",
+        "first_question": "Which concept would you like to dive into next?"
+      },
+      "summary": {
+        "topics_covered": [
+          "syllabus_topics"
+        ]
+      },
+      "conversation_exchanges": [
+        {
+          "speaker": "assistant",
+          "text": "Here is the syllabus overview."
+        }
+      ]
+    }
+  ],
+  "student_profile": {
+    "lo_mastery": {}
+  }
+}

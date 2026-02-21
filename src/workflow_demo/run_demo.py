@@ -23,12 +23,12 @@ if __name__ == "__main__":
         sys.path.insert(0, str(repo_root))
 
 try:
-    from src.workflow_demo.coach import CoachAgent
+    from src.workflow_demo.coach_agent import CoachAgent
     from src.workflow_demo.retriever import TeachingPackRetriever
     from src.workflow_demo.demo_profiles import get_active_profile, get_profile_name
 except ImportError:
     # Fallback to relative imports when run as module
-    from .coach import CoachAgent
+    from .coach_agent import CoachAgent
     from .retriever import TeachingPackRetriever
     from .demo_profiles import get_active_profile, get_profile_name
 

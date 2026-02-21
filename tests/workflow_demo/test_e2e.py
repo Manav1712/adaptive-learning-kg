@@ -2,12 +2,12 @@
 
 import pytest
 
-from src.workflow_demo.coach import CoachAgent
+from src.workflow_demo.coach_agent import CoachAgent
 
 
 @pytest.mark.e2e
 def test_tutoring_flow_end_to_end(monkeypatch, coach_agent: CoachAgent, mock_retriever):
-    """Simulate a full tutoring flow from intent to completion."""
+    """Simulate a full tutoring flow from intent to session completion in one turn."""
 
     def _ending_tutor_bot(**kwargs):
         return {
@@ -27,12 +27,14 @@ def test_tutoring_flow_end_to_end(monkeypatch, coach_agent: CoachAgent, mock_ret
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _ending_tutor_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _ending_tutor_bot)
 
+    # New flow: planner is called first, then the loop calls the LLM again and
+    # gets start_tutor — both happen in the same process_turn() call.
     coach_agent.llm_client._queued.clear()
     coach_agent.llm_client.queue_response(
         {
-            "message_to_student": "I can help with derivatives. Let me craft a plan.",
+            "message_to_student": "",
             "action": "call_tutoring_planner",
             "tool_params": {
                 "subject": "calculus",
@@ -45,19 +47,19 @@ def test_tutoring_flow_end_to_end(monkeypatch, coach_agent: CoachAgent, mock_ret
     )
     coach_agent.llm_client.queue_response(
         {
-            "message_to_student": "Here's the plan—ready to start?",
-            "action": "none",
-            "tool_params": {},
-            "conversation_summary": "",
+            "message_to_student": "",
+            "action": "start_tutor",
+            "tool_params": {
+                "subject": "calculus",
+                "learning_objective": "Derivatives",
+                "mode": "conceptual_review",
+            },
+            "conversation_summary": "Starting derivatives tutoring session.",
         }
     )
 
-    reply1 = coach_agent.process_turn("I want to learn derivatives")
-    assert "plan" in reply1.lower()
-
-    reply2 = coach_agent.process_turn("yes")
-    # After session ends, coach returns a continuity-aware greeting
-    assert "Nice work on Derivatives" in reply2 or reply2.startswith("Hi! I'm your learning coach")
+    reply = coach_agent.process_turn("I want to learn derivatives")
+    assert "Nice work on Derivatives" in reply or reply.startswith("Hi! I'm your learning coach")
     assert any(
         entry["summary"].get("notes") == "Tutor E2E"
         for entry in coach_agent.session_memory.get_recent_sessions()
@@ -66,7 +68,7 @@ def test_tutoring_flow_end_to_end(monkeypatch, coach_agent: CoachAgent, mock_ret
 
 @pytest.mark.e2e
 def test_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
-    """Simulate a FAQ session including confirmation and completion."""
+    """Simulate a FAQ session going straight from planner to FAQ bot in one turn."""
 
     def _faq_bot(**kwargs):
         return {
@@ -82,12 +84,12 @@ def test_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.faq_bot", _faq_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.faq_bot", _faq_bot)
 
     coach_agent.llm_client._queued.clear()
     coach_agent.llm_client.queue_response(
         {
-            "message_to_student": "Let me look up the exam information.",
+            "message_to_student": "",
             "action": "call_faq_planner",
             "tool_params": {"topic": "exam schedule", "student_request": "When is the exam?"},
             "conversation_summary": "",
@@ -95,19 +97,15 @@ def test_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
     )
     coach_agent.llm_client.queue_response(
         {
-            "message_to_student": "I have the exam details—shall I connect you?",
-            "action": "none",
-            "tool_params": {},
-            "conversation_summary": "",
+            "message_to_student": "",
+            "action": "start_faq",
+            "tool_params": {"topic": "exam schedule", "student_request": "When is the exam?"},
+            "conversation_summary": "Starting FAQ session for exam schedule.",
         }
     )
 
-    reply1 = coach_agent.process_turn("When is the exam?")
-    assert "exam" in reply1.lower()
-
-    reply2 = coach_agent.process_turn("yes")
-    # After FAQ session ends, coach returns a continuity-aware greeting
-    assert "Glad I could help" in reply2 or reply2.startswith("Hi! I'm your learning coach")
+    reply = coach_agent.process_turn("When is the exam?")
+    assert "Glad I could help" in reply or reply.startswith("Hi! I'm your learning coach")
     assert any(
         entry["summary"].get("notes") == "FAQ E2E"
         for entry in coach_agent.session_memory.get_recent_sessions()
@@ -117,7 +115,7 @@ def test_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
 
 @pytest.mark.e2e
 def test_syllabus_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
-    """Ensure syllabus-style questions route to FAQ flow instead of looping."""
+    """Ensure syllabus-style questions route to FAQ flow in one turn."""
 
     def _syllabus_faq_bot(**kwargs):
         return {
@@ -133,12 +131,12 @@ def test_syllabus_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.faq_bot", _syllabus_faq_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.faq_bot", _syllabus_faq_bot)
 
     coach_agent.llm_client._queued.clear()
     coach_agent.llm_client.queue_response(
         {
-            "message_to_student": "Let me pull up the syllabus topics for you.",
+            "message_to_student": "",
             "action": "call_faq_planner",
             "tool_params": {"topic": "syllabus_topics", "student_request": "Can you list the major concepts?"},
             "conversation_summary": "",
@@ -146,19 +144,15 @@ def test_syllabus_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
     )
     coach_agent.llm_client.queue_response(
         {
-            "message_to_student": "I have the syllabus overview ready—shall we go through it?",
-            "action": "none",
-            "tool_params": {},
-            "conversation_summary": "",
+            "message_to_student": "",
+            "action": "start_faq",
+            "tool_params": {"topic": "syllabus_topics", "student_request": "Can you list the major concepts?"},
+            "conversation_summary": "Starting syllabus FAQ session.",
         }
     )
 
-    reply1 = coach_agent.process_turn("Can you list out the major concepts in my syllabus?")
-    assert "syllabus" in reply1.lower()
-
-    reply2 = coach_agent.process_turn("yes")
-    # After FAQ session ends, coach returns a continuity-aware greeting
-    assert "Glad I could help" in reply2 or reply2.startswith("Hi! I'm your learning coach")
+    reply = coach_agent.process_turn("Can you list out the major concepts in my syllabus?")
+    assert "Glad I could help" in reply or reply.startswith("Hi! I'm your learning coach")
     assert any(
         entry["summary"].get("notes") == "Syllabus FAQ"
         for entry in coach_agent.session_memory.get_recent_sessions()

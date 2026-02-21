@@ -353,14 +353,6 @@ class EmbeddingBackend:
         return self._encode_openai(texts_list)
 
 
-def _normalize_dense(arr: np.ndarray) -> np.ndarray:
-    """
-    Normalize rows of a dense matrix to unit length.
-    """
-
-    norms = np.linalg.norm(arr, axis=1, keepdims=True) + 1e-9
-    return arr / norms
-
 
 class TeachingPackRetriever:
     """

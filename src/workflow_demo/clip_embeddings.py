@@ -1,6 +1,5 @@
 """
 CLIP embedding backend for shared text-image vector space.
-
 Uses sentence-transformers' clip-ViT-B-32 for a lightweight, local embedding
 option that supports both text and images. Requires:
 - sentence-transformers
@@ -62,9 +61,10 @@ class CLIPEmbeddingBackend:
         for path in image_paths:
             try:
                 images.append(Image.open(path).convert("RGB"))
-            except Exception:
-                # Skip unreadable files
-                continue
+            except Exception as exc:
+                raise ValueError(
+                    f"Failed to load image at {path}: {exc}"
+                ) from exc
 
         if not images:
             return np.zeros((0, 512), dtype="float32")

@@ -17,9 +17,9 @@ from typing import Any, Dict, List
 import pandas as pd
 import pytest
 
-from src.workflow_demo.coach import CoachAgent
+from src.workflow_demo.coach_agent import CoachAgent
 from src.workflow_demo.data_loader import KnowledgeGraphData
-from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack
+from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack, RetrievalCandidate, RetrievalResult
 from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
 
 
@@ -375,6 +375,22 @@ def mock_retriever(sample_session_plan: SessionPlan, sample_kg_data: KnowledgeGr
             self.kg = kg
             self.calls: List[Dict[str, Any]] = []
 
+        def retrieve_candidates(self, text_query: str, image_path=None, top_k: int = 6, debug: bool = False) -> RetrievalResult:
+            self.calls.append({"text_query": text_query, "image_path": image_path})
+            candidate = RetrievalCandidate(
+                lo_id=1,
+                title=self.plan.learning_objective,
+                score=0.95,
+                source="text_embedding",
+                book=self.plan.book,
+            )
+            return RetrievalResult(
+                query=text_query,
+                text_candidates=[candidate],
+                image_candidates=[],
+                merged_candidates=[candidate],
+            )
+
         def retrieve_plan(self, **kwargs: Any) -> SessionPlan:
             self.calls.append(kwargs)
             return self.plan
@@ -389,9 +405,16 @@ def coach_agent(mock_retriever, mock_openai_client, sample_coach_directive):
 
     Tests enqueue directives into the mock client before invoking `process_turn`.
     """
+    from src.workflow_demo.coach_llm_client import CoachLLMClient
+    from src.workflow_demo.coach_router import CoachRouter
+    from src.workflow_demo.bot_sessions import BotSessionManager
 
     agent = CoachAgent(retriever=mock_retriever, llm_model="mock-model")
+    # Replace the OpenAI client with the mock and re-wire everything
     agent.llm_client = mock_openai_client
     agent.llm_model = "mock-model"
+    agent.llm_client_wrapper = CoachLLMClient(mock_openai_client, "mock-model")
+    agent.coach_router = CoachRouter(agent, agent.llm_client_wrapper)
+    agent.bot_session_manager = BotSessionManager(agent)
     mock_openai_client.queue_response(sample_coach_directive)
     return agent

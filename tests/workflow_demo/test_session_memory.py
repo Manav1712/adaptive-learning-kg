@@ -7,7 +7,8 @@ import tempfile
 import pytest
 
 from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
-from src.workflow_demo.coach import CoachAgent
+from src.workflow_demo.coach_agent import CoachAgent
+from src.workflow_demo.bot_sessions import BotSessionManager
 
 
 @pytest.mark.unit
@@ -73,45 +74,49 @@ def test_create_handoff_context(sample_session_memory: SessionMemory):
 @pytest.mark.unit
 def test_update_lo_mastery_from_excellent_understanding():
     """_update_lo_mastery should map 'excellent' to 0.9."""
-    coach = CoachAgent.__new__(CoachAgent)
-    coach.student_profile = {"lo_mastery": {}}
+    agent = CoachAgent.__new__(CoachAgent)
+    agent.student_profile = {"lo_mastery": {}}
+    mgr = BotSessionManager(agent)
     params = {"learning_objective": "Derivatives"}
     summary = {"student_understanding": "excellent"}
-    coach._update_lo_mastery(params, summary)
-    assert coach.student_profile["lo_mastery"]["Derivatives"] == 0.9
+    mgr._update_lo_mastery(params, summary)
+    assert agent.student_profile["lo_mastery"]["Derivatives"] == 0.9
 
 
 @pytest.mark.unit
 def test_update_lo_mastery_from_needs_practice():
     """_update_lo_mastery should map 'needs_practice' to 0.4."""
-    coach = CoachAgent.__new__(CoachAgent)
-    coach.student_profile = {"lo_mastery": {}}
+    agent = CoachAgent.__new__(CoachAgent)
+    agent.student_profile = {"lo_mastery": {}}
+    mgr = BotSessionManager(agent)
     params = {"learning_objective": "Integrals"}
     summary = {"student_understanding": "needs_practice"}
-    coach._update_lo_mastery(params, summary)
-    assert coach.student_profile["lo_mastery"]["Integrals"] == 0.4
+    mgr._update_lo_mastery(params, summary)
+    assert agent.student_profile["lo_mastery"]["Integrals"] == 0.4
 
 
 @pytest.mark.unit
 def test_update_lo_mastery_defaults_on_unknown_label():
     """_update_lo_mastery should default to 0.4 for unknown labels."""
-    coach = CoachAgent.__new__(CoachAgent)
-    coach.student_profile = {"lo_mastery": {}}
+    agent = CoachAgent.__new__(CoachAgent)
+    agent.student_profile = {"lo_mastery": {}}
+    mgr = BotSessionManager(agent)
     params = {"learning_objective": "Limits"}
     summary = {"student_understanding": "unknown_label"}
-    coach._update_lo_mastery(params, summary)
-    assert coach.student_profile["lo_mastery"]["Limits"] == 0.4
+    mgr._update_lo_mastery(params, summary)
+    assert agent.student_profile["lo_mastery"]["Limits"] == 0.4
 
 
 @pytest.mark.unit
 def test_update_lo_mastery_skips_when_no_lo_key():
     """_update_lo_mastery should skip update if no LO key in params."""
-    coach = CoachAgent.__new__(CoachAgent)
-    coach.student_profile = {"lo_mastery": {}}
+    agent = CoachAgent.__new__(CoachAgent)
+    agent.student_profile = {"lo_mastery": {}}
+    mgr = BotSessionManager(agent)
     params = {}
     summary = {"student_understanding": "excellent"}
-    coach._update_lo_mastery(params, summary)
-    assert coach.student_profile["lo_mastery"] == {}
+    mgr._update_lo_mastery(params, summary)
+    assert agent.student_profile["lo_mastery"] == {}
 
 
 # ---------------------------------------------------------------------------
@@ -122,9 +127,10 @@ def test_update_lo_mastery_skips_when_no_lo_key():
 @pytest.mark.unit
 def test_build_return_greeting_tutor_with_mode():
     """_build_return_greeting should produce a custom greeting for tutor sessions."""
-    coach = CoachAgent.__new__(CoachAgent)
+    agent = CoachAgent.__new__(CoachAgent)
+    mgr = BotSessionManager(agent)
     params = {"learning_objective": "Derivatives", "mode": "practice"}
-    greeting = coach._build_return_greeting(params, session_type="tutor")
+    greeting = mgr._build_return_greeting(params, session_type="tutor")
     assert "Derivatives" in greeting
     assert "practice" in greeting
     assert "Nice work" in greeting
@@ -133,9 +139,10 @@ def test_build_return_greeting_tutor_with_mode():
 @pytest.mark.unit
 def test_build_return_greeting_tutor_without_mode():
     """_build_return_greeting should handle missing mode gracefully."""
-    coach = CoachAgent.__new__(CoachAgent)
+    agent = CoachAgent.__new__(CoachAgent)
+    mgr = BotSessionManager(agent)
     params = {"learning_objective": "Integrals"}
-    greeting = coach._build_return_greeting(params, session_type="tutor")
+    greeting = mgr._build_return_greeting(params, session_type="tutor")
     assert "Integrals" in greeting
     assert "Nice work" in greeting
 
@@ -143,9 +150,10 @@ def test_build_return_greeting_tutor_without_mode():
 @pytest.mark.unit
 def test_build_return_greeting_faq_with_topic():
     """_build_return_greeting should produce a custom greeting for FAQ sessions."""
-    coach = CoachAgent.__new__(CoachAgent)
+    agent = CoachAgent.__new__(CoachAgent)
+    mgr = BotSessionManager(agent)
     params = {"topic": "exam schedule"}
-    greeting = coach._build_return_greeting(params, session_type="faq")
+    greeting = mgr._build_return_greeting(params, session_type="faq")
     assert "exam schedule" in greeting
     assert "Glad I could help" in greeting
 
@@ -153,9 +161,10 @@ def test_build_return_greeting_faq_with_topic():
 @pytest.mark.unit
 def test_build_return_greeting_fallback():
     """_build_return_greeting should fall back to generic greeting when info is missing."""
-    coach = CoachAgent.__new__(CoachAgent)
+    agent = CoachAgent.__new__(CoachAgent)
+    mgr = BotSessionManager(agent)
     params = {}
-    greeting = coach._build_return_greeting(params, session_type="tutor")
+    greeting = mgr._build_return_greeting(params, session_type="tutor")
     assert "learning coach" in greeting
 
 
