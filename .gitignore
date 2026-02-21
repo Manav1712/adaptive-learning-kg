@@ -45,6 +45,9 @@ data/raw/
 data/processed/
 data/storage/*.json
 
+# Embedding cache
+.embedding_cache/
+
 # Logs
 *.log
 

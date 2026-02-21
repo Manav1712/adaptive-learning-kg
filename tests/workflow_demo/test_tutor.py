@@ -60,3 +60,36 @@ def test_faq_bot_returns_script(mock_openai_client, sample_faq_response, sample_
     payload = json.loads(mock_openai_client.calls[0]["messages"][1]["content"])
     assert payload["handoff_context"]["session_params"]["learning_objective"] == \
         sample_handoff_context["session_params"]["learning_objective"]
+
+
+@pytest.mark.unit
+def test_tutor_bot_receives_lo_mastery_in_student_state(
+    mock_openai_client, sample_tutor_response
+):
+    """Tutor bot should receive lo_mastery in student_state and still return valid JSON."""
+    handoff_context = {
+        "handoff_metadata": {"from_agent": "coach", "to_agent": "tutor"},
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "Derivatives",
+            "mode": "conceptual_review",
+        },
+        "conversation_summary": "Student confirmed tutoring plan.",
+        "recent_sessions": [],
+        "student_state": {
+            "lo_mastery": {"Derivatives": 0.7, "Integrals": 0.4}
+        },
+    }
+    mock_openai_client.queue_response(sample_tutor_response)
+    result = tutor_bot(
+        llm_client=mock_openai_client,
+        llm_model="mock-model",
+        handoff_context=handoff_context,
+        conversation_history=[],
+    )
+    # Verify the response is still valid and contains expected fields
+    assert "message_to_student" in result
+    assert "session_summary" in result
+    # Verify lo_mastery was passed to the LLM
+    payload = json.loads(mock_openai_client.calls[0]["messages"][1]["content"])
+    assert payload["handoff_context"]["student_state"]["lo_mastery"]["Derivatives"] == 0.7

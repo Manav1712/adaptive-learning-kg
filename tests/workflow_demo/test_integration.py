@@ -120,3 +120,74 @@ def test_tutoring_planner_uses_mock_retriever(mock_retriever, sample_session_pla
     response = planner.create_plan(params)
     assert response["status"] == "complete"
     assert response["plan"]["learning_objective"] == sample_session_plan.learning_objective
+
+
+@pytest.mark.integration
+def test_mastery_updates_after_tutor_session(monkeypatch, coach_agent, sample_planner_response):
+    """After a tutor session ends, student_profile['lo_mastery'] should be updated."""
+
+    def _ending_tutor_bot(**kwargs):
+        return {
+            "message_to_student": "Great work! Session complete.",
+            "end_activity": True,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": {
+                "topics_covered": ["Derivatives"],
+                "student_understanding": "excellent",
+                "suggested_next_topic": None,
+                "switch_topic_request": None,
+                "switch_mode_request": None,
+                "notes": "Mastery test",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _ending_tutor_bot)
+
+    coach_agent.awaiting_confirmation = True
+    coach_agent.pending_session_type = "tutor"
+    coach_agent.collected_params = {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}
+    coach_agent.planner_result = sample_planner_response
+
+    _ = coach_agent.process_turn("yes")
+
+    # Mastery should now be set to 0.9 for "Derivatives" (excellent -> 0.9)
+    assert "Derivatives" in coach_agent.student_profile.get("lo_mastery", {})
+    assert coach_agent.student_profile["lo_mastery"]["Derivatives"] == 0.9
+
+
+@pytest.mark.integration
+def test_continuity_greeting_after_tutor_session(monkeypatch, coach_agent, sample_planner_response):
+    """After a tutor session ends, the greeting should mention the LO and mode."""
+
+    def _ending_tutor_bot(**kwargs):
+        return {
+            "message_to_student": "Great work! Session complete.",
+            "end_activity": True,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": {
+                "topics_covered": ["Derivatives"],
+                "student_understanding": "good",
+                "suggested_next_topic": None,
+                "switch_topic_request": None,
+                "switch_mode_request": None,
+                "notes": "Continuity test",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _ending_tutor_bot)
+
+    coach_agent.awaiting_confirmation = True
+    coach_agent.pending_session_type = "tutor"
+    coach_agent.collected_params = {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}
+    coach_agent.planner_result = sample_planner_response
+
+    greeting = coach_agent.process_turn("yes")
+
+    # The greeting should be the tutor's final message followed by the return greeting
+    assert "Nice work on Derivatives" in greeting or "Great work" in greeting

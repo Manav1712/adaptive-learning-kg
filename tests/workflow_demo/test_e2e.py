@@ -56,7 +56,8 @@ def test_tutoring_flow_end_to_end(monkeypatch, coach_agent: CoachAgent, mock_ret
     assert "plan" in reply1.lower()
 
     reply2 = coach_agent.process_turn("yes")
-    assert reply2.startswith("Hi! I'm your learning coach")
+    # After session ends, coach returns a continuity-aware greeting
+    assert "Nice work on Derivatives" in reply2 or reply2.startswith("Hi! I'm your learning coach")
     assert any(
         entry["summary"].get("notes") == "Tutor E2E"
         for entry in coach_agent.session_memory.get_recent_sessions()
@@ -105,7 +106,8 @@ def test_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
     assert "exam" in reply1.lower()
 
     reply2 = coach_agent.process_turn("yes")
-    assert reply2.startswith("Hi! I'm your learning coach")
+    # After FAQ session ends, coach returns a continuity-aware greeting
+    assert "Glad I could help" in reply2 or reply2.startswith("Hi! I'm your learning coach")
     assert any(
         entry["summary"].get("notes") == "FAQ E2E"
         for entry in coach_agent.session_memory.get_recent_sessions()
@@ -155,7 +157,8 @@ def test_syllabus_faq_flow_end_to_end(monkeypatch, coach_agent: CoachAgent):
     assert "syllabus" in reply1.lower()
 
     reply2 = coach_agent.process_turn("yes")
-    assert reply2.startswith("Hi! I'm your learning coach")
+    # After FAQ session ends, coach returns a continuity-aware greeting
+    assert "Glad I could help" in reply2 or reply2.startswith("Hi! I'm your learning coach")
     assert any(
         entry["summary"].get("notes") == "Syllabus FAQ"
         for entry in coach_agent.session_memory.get_recent_sessions()

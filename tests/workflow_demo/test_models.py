@@ -21,6 +21,8 @@ def test_plan_step_defaults():
     """PlanStep budget defaults to 250 tokens."""
     step = PlanStep(step_id="1", step_type="explain", goal="Test goal", lo_id=1)
     assert step.budget_tokens == 250
+    assert step.how_to_teach is None
+    assert step.why_to_teach is None
 
 
 @pytest.mark.unit

@@ -9,6 +9,7 @@ Implements a multi-stage retrieval pipeline:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -21,10 +22,151 @@ os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 
 try:
     from src.workflow_demo.data_loader import KnowledgeGraphData, load_demo_frames
-    from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack
+    from src.workflow_demo.models import (
+        PlanStep, SessionPlan, TeachingPack,
+        RetrievalCandidate, RetrievalResult, SimplifiedPlan, LearningObjectiveEntry,
+    )
+    from src.workflow_demo.clip_embeddings import CLIPEmbeddingBackend, normalize_dense
 except ImportError:
     from .data_loader import KnowledgeGraphData, load_demo_frames
-    from .models import PlanStep, SessionPlan, TeachingPack
+    from .models import (
+        PlanStep, SessionPlan, TeachingPack,
+        RetrievalCandidate, RetrievalResult, SimplifiedPlan, LearningObjectiveEntry,
+    )
+    from .clip_embeddings import CLIPEmbeddingBackend, normalize_dense
+
+
+# Cache version - increment when cache format changes
+_CACHE_VERSION = "v1"
+
+
+def _compute_corpus_hash(texts: List[str]) -> str:
+    """
+    Compute SHA256 hash of corpus texts for cache invalidation.
+    
+    Uses length-prefixed encoding to prevent collisions from texts containing
+    newlines or other special characters.
+    
+    Inputs:
+        texts: List of strings to hash.
+    
+    Outputs:
+        Hexadecimal hash string (64 chars).
+    """
+    # Use length-prefixed encoding to prevent collisions
+    # e.g., ["a\nb", "c"] vs ["a", "b\nc"] would collide with simple join
+    hasher = hashlib.sha256()
+    hasher.update(_CACHE_VERSION.encode("utf-8"))
+    for text in sorted(texts):
+        # Encode length + content to prevent collision attacks
+        encoded = text.encode("utf-8")
+        hasher.update(len(encoded).to_bytes(4, "big"))
+        hasher.update(encoded)
+    return hasher.hexdigest()
+
+
+def _get_cache_path(data_dir: Path, cache_name: str) -> Path:
+    """
+    Get cache file path for embeddings.
+    
+    Inputs:
+        data_dir: Base data directory (e.g., demo/).
+        cache_name: Cache filename (e.g., "text_embeddings_{hash}.npy").
+    
+    Outputs:
+        Path to cache file in data_dir/.embedding_cache/
+    """
+    cache_dir = data_dir / ".embedding_cache"
+    return cache_dir / cache_name
+
+
+def _atomic_save(path: Path, arr: np.ndarray) -> None:
+    """
+    Atomically save numpy array to prevent corruption on interrupted writes.
+    
+    Writes to a temp file first, then renames (atomic on POSIX).
+    
+    Inputs:
+        path: Target file path.
+        arr: Numpy array to save.
+    
+    Outputs:
+        None. File is saved atomically.
+    
+    Raises:
+        OSError: If write or rename fails.
+    """
+    import tempfile
+    path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Write to temp file in same directory (ensures same filesystem for atomic rename)
+    fd, tmp_path = tempfile.mkstemp(
+        suffix=".npy.tmp",
+        prefix=path.stem + "_",
+        dir=path.parent
+    )
+    try:
+        os.close(fd)
+        np.save(tmp_path, arr)
+        # Atomic rename (POSIX guarantees atomicity for same-filesystem rename)
+        os.replace(tmp_path, path)
+    except Exception:
+        # Clean up temp file on failure
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _safe_load_cache(
+    cache_path: Path,
+    expected_shape: Optional[Tuple[int, ...]] = None,
+    expected_dtype: np.dtype = np.float32,
+) -> Optional[np.ndarray]:
+    """
+    Safely load cached embeddings with validation.
+    
+    Inputs:
+        cache_path: Path to cache file.
+        expected_shape: Expected shape (None to skip shape check).
+        expected_dtype: Expected dtype.
+    
+    Outputs:
+        Loaded numpy array, or None if cache is invalid/missing.
+    """
+    if not cache_path.exists():
+        return None
+    
+    try:
+        arr = np.load(cache_path)
+        
+        # Validate dtype
+        if arr.dtype != expected_dtype:
+            print(f"  [Cache] dtype mismatch: expected {expected_dtype}, got {arr.dtype}")
+            return None
+        
+        # Validate shape if expected
+        if expected_shape is not None and arr.shape != expected_shape:
+            print(f"  [Cache] shape mismatch: expected {expected_shape}, got {arr.shape}")
+            return None
+        
+        # Check for NaN/Inf values (corrupted embeddings)
+        if not np.isfinite(arr).all():
+            print("  [Cache] contains NaN or Inf values, regenerating...")
+            return None
+        
+        return arr
+        
+    except Exception as e:
+        print(f"  [Cache] failed to load {cache_path.name}: {e}")
+        # Attempt to remove corrupted cache file
+        try:
+            cache_path.unlink()
+            print(f"  [Cache] removed corrupted cache file")
+        except OSError:
+            pass
+        return None
 
 
 class EmbeddingBackend:
@@ -235,6 +377,7 @@ class TeachingPackRetriever:
         data_dir: Optional[Path] = None,
         embedding_model: str = "text-embedding-3-large",
         rerank_model: str = "gpt-4o-mini",
+        force_refresh: bool = False,
     ) -> None:
         """
         Build embeddings over LO titles and content snippets.
@@ -243,10 +386,12 @@ class TeachingPackRetriever:
             data_dir: Directory containing the demo CSV artifacts. Defaults to <repo>/demo.
             embedding_model: OpenAI model name (default: text-embedding-3-large) or SentenceTransformer.
             rerank_model: LLM model for reranking (default: gpt-4o-mini).
+            force_refresh: If True, bypass cache and recompute embeddings.
 
         Outputs:
             None. Pre-computes embeddings for subsequent fast retrieval.
         """
+        self._force_refresh = force_refresh
 
         repo_root = Path(__file__).resolve().parents[2]
         self.data_dir = data_dir or (repo_root / "demo")
@@ -256,6 +401,7 @@ class TeachingPackRetriever:
 
         print(f"  Initializing embedding backend ({embedding_model})...")
         self.embedding_backend = EmbeddingBackend(model_name=embedding_model)
+        self.embedding_model = embedding_model
         print(f"  Embedding backend ready")
 
         print("  Building corpus...")
@@ -267,17 +413,103 @@ class TeachingPackRetriever:
         content_texts = [item["text"] for item in self.content_corpus]
         all_texts = lo_texts + content_texts
 
-        print(f"  Computing embeddings for {len(all_texts)} texts (this may take a moment)...")
-        embeddings = self.embedding_backend.fit_transform(all_texts)
+        # Try loading cached embeddings
+        corpus_hash = _compute_corpus_hash(all_texts)
+        # Include model name in hash to invalidate cache when model changes
+        model_hash = hashlib.sha256(embedding_model.encode("utf-8")).hexdigest()[:8]
+        cache_name = f"text_embeddings_{corpus_hash[:16]}_{model_hash}.npy"
+        cache_path = _get_cache_path(self.data_dir, cache_name)
+
+        embeddings = None
+        if not self._force_refresh:
+            embeddings = _safe_load_cache(cache_path, expected_dtype=np.float32)
+            if embeddings is not None:
+                print(f"  Loaded cached embeddings from {cache_path.name} ({embeddings.shape})")
+                # Still need to build BM25 index (fast, no API calls)
+                self.embedding_backend._build_bm25_index(all_texts)
+                self.embedding_backend._fitted = True
+        
+        if embeddings is None:
+            if self._force_refresh:
+                print(f"  Force refresh: recomputing embeddings...")
+            print(f"  Computing embeddings for {len(all_texts)} texts (this may take a moment)...")
+            embeddings = self.embedding_backend.fit_transform(all_texts)
+            try:
+                _atomic_save(cache_path, embeddings)
+                print(f"  Cached embeddings to {cache_path.name}")
+            except OSError as e:
+                print(f"  [Cache] failed to save cache: {e} (continuing without cache)")
+
         self.lo_embeddings = embeddings[: len(lo_texts)]
         self.content_embeddings = embeddings[len(lo_texts) :]
         self._lo_text_count = len(lo_texts)  # Track split point for BM25
-        print("  Embeddings computed successfully!")
+        print("  Embeddings ready!")
+
+        # CLIP image index (optional)
+        self.clip_backend: Optional[CLIPEmbeddingBackend] = None
+        self.image_corpus: List[Dict[str, Any]] = []
+        self.image_embeddings: np.ndarray = np.zeros((0, 512), dtype="float32")
+        self._init_image_index()
 
         # LLM reranker setup
         self.rerank_model = rerank_model
         self._llm_client: Optional[Any] = None
         self._init_llm_client()
+
+    def _init_image_index(self) -> None:
+        """
+        Initialize CLIP backend and load image metadata/embeddings if available.
+        """
+        # Look for image corpus in src/workflow_demo/image_corpus/
+        workflow_demo_dir = Path(__file__).resolve().parent
+        self.image_corpus_dir = workflow_demo_dir / "image_corpus"
+        metadata_path = self.image_corpus_dir / "image_metadata.csv"
+        if not metadata_path.exists():
+            print("  [Retriever] No image_metadata.csv found; image search disabled.")
+            return
+
+        try:
+            print("  Loading CLIP model for image search (may take a moment on first run)...")
+            self.clip_backend = CLIPEmbeddingBackend()
+            print("  CLIP model ready")
+        except Exception as exc:
+            print(f"  [Retriever] CLIP unavailable ({exc}); skipping image index.")
+            return
+
+        self.image_corpus = self._build_image_corpus(metadata_path)
+        if not self.image_corpus:
+            print("  [Retriever] No valid images loaded; image search disabled.")
+            return
+
+        image_paths = [item["path"] for item in self.image_corpus]
+        
+        # Try loading cached image embeddings
+        image_hash = _compute_corpus_hash([str(p) for p in image_paths])
+        image_cache_name = f"image_embeddings_{image_hash[:16]}.npy"
+        image_cache_path = _get_cache_path(self.data_dir, image_cache_name)
+        
+        loaded_embeddings = None
+        if not self._force_refresh:
+            loaded_embeddings = _safe_load_cache(
+                image_cache_path,
+                expected_shape=(len(image_paths), 512),
+                expected_dtype=np.float32,
+            )
+            if loaded_embeddings is not None:
+                print(f"  [Retriever] Loaded cached image embeddings from {image_cache_path.name}")
+                self.image_embeddings = loaded_embeddings
+        
+        if loaded_embeddings is None:
+            print(f"  [Retriever] Computing embeddings for {len(image_paths)} images...")
+            self.image_embeddings = self.clip_backend.encode_images(image_paths)
+            self.image_embeddings = normalize_dense(self.image_embeddings)
+            try:
+                _atomic_save(image_cache_path, self.image_embeddings)
+                print(f"  [Retriever] Cached image embeddings to {image_cache_path.name}")
+            except OSError as e:
+                print(f"  [Retriever] failed to save image cache: {e} (continuing without cache)")
+        
+        print(f"  [Retriever] Image index ready with {len(self.image_corpus)} images.")
 
     def _init_llm_client(self) -> None:
         """
@@ -308,7 +540,7 @@ class TeachingPackRetriever:
         learning_objective: Optional[str],
         mode: str,
         student_profile: Optional[Dict[str, Dict[str, float]]] = None,
-        top_los: int = 5,
+        top_los: int = 6,
         top_content: int = 6,
         enable_rerank: bool = True,
     ) -> SessionPlan:
@@ -380,21 +612,18 @@ class TeachingPackRetriever:
 
         # Stage C: Graph expansion (in _build_teaching_pack and _build_current_plan)
         primary_lo = self._select_primary_lo(lo_hits, learning_objective)
-        teaching_pack = self._build_teaching_pack(primary_lo, lo_hits, content_hits)
+        teaching_pack = self._build_teaching_pack(primary_lo, lo_hits, content_hits, query=query)
 
-        proficiency = 0.4
-        if student_profile:
-            lo_mastery = student_profile.get("lo_mastery", {})
-            # Try learning_objective name first (how coach stores it), then lo_id as fallback
-            proficiency = lo_mastery.get(
-                primary_lo["learning_objective"],
-                lo_mastery.get(primary_lo["lo_id"], 0.4)
-            )
-
+        lo_mastery = student_profile.get("lo_mastery", {}) if student_profile else {}
         current_plan = self._build_current_plan(
             primary_lo=primary_lo,
             mode=canonical_mode,
-            proficiency=proficiency,
+            lo_mastery=lo_mastery,
+        )
+        session_guidance = self._generate_session_guidance(
+            primary_lo=primary_lo,
+            prereq_steps=[s for s in current_plan if s.step_type == "prereq_review"],
+            lo_mastery=lo_mastery,
         )
         future_plan = self._build_future_plan(
             primary_lo=primary_lo,
@@ -413,10 +642,189 @@ class TeachingPackRetriever:
             future_plan=future_plan,
             first_question=first_question,
             teaching_pack=teaching_pack,
+            session_guidance=session_guidance,
             book=primary_lo.get("book"),
             unit=primary_lo.get("unit"),
             chapter=primary_lo.get("chapter"),
         )
+
+    def retrieve_candidates(
+        self,
+        text_query: str,
+        image_path: Optional[str] = None,
+        top_k: int = 6,
+        debug: bool = True,
+    ) -> RetrievalResult:
+        """
+        Retrieve LO candidates from text and image embeddings.
+        
+        This is the new simplified retrieval interface that:
+        1. Runs text embedding search (from OCR or user query)
+        2. Runs image embedding search in parallel (if image provided)
+        3. Merges and deduplicates candidates
+        4. Prints debug output showing top retrieved LOs
+        
+        Inputs:
+            text_query: Text query (user input or OCR result)
+            image_path: Optional path to image for CLIP embedding search
+            top_k: Number of top candidates to return per source
+            debug: If True, print top retrieved LOs
+        
+        Outputs:
+            RetrievalResult with text_candidates, image_candidates, and merged_candidates
+        """
+        text_candidates: List[RetrievalCandidate] = []
+        image_candidates: List[RetrievalCandidate] = []
+        
+        # --- TEXT EMBEDDING RETRIEVAL ---
+        if text_query.strip():
+            query_vector = self.embedding_backend.transform([text_query])[0]
+            
+            # Semantic search on LO embeddings
+            semantic_hits = self._search_embeddings(self.lo_embeddings, query_vector, top_k * 2)
+            
+            # BM25 keyword search
+            bm25_all_hits = self.embedding_backend.bm25_search(text_query, top_k * 2)
+            bm25_lo_hits = [
+                (idx, score) for idx, score in bm25_all_hits
+                if idx < self._lo_text_count
+            ][:top_k * 2]
+            
+            # Hybrid fusion
+            fused_hits = self._hybrid_fusion(semantic_hits, bm25_lo_hits, top_k=top_k)
+            
+            for idx, score in fused_hits:
+                if 0 <= idx < len(self.lo_corpus):
+                    lo = self.lo_corpus[idx]
+                    text_candidates.append(RetrievalCandidate(
+                        lo_id=lo["lo_id"],
+                        title=lo["learning_objective"],
+                        score=score,
+                        source="text_embedding",
+                        book=lo.get("book"),
+                        unit=lo.get("unit"),
+                        chapter=lo.get("chapter"),
+                        how_to_teach=self._get_how_to_teach(lo["lo_id"]),
+                        why_to_teach=self._get_why_to_teach(lo["lo_id"]),
+                    ))
+        
+        # --- IMAGE EMBEDDING RETRIEVAL (CLIP) ---
+        if image_path and self.clip_backend and self.image_embeddings.size > 0:
+            try:
+                # Encode image with CLIP
+                image_embedding = self.clip_backend.encode_images([image_path])[0]
+                image_embedding = normalize_dense(image_embedding.reshape(1, -1))[0]
+                
+                # Search image index
+                scores = self.image_embeddings @ image_embedding.reshape(-1, 1)
+                scores = scores.reshape(-1)
+                top_idx = np.argsort(scores)[::-1][:top_k]
+                
+                for idx in top_idx:
+                    if 0 <= idx < len(self.image_corpus):
+                        img = self.image_corpus[idx]
+                        lo_id = img.get("lo_id")
+                        if lo_id is not None:
+                            # Look up LO details from lo_corpus
+                            lo_entry = next(
+                                (lo for lo in self.lo_corpus if lo["lo_id"] == lo_id),
+                                None
+                            )
+                            if lo_entry:
+                                image_candidates.append(RetrievalCandidate(
+                                    lo_id=lo_id,
+                                    title=lo_entry["learning_objective"],
+                                    score=float(scores[idx]),
+                                    source="image_embedding",
+                                    book=lo_entry.get("book"),
+                                    unit=lo_entry.get("unit"),
+                                    chapter=lo_entry.get("chapter"),
+                                    how_to_teach=self._get_how_to_teach(lo_id),
+                                    why_to_teach=self._get_why_to_teach(lo_id),
+                                ))
+            except Exception as e:
+                print(f"  [Retriever] Image embedding search failed: {e}")
+        
+        # --- MERGE CANDIDATES ---
+        merged_candidates = self._merge_candidates(text_candidates, image_candidates)
+        
+        # --- DEBUG OUTPUT ---
+        if debug:
+            print("\n" + "="*60)
+            print("🔍 RETRIEVAL DEBUG OUTPUT")
+            print("="*60)
+            print(f"Query: {text_query[:100]}{'...' if len(text_query) > 100 else ''}")
+            if image_path:
+                print(f"Image: {image_path}")
+            print()
+            
+            print(f"Text Embedding Candidates (top {len(text_candidates)})")
+            for i, c in enumerate(text_candidates[:5], 1):
+                print(f"  {i}. [{c.score:.3f}] {c.title} (LO #{c.lo_id})")
+            
+            if image_candidates:
+                print(f"\nImage Embedding Candidates (top {len(image_candidates)})")
+                for i, c in enumerate(image_candidates[:5], 1):
+                    print(f"  {i}. [{c.score:.3f}] {c.title} (LO #{c.lo_id})")
+            
+            print(f"\nMerged Candidates (top {len(merged_candidates)})")
+            for i, c in enumerate(merged_candidates[:5], 1):
+                print(f"  {i}. [{c.score:.3f}] {c.title} (LO #{c.lo_id}, source: {c.source})")
+            print("="*60 + "\n")
+        
+        return RetrievalResult(
+            query=text_query,
+            text_candidates=text_candidates,
+            image_candidates=image_candidates,
+            merged_candidates=merged_candidates,
+        )
+    
+    def _merge_candidates(
+        self,
+        text_candidates: List[RetrievalCandidate],
+        image_candidates: List[RetrievalCandidate],
+    ) -> List[RetrievalCandidate]:
+        """
+        Merge and deduplicate candidates from text and image retrieval.
+        
+        Uses max score when same LO appears in both sources.
+        """
+        seen: Dict[int, RetrievalCandidate] = {}
+        
+        # Add text candidates first
+        for c in text_candidates:
+            if c.lo_id not in seen or c.score > seen[c.lo_id].score:
+                seen[c.lo_id] = c
+        
+        # Add image candidates, keeping higher score
+        for c in image_candidates:
+            if c.lo_id not in seen or c.score > seen[c.lo_id].score:
+                seen[c.lo_id] = c
+        
+        # Sort by score descending
+        merged = sorted(seen.values(), key=lambda x: -x.score)
+        return merged
+    
+    def _get_how_to_teach(self, lo_id: int) -> str:
+        """Get how_to_teach guidance from KG for an LO."""
+        # For now, generate a default. In full implementation, this comes from KG.
+        lo_entry = next((lo for lo in self.lo_corpus if lo["lo_id"] == lo_id), None)
+        if lo_entry:
+            return f"Build understanding of {lo_entry['learning_objective']} through {lo_entry.get('unit', 'this unit')}."
+        return "Use examples and step-by-step explanations."
+    
+    def _get_why_to_teach(self, lo_id: int) -> str:
+        """Get why_to_teach rationale from KG for an LO."""
+        # For now, generate a default. In full implementation, this comes from KG.
+        prereqs = self.kg.prereq_in_map.get(lo_id, [])
+        if prereqs:
+            prereq_titles = [
+                lo["learning_objective"] for lo in self.lo_corpus
+                if lo["lo_id"] in prereqs
+            ][:2]
+            if prereq_titles:
+                return f"This builds on: {', '.join(prereq_titles)}"
+        return "This is a foundational concept for later topics."
 
     def _build_lo_corpus(self) -> List[Dict[str, str]]:
         """
@@ -460,6 +868,49 @@ class TeachingPackRetriever:
             )
         return corpus
 
+    def _build_image_corpus(self, metadata_path: Path) -> List[Dict[str, Any]]:
+        """
+        Load image metadata and filter to existing files.
+        """
+        corpus: List[Dict[str, Any]] = []
+        try:
+            df = pd.read_csv(metadata_path)
+        except Exception as exc:
+            print(f"  [Retriever] Failed to read image metadata ({exc}); skipping.")
+            return corpus
+
+        images_dir = self.image_corpus_dir
+        for row in df.itertuples(index=False):
+            filename = getattr(row, "filename", None)
+            image_id = getattr(row, "image_id", None)
+            if not filename or not image_id:
+                continue
+            # Check derivatives subfolder first, then root
+            nested_path = images_dir / "derivatives" / filename
+            path = nested_path if nested_path.exists() else images_dir / filename
+            if not path.exists():
+                # Skip missing files to avoid failures
+                continue
+            lo_id = getattr(row, "lo_id", None)
+            topic = getattr(row, "topic", "")
+            description = getattr(row, "description", "")
+            keywords = getattr(row, "keywords", "")
+            keyword_list = []
+            if isinstance(keywords, str):
+                keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
+
+            corpus.append(
+                {
+                    "image_id": str(image_id),
+                    "path": path,
+                    "lo_id": int(lo_id) if pd.notna(lo_id) else None,
+                    "topic": topic,
+                    "description": description,
+                    "keywords": keyword_list,
+                }
+            )
+        return corpus
+
     def _search_embeddings(
         self,
         matrix: np.ndarray,
@@ -474,6 +925,31 @@ class TeachingPackRetriever:
         scores = scores.reshape(-1)
         top_idx = np.argsort(scores)[::-1][:top_k]
         return [(int(idx), float(scores[idx])) for idx in top_idx]
+
+    def _search_images(self, query: str, top_k: int = 3) -> List[Dict[str, Any]]:
+        """
+        Search image index using CLIP text encoder.
+        """
+        if not self.clip_backend or self.image_embeddings.size == 0:
+            return []
+
+        try:
+            query_vec = self.clip_backend.encode_text([query])[0]
+            scores = self.image_embeddings @ query_vec.reshape(-1, 1)
+            scores = scores.reshape(-1)
+            top_idx = np.argsort(scores)[::-1][:top_k]
+            results: List[Dict[str, Any]] = []
+            for idx in top_idx:
+                results.append(
+                    {
+                        **self.image_corpus[idx],
+                        "score": float(scores[idx]),
+                    }
+                )
+            return results
+        except Exception as exc:
+            print(f"  [Retriever] Image search failed ({exc}); returning none.")
+            return []
 
     def _hybrid_fusion(
         self,
@@ -619,6 +1095,7 @@ Most relevant first. Include all document numbers."""
         primary_lo: Dict[str, str],
         lo_hits: List[Tuple[int, float]],
         content_hits: List[Tuple[int, float]],
+        query: str,
     ) -> TeachingPack:
         """
         Convert retrieval hits into a concise TeachingPack object.
@@ -672,19 +1149,35 @@ Most relevant first. Include all document numbers."""
                     }
                 )
 
+        images = []
+        image_results = self._search_images(query, top_k=3)
+        for item in image_results:
+            images.append(
+                {
+                    "image_id": item.get("image_id"),
+                    "path": str(item.get("path")),
+                    "lo_id": item.get("lo_id"),
+                    "topic": item.get("topic"),
+                    "description": item.get("description"),
+                    "keywords": item.get("keywords", []),
+                    "score": round(float(item.get("score", 0.0)), 4),
+                }
+            )
+
         return TeachingPack(
             key_points=key_points,
             examples=examples,
             practice=practice,
             prerequisites=prereq_entries,
             citations=citations,
+            images=images,
         )
 
     def _build_current_plan(
         self,
         primary_lo: Dict[str, str],
         mode: str,
-        proficiency: float,
+        lo_mastery: Dict[str, float],
     ) -> List[PlanStep]:
         """
         Compose the current tutoring plan with an optional prereq warm-up and a primary LO step.
@@ -692,13 +1185,19 @@ Most relevant first. Include all document numbers."""
 
         steps: List[PlanStep] = []
         prereq_ids = self.kg.prereq_in_map.get(primary_lo["lo_id"], [])
-        include_prereqs = proficiency < 0.65
+        PROFICIENCY_THRESHOLD = 0.65
 
-        if include_prereqs:
-            for prereq_id in prereq_ids[:2]:
-                prereq = self.kg.lo_lookup.get(prereq_id)
-                if not prereq:
-                    continue
+        for prereq_id in prereq_ids[:2]:
+            prereq = self.kg.lo_lookup.get(prereq_id)
+            if not prereq:
+                continue
+
+            prereq_proficiency = lo_mastery.get(
+                prereq["learning_objective"],
+                lo_mastery.get(prereq_id, 0.4),
+            )
+
+            if prereq_proficiency < PROFICIENCY_THRESHOLD:
                 how, why = self._prereq_guidance(
                     prereq["learning_objective"], primary_lo["raw_title"], mode
                 )
@@ -730,6 +1229,38 @@ Most relevant first. Include all document numbers."""
         )
 
         return steps
+
+    def _generate_session_guidance(
+        self,
+        primary_lo: Dict[str, str],
+        prereq_steps: List[PlanStep],
+        lo_mastery: Dict[str, float],
+    ) -> str:
+        """
+        Generate explicit instructional guidance for the tutor based on proficiency.
+        """
+        main_lo_name = primary_lo["raw_title"]
+
+        if prereq_steps:
+            prereq_names: List[str] = []
+            for step in prereq_steps:
+                prereq = self.kg.lo_lookup.get(step.lo_id)
+                if prereq:
+                    prereq_names.append(prereq["learning_objective"])
+
+            prereq_list = " and ".join(prereq_names) if prereq_names else "prerequisites"
+            return (
+                "The learner has gaps in prerequisite knowledge. "
+                f"Begin the session with focused refreshers on {prereq_list} "
+                f"before transitioning to {main_lo_name}. "
+                "Check for understanding after each refresher."
+            )
+
+        return (
+            "The learner has strong prerequisite knowledge. "
+            f"Focus primarily on {main_lo_name} without extensive prerequisite review. "
+            "Move quickly to deeper applications and nuances."
+        )
 
     def _build_future_plan(
         self,

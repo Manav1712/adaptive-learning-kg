@@ -86,7 +86,8 @@ def test_coach_confirmation_triggers_bot_session(
     assert coach_agent.awaiting_confirmation_prompted
 
     reply = coach_agent.process_turn("yes")
-    assert reply.startswith("Hi! I'm your learning coach")
+    # After session ends, coach returns a continuity-aware greeting
+    assert "Nice work on Derivatives" in reply or reply.startswith("Hi! I'm your learning coach")
     assert coach_agent.in_bot_session is False
 
 
@@ -242,3 +243,182 @@ def test_coach_overrides_stale_student_request(coach_agent: CoachAgent, mock_ret
     assert "Here's what I put together" in reply
     assert mock_retriever.calls, "Planner should be invoked."
     assert mock_retriever.calls[0]["query"] == "Fresh conceptual review please"
+
+
+@pytest.mark.unit
+def test_coach_ignores_start_tutor_while_awaiting_confirmation(
+    monkeypatch, coach_agent: CoachAgent, sample_planner_response
+):
+    """Coach must ignore start_tutor/start_faq actions when awaiting_confirmation is true."""
+    coach_agent.awaiting_confirmation = True
+    coach_agent.pending_session_type = "tutor"
+    coach_agent.collected_params = sample_planner_response["plan"]
+    coach_agent.planner_result = deepcopy(sample_planner_response)
+    coach_agent.awaiting_confirmation_prompted = True
+    coach_agent.plan_confirmation_summary = "Here's what I put together:\n- Subject: calculus\nWould you like to start with this plan?"
+
+    # When awaiting confirmation, coach should return plan summary
+    # Use input that's not a positive/negative confirmation
+    reply = coach_agent.process_turn("what does this plan include?")
+    # Should return the plan summary, not start the tutor
+    assert "Here's what I put together" in reply
+    assert coach_agent.awaiting_confirmation
+    assert not coach_agent.in_bot_session
+
+
+@pytest.mark.unit
+def test_coach_ignores_start_faq_while_awaiting_confirmation(
+    monkeypatch, coach_agent: CoachAgent, sample_syllabus_faq_plan
+):
+    """Coach must ignore start_faq actions when awaiting_confirmation is true."""
+    coach_agent.awaiting_confirmation = True
+    coach_agent.pending_session_type = "faq"
+    coach_agent.collected_params = {"topic": "syllabus_topics"}
+    coach_agent.planner_result = deepcopy(sample_syllabus_faq_plan)
+    coach_agent.awaiting_confirmation_prompted = True
+    coach_agent.plan_confirmation_summary = "Here's what I found:\n- Topic: syllabus_topics\nWould you like me to walk through this info now?"
+
+    # When awaiting confirmation, coach should return plan summary without calling LLM
+    # Use input that's not a positive/negative confirmation
+    reply = coach_agent.process_turn("can you tell me more about this?")
+    # Should return the plan summary, not start the FAQ bot
+    assert "Here's what I found" in reply
+    assert coach_agent.awaiting_confirmation
+    assert not coach_agent.in_bot_session
+
+
+@pytest.mark.unit
+def test_coach_always_presents_plan_summary_before_handoff(
+    monkeypatch, coach_agent: CoachAgent, mock_retriever
+):
+    """Coach must always present a plan summary before handing off to tutor/FAQ."""
+    
+    def _fake_tutor_bot(**kwargs):
+        return {
+            "message_to_student": "Let's start learning!",
+            "end_activity": True,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": {
+                "topics_covered": ["Limits"],
+                "student_understanding": "good",
+                "suggested_next_topic": None,
+                "switch_topic_request": None,
+                "switch_mode_request": None,
+                "notes": "Test session",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _fake_tutor_bot)
+    
+    coach_agent.llm_client._queued.clear()
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "",
+            "action": "call_tutoring_planner",
+            "tool_params": {
+                "subject": "calculus",
+                "learning_objective": "Limits",
+                "mode": "practice",
+            },
+            "conversation_summary": "",
+        }
+    )
+
+    # First turn: planner is called
+    reply1 = coach_agent.process_turn("I want to practice limits")
+    assert "Here's what I put together" in reply1
+    assert coach_agent.awaiting_confirmation
+    assert coach_agent.awaiting_confirmation_prompted
+    assert not coach_agent.in_bot_session
+
+    # Second turn: student confirms
+    reply2 = coach_agent.process_turn("yes")
+    # Now handoff should happen - after session ends, coach returns a continuity-aware greeting
+    assert coach_agent.in_bot_session or "Nice work" in reply2 or reply2.startswith("Hi! I'm your learning coach")
+
+
+@pytest.mark.unit
+def test_coach_prevents_planner_and_handoff_in_same_turn(coach_agent: CoachAgent, mock_retriever):
+    """Coach must prevent planner call and handoff from happening in the same turn."""
+    coach_agent.llm_client._queued.clear()
+    # LLM tries to call planner and start tutor in same turn (should be blocked)
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "",
+            "action": "call_tutoring_planner",
+            "tool_params": {
+                "subject": "calculus",
+                "learning_objective": "Integration",
+                "mode": "examples",
+            },
+            "conversation_summary": "",
+        }
+    )
+    # Queue a second response that tries to start tutor immediately (should be ignored)
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "",
+            "action": "start_tutor",
+            "tool_params": {
+                "subject": "calculus",
+                "learning_objective": "Integration",
+                "mode": "examples",
+            },
+            "conversation_summary": "Starting tutoring",
+        }
+    )
+
+    reply = coach_agent.process_turn("Teach me integration")
+    # Should only present plan summary, not start tutor
+    assert "Here's what I put together" in reply
+    assert coach_agent.awaiting_confirmation
+    assert not coach_agent.in_bot_session
+    # Second LLM response should still be queued (not consumed)
+    assert len(coach_agent.llm_client._queued) == 1
+
+
+@pytest.mark.unit
+def test_coach_handles_non_confirmation_while_awaiting(coach_agent: CoachAgent, sample_planner_response):
+    """Coach should re-present plan summary when student gives non-confirmation response."""
+    coach_agent.awaiting_confirmation = True
+    coach_agent.pending_session_type = "tutor"
+    coach_agent.collected_params = sample_planner_response["plan"]
+    coach_agent.planner_result = deepcopy(sample_planner_response)
+    coach_agent.awaiting_confirmation_prompted = True
+    coach_agent.plan_confirmation_summary = "Here's what I put together:\n- Subject: calculus\nWould you like to start with this plan?"
+
+    # Student gives ambiguous response that's not a positive/negative confirmation
+    # Use input that won't trigger negative confirmation (which contains "sure")
+    reply = coach_agent.process_turn("what will we cover?")
+    # Should re-present the plan summary without calling LLM
+    assert "Here's what I put together" in reply
+    assert coach_agent.awaiting_confirmation
+    assert not coach_agent.in_bot_session
+
+
+@pytest.mark.unit
+def test_coach_plan_summary_includes_all_key_details(coach_agent: CoachAgent, mock_retriever):
+    """Plan summary should include subject, learning objective, mode, and book when available."""
+    coach_agent.llm_client._queued.clear()
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "",
+            "action": "call_tutoring_planner",
+            "tool_params": {
+                "subject": "calculus",
+                "learning_objective": "The Chain Rule",
+                "mode": "conceptual_review",
+            },
+            "conversation_summary": "",
+        }
+    )
+
+    reply = coach_agent.process_turn("Explain the chain rule conceptually")
+    assert "Here's what I put together" in reply
+    assert "calculus" in reply.lower() or "subject" in reply.lower()
+    # The plan summary should be stored
+    assert coach_agent.plan_confirmation_summary
+    assert coach_agent.awaiting_confirmation_prompted

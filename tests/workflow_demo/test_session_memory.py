@@ -1,8 +1,13 @@
 """Unit tests for workflow_demo.session_memory utilities."""
 
+import json
+import os
+import tempfile
+
 import pytest
 
 from src.workflow_demo.session_memory import SessionMemory, create_handoff_context
+from src.workflow_demo.coach import CoachAgent
 
 
 @pytest.mark.unit
@@ -58,3 +63,235 @@ def test_create_handoff_context(sample_session_memory: SessionMemory):
     assert context["handoff_metadata"]["from_agent"] == "coach"
     assert context["recent_sessions"] == sample_session_memory.get_recent_sessions()
     assert context["student_state"]["lo_mastery"][1893] == 0.7
+
+
+# ---------------------------------------------------------------------------
+# Mastery wiring tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_update_lo_mastery_from_excellent_understanding():
+    """_update_lo_mastery should map 'excellent' to 0.9."""
+    coach = CoachAgent.__new__(CoachAgent)
+    coach.student_profile = {"lo_mastery": {}}
+    params = {"learning_objective": "Derivatives"}
+    summary = {"student_understanding": "excellent"}
+    coach._update_lo_mastery(params, summary)
+    assert coach.student_profile["lo_mastery"]["Derivatives"] == 0.9
+
+
+@pytest.mark.unit
+def test_update_lo_mastery_from_needs_practice():
+    """_update_lo_mastery should map 'needs_practice' to 0.4."""
+    coach = CoachAgent.__new__(CoachAgent)
+    coach.student_profile = {"lo_mastery": {}}
+    params = {"learning_objective": "Integrals"}
+    summary = {"student_understanding": "needs_practice"}
+    coach._update_lo_mastery(params, summary)
+    assert coach.student_profile["lo_mastery"]["Integrals"] == 0.4
+
+
+@pytest.mark.unit
+def test_update_lo_mastery_defaults_on_unknown_label():
+    """_update_lo_mastery should default to 0.4 for unknown labels."""
+    coach = CoachAgent.__new__(CoachAgent)
+    coach.student_profile = {"lo_mastery": {}}
+    params = {"learning_objective": "Limits"}
+    summary = {"student_understanding": "unknown_label"}
+    coach._update_lo_mastery(params, summary)
+    assert coach.student_profile["lo_mastery"]["Limits"] == 0.4
+
+
+@pytest.mark.unit
+def test_update_lo_mastery_skips_when_no_lo_key():
+    """_update_lo_mastery should skip update if no LO key in params."""
+    coach = CoachAgent.__new__(CoachAgent)
+    coach.student_profile = {"lo_mastery": {}}
+    params = {}
+    summary = {"student_understanding": "excellent"}
+    coach._update_lo_mastery(params, summary)
+    assert coach.student_profile["lo_mastery"] == {}
+
+
+# ---------------------------------------------------------------------------
+# Continuity-aware greeting tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_build_return_greeting_tutor_with_mode():
+    """_build_return_greeting should produce a custom greeting for tutor sessions."""
+    coach = CoachAgent.__new__(CoachAgent)
+    params = {"learning_objective": "Derivatives", "mode": "practice"}
+    greeting = coach._build_return_greeting(params, session_type="tutor")
+    assert "Derivatives" in greeting
+    assert "practice" in greeting
+    assert "Nice work" in greeting
+
+
+@pytest.mark.unit
+def test_build_return_greeting_tutor_without_mode():
+    """_build_return_greeting should handle missing mode gracefully."""
+    coach = CoachAgent.__new__(CoachAgent)
+    params = {"learning_objective": "Integrals"}
+    greeting = coach._build_return_greeting(params, session_type="tutor")
+    assert "Integrals" in greeting
+    assert "Nice work" in greeting
+
+
+@pytest.mark.unit
+def test_build_return_greeting_faq_with_topic():
+    """_build_return_greeting should produce a custom greeting for FAQ sessions."""
+    coach = CoachAgent.__new__(CoachAgent)
+    params = {"topic": "exam schedule"}
+    greeting = coach._build_return_greeting(params, session_type="faq")
+    assert "exam schedule" in greeting
+    assert "Glad I could help" in greeting
+
+
+@pytest.mark.unit
+def test_build_return_greeting_fallback():
+    """_build_return_greeting should fall back to generic greeting when info is missing."""
+    coach = CoachAgent.__new__(CoachAgent)
+    params = {}
+    greeting = coach._build_return_greeting(params, session_type="tutor")
+    assert "learning coach" in greeting
+
+
+# ---------------------------------------------------------------------------
+# JSON Persistence tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_session_memory_persistence_saves_and_loads():
+    """SessionMemory should persist entries to JSON and reload on init."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "session_memory.json")
+        
+        # Create memory, add sessions, and let it auto-save
+        memory1 = SessionMemory(max_entries=5, persistence_path=path)
+        memory1.add_session("tutor", {"learning_objective": "Derivatives"}, {"student_understanding": "good"})
+        memory1.add_session("faq", {"topic": "exam schedule"}, {"topics_addressed": ["exam schedule"]})
+        
+        # Verify file was created
+        assert os.path.exists(path)
+        
+        # Create new memory instance pointing to same file
+        memory2 = SessionMemory(max_entries=5, persistence_path=path)
+        recent = memory2.get_recent_sessions()
+        
+        # Verify sessions were loaded
+        assert len(recent) == 2
+        assert recent[0]["type"] == "tutor"
+        assert recent[0]["params"]["learning_objective"] == "Derivatives"
+        assert recent[1]["type"] == "faq"
+        assert recent[1]["params"]["topic"] == "exam schedule"
+
+
+@pytest.mark.unit
+def test_session_memory_persistence_handles_missing_file():
+    """SessionMemory should start empty when persistence file doesn't exist."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "nonexistent.json")
+        
+        memory = SessionMemory(max_entries=5, persistence_path=path)
+        assert memory.get_recent_sessions() == []
+
+
+@pytest.mark.unit
+def test_session_memory_persistence_handles_empty_file():
+    """SessionMemory should handle an empty JSON file gracefully."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "empty.json")
+        
+        # Create empty file
+        with open(path, "w") as f:
+            f.write("")
+        
+        memory = SessionMemory(max_entries=5, persistence_path=path)
+        assert memory.get_recent_sessions() == []
+
+
+@pytest.mark.unit
+def test_session_memory_persistence_handles_invalid_json():
+    """SessionMemory should handle corrupted JSON file gracefully."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "corrupt.json")
+        
+        # Create file with invalid JSON
+        with open(path, "w") as f:
+            f.write("{ not valid json }")
+        
+        memory = SessionMemory(max_entries=5, persistence_path=path)
+        assert memory.get_recent_sessions() == []
+
+
+@pytest.mark.unit
+def test_session_memory_no_persistence_when_path_not_set():
+    """SessionMemory should not create files when persistence_path is None."""
+    memory = SessionMemory(max_entries=5, persistence_path=None)
+    memory.add_session("tutor", {"learning_objective": "Limits"}, {"student_understanding": "excellent"})
+    
+    # No file should be created
+    assert memory.persistence_path is None
+    assert len(memory.get_recent_sessions()) == 1
+
+
+@pytest.mark.unit
+def test_session_memory_saves_new_schema_with_profile():
+    """SessionMemory should write sessions + student_profile to JSON."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "session_memory.json")
+
+        memory = SessionMemory(max_entries=5, persistence_path=path)
+        memory.add_session("tutor", {"learning_objective": "Derivatives"}, {"student_understanding": "good"})
+        memory.student_profile["lo_mastery"]["Derivatives"] = 0.8
+        memory.save()
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert set(data.keys()) == {"sessions", "student_profile"}
+        assert data["sessions"][0]["params"]["learning_objective"] == "Derivatives"
+        assert data["student_profile"]["lo_mastery"]["Derivatives"] == 0.8
+
+
+@pytest.mark.unit
+def test_session_memory_loads_legacy_list_file():
+    """SessionMemory should remain backward compatible with legacy list files."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "legacy.json")
+        legacy_payload = [
+            {
+                "timestamp": "2024-01-01T00:00:00",
+                "type": "tutor",
+                "params": {"learning_objective": "Chain Rule"},
+                "summary": {"student_understanding": "good"},
+                "conversation_exchanges": [],
+            }
+        ]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(legacy_payload, f)
+
+        memory = SessionMemory(max_entries=5, persistence_path=path)
+        recent = memory.get_recent_sessions()
+
+        assert len(recent) == 1
+        assert recent[0]["params"]["learning_objective"] == "Chain Rule"
+        assert memory.student_profile == {"lo_mastery": {}}
+
+
+@pytest.mark.unit
+def test_session_memory_persists_lo_mastery_scores():
+    """lo_mastery entries should persist across SessionMemory instances."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = os.path.join(tmpdir, "session_memory.json")
+
+        memory1 = SessionMemory(max_entries=5, persistence_path=path)
+        memory1.student_profile["lo_mastery"]["Derivatives"] = 0.9
+        memory1.save()
+
+        memory2 = SessionMemory(max_entries=5, persistence_path=path)
+        assert memory2.student_profile["lo_mastery"]["Derivatives"] == 0.9

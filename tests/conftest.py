@@ -223,6 +223,8 @@ def sample_session_plan(sample_teaching_pack: TeachingPack) -> SessionPlan:
                 goal="Describe the core idea.",
                 lo_id=1893,
                 content_id=None,
+                how_to_teach="Use an intuitive diagram to anchor the concept.",
+                why_to_teach="Visual intuition primes the student for the details that follow.",
             )
         ],
         future_plan=[
@@ -232,6 +234,8 @@ def sample_session_plan(sample_teaching_pack: TeachingPack) -> SessionPlan:
                 goal="Extend to Linear Functions and Slope.",
                 lo_id=1872,
                 content_id=None,
+                how_to_teach="Connect the current topic to this follow-up through a contrast example.",
+                why_to_teach="This shows how the new skill generalizes once they master the core idea.",
             )
         ],
         first_question="What do you already know about the tangent problem?",

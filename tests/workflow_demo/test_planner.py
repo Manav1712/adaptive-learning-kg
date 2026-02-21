@@ -44,6 +44,9 @@ def test_tutoring_planner_returns_complete_plan(monkeypatch, mock_retriever, sam
     assert response["status"] == "complete"
     assert response["plan"]["learning_objective"] == sample_session_plan.learning_objective
     assert mock_retriever.calls, "Retriever should be invoked with planner params."
+    assert response["plan"]["current_plan"]
+    assert response["plan"]["current_plan"][0]["how_to_teach"]
+    assert response["plan"]["current_plan"][0]["why_to_teach"]
 
 
 @pytest.mark.unit

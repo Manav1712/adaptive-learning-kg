@@ -1,7 +1,6 @@
 """
 Image Preprocessor for Adaptive Learning System.
 
-This module provides GPT-4o vision-based image understanding to convert
 student-uploaded images (graphs, handwritten math, screenshots) into
 text queries suitable for the existing retriever pipeline.
 """
@@ -11,9 +10,9 @@ from __future__ import annotations
 import base64
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 # Type alias for detected image types
 ImageType = Literal["graph", "diagram", "handwritten", "screenshot", "equation", "unknown"]
@@ -38,10 +37,22 @@ class ImageQueryResult:
     raw_analysis: Optional[str]
     """Full analysis from the vision model (for debugging)."""
 
+    latex_content: List[str] = field(default_factory=list)
+    """List of LaTeX strings extracted from the image."""
+
+    function_type: Optional[str] = None
+    """Detected function type for graphs (e.g., linear, quadratic, trig)."""
+
+    key_features: List[str] = field(default_factory=list)
+    """Notable features such as intercepts, asymptotes, or labeled elements."""
+
+    likely_topic: Optional[str] = None
+    """Best-guess topic to guide retrieval (e.g., derivatives, limits)."""
+
 
 class ImagePreprocessor:
     """
-    Convert images to text queries using GPT-4o vision.
+    Convert images to text queries using GPT-4o Vision.
 
     This preprocessor analyzes educational images and generates text queries
     that can be fed into the TeachingPackRetriever for finding relevant
@@ -56,27 +67,40 @@ class ImagePreprocessor:
     VISION_MODEL = "gpt-4o"
 
     # System prompt optimized for educational content analysis
-    SYSTEM_PROMPT = """You are an expert educational content analyzer. Your task is to analyze images that students upload and generate search queries to find relevant learning materials.
+    SYSTEM_PROMPT = """You are an expert educational content analyzer for math/science tutoring.
 
-When analyzing an image:
-1. IDENTIFY the type: graph, diagram, handwritten work, screenshot, equation, or unknown
-2. EXTRACT any visible text, mathematical expressions (use LaTeX notation), or labels
-3. DESCRIBE what the image is showing in educational terms
-4. GENERATE a concise search query (1-2 sentences) that would help find relevant learning objectives
+EXTRACTION REQUIREMENTS:
+1. GRAPH ANALYSIS (if image is a graph):
+   - Identify function type: linear, quadratic, polynomial, trigonometric, exponential, logarithmic
+   - Extract visible points, intercepts, asymptotes
+   - Describe slope/curvature behavior
+   - Note any labeled axes, scales, or annotations
 
-Focus on mathematical and scientific content. Be specific about:
-- Mathematical concepts (derivatives, integrals, limits, etc.)
-- Graph types (linear, quadratic, exponential, trigonometric, etc.)
-- Problem-solving techniques shown
-- Any formulas or equations visible
+2. EQUATION EXTRACTION (if equations visible):
+   - Convert ALL visible math to LaTeX notation
+   - Identify equation type: algebraic, differential, integral, limit
+   - Note any numbered steps or worked solutions
 
-Respond in JSON format:
+3. HANDWRITTEN WORK:
+   - Transcribe the student's work step-by-step
+   - Identify potential errors or misconceptions
+   - Note the problem being solved
+
+4. DIAGRAM ANALYSIS:
+   - Identify diagram type (unit circle, triangle, coordinate plane, etc.)
+   - Extract all labels and measurements
+   - Describe geometric relationships
+
+OUTPUT JSON:
 {
-    "detected_type": "graph|diagram|handwritten|screenshot|equation|unknown",
-    "confidence": 0.0-1.0,
-    "extracted_text": "any visible text or LaTeX math",
-    "description": "what the image shows",
-    "query": "search query for finding relevant learning objectives"
+    "detected_type": "graph|equation|handwritten|diagram|screenshot|unknown",
+    "function_type": "linear|quadratic|trig|exponential|...|null",
+    "latex_content": ["\\\\frac{d}{dx}...", ...],
+    "extracted_text": "any visible text or math expressions",
+    "key_features": ["intercept at (0,0)", "asymptote at x=2", ...],
+    "likely_topic": "derivatives|limits|integrals|...",
+    "query": "search query for retrieval",
+    "confidence": 0.0-1.0
 }"""
 
     def __init__(self, model: str = "gpt-4o") -> None:
@@ -317,6 +341,10 @@ Respond in JSON format:
                 confidence=confidence,
                 extracted_text=data.get("extracted_text"),
                 raw_analysis=raw_response,
+                latex_content=data.get("latex_content") or [],
+                function_type=data.get("function_type"),
+                key_features=data.get("key_features") or [],
+                likely_topic=data.get("likely_topic"),
             )
 
         except (json.JSONDecodeError, KeyError, TypeError):
@@ -327,6 +355,10 @@ Respond in JSON format:
                 confidence=0.3,
                 extracted_text=None,
                 raw_analysis=raw_response,
+                latex_content=[],
+                function_type=None,
+                key_features=[],
+                likely_topic=None,
             )
 
 
