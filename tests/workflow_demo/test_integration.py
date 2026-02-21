@@ -29,7 +29,7 @@ def test_coach_planner_to_tutor_flow(monkeypatch, coach_agent, mock_retriever):
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _fake_tutor_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _fake_tutor_bot)
 
     coach_agent.llm_client._queued.clear()
     coach_agent.llm_client.queue_response(
@@ -58,15 +58,12 @@ def test_coach_planner_to_tutor_flow(monkeypatch, coach_agent, mock_retriever):
         }
     )
 
-    summary = coach_agent.process_turn("I want help with derivatives")
-    assert "here's what i put together" in summary.lower()
-    assert coach_agent.awaiting_confirmation
-
-    reply = coach_agent.process_turn("yes")
-    assert reply == "Tutor taking over now."
+    reply = coach_agent.process_turn("I want help with derivatives")
+    # New flow: planner → start_tutor in one turn, tutor fires immediately
+    assert "Tutor taking over now." in reply
     assert mock_retriever.calls, "Planner should invoke the retriever."
     assert tutor_messages == ["calculus"]
-    assert coach_agent.in_bot_session is True
+    assert coach_agent.bot_session_manager.is_active is True
 
 
 @pytest.mark.integration
@@ -93,14 +90,15 @@ def test_session_memory_captures_completed_tutor_sessions(
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _ending_tutor_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _ending_tutor_bot)
 
-    coach_agent.awaiting_confirmation = True
-    coach_agent.pending_session_type = "tutor"
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.handoff_context = {"session_params": {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}}
     coach_agent.collected_params = {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}
     coach_agent.planner_result = sample_planner_response
 
-    _ = coach_agent.process_turn("yes")
+    _ = coach_agent.process_turn("done")
     sessions = coach_agent.session_memory.get_recent_sessions()
     assert any(entry["summary"].get("notes") == "Tutor summary" for entry in sessions)
 
@@ -144,14 +142,15 @@ def test_mastery_updates_after_tutor_session(monkeypatch, coach_agent, sample_pl
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _ending_tutor_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _ending_tutor_bot)
 
-    coach_agent.awaiting_confirmation = True
-    coach_agent.pending_session_type = "tutor"
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.handoff_context = {"session_params": {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}}
     coach_agent.collected_params = {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}
     coach_agent.planner_result = sample_planner_response
 
-    _ = coach_agent.process_turn("yes")
+    _ = coach_agent.process_turn("done")
 
     # Mastery should now be set to 0.9 for "Derivatives" (excellent -> 0.9)
     assert "Derivatives" in coach_agent.student_profile.get("lo_mastery", {})
@@ -180,14 +179,15 @@ def test_continuity_greeting_after_tutor_session(monkeypatch, coach_agent, sampl
             },
         }
 
-    monkeypatch.setattr("src.workflow_demo.coach.tutor_bot", _ending_tutor_bot)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _ending_tutor_bot)
 
-    coach_agent.awaiting_confirmation = True
-    coach_agent.pending_session_type = "tutor"
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.handoff_context = {"session_params": {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}}
     coach_agent.collected_params = {"subject": "calculus", "learning_objective": "Derivatives", "mode": "practice"}
     coach_agent.planner_result = sample_planner_response
 
-    greeting = coach_agent.process_turn("yes")
+    greeting = coach_agent.process_turn("done")
 
     # The greeting should be the tutor's final message followed by the return greeting
     assert "Nice work on Derivatives" in greeting or "Great work" in greeting

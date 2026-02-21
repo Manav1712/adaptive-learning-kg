@@ -1,0 +1,303 @@
+"""
+Multi-agent coach that routes between tutoring and FAQ sessions.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any, Dict, List, Optional
+
+from openai import OpenAI
+
+from .bot_sessions import BotSessionManager
+from .coach_router import COACH_GREETING, CoachRouter
+from .image_preprocessor import ImagePreprocessor
+from .coach_llm_client import CoachLLMClient
+from .planner import FAQPlanner, TutoringPlanner
+from .retriever import TeachingPackRetriever
+from .session_memory import SessionMemory
+
+
+class CoachAgent:
+    """Orchestrator that routes between tutoring, FAQ, and proficiency tracking."""
+
+    def __init__(
+        self,
+        retriever: Optional[TeachingPackRetriever] = None,
+        llm_model: Optional[str] = None,
+        session_memory_path: Optional[str] = None,
+    ) -> None:
+        """Initialize the coach agent and wire up all dependencies.
+
+        Args:
+            retriever: Optional custom retriever (defaults to TeachingPackRetriever).
+            llm_model: Optional LLM model name (defaults to gpt-4o-mini).
+            session_memory_path: Optional path to persist session memory.
+        """
+        self.retriever = retriever or TeachingPackRetriever()
+        self.session_memory = SessionMemory(persistence_path=session_memory_path)
+
+        # Coach-level state
+        self.conversation_history: List[Dict[str, str]] = []
+        self.collected_params: Dict[str, Any] = {}
+        self.planner_result: Optional[Dict[str, Any]] = None
+        self.returning_from_session = False
+
+        # Student state
+        self.student_profile: Dict[str, Any] = self.session_memory.student_profile
+
+        # Syllabus escalation tracking
+        self.syllabus_request_active = False
+        self.syllabus_clarification_count = 0
+
+        # Image state
+        self.current_image: Optional[str] = None
+        self.current_image_query: Optional[str] = None
+
+        # LLM setup
+        self.llm_client: Optional[OpenAI] = None
+        self.llm_model: Optional[str] = None
+        self._init_llm(llm_model)
+
+        # Planners
+        self.tutoring_planner = TutoringPlanner(self.retriever)
+        self.faq_planner = FAQPlanner()
+
+        # Image preprocessing
+        self.image_preprocessor: Optional[ImagePreprocessor] = None
+        try:
+            self.image_preprocessor = ImagePreprocessor()
+        except Exception as exc:
+            print(f"[Coach] Warning: failed to initialize image preprocessor ({exc}).")
+
+        # Wire up delegates
+        self.llm_client_wrapper: Optional[CoachLLMClient] = None
+        self.coach_router: Optional[CoachRouter] = None
+        self.bot_session_manager: Optional[BotSessionManager] = None
+        if self.llm_client and self.llm_model:
+            self.llm_client_wrapper = CoachLLMClient(self.llm_client, self.llm_model)
+            self.coach_router = CoachRouter(self, self.llm_client_wrapper)
+            self.bot_session_manager = BotSessionManager(self)
+
+    def _init_llm(self, llm_model: Optional[str]) -> None:
+        """Check for API key in environment variables and set up LLM client and model.
+
+        Args:
+            llm_model: Optional model name override.
+        """
+        api_key = os.getenv("OPENAI_API_KEY")
+        self.llm_client = OpenAI(api_key=api_key)
+        self.llm_model = llm_model or os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
+
+    def initial_greeting(self) -> str:
+        """Return the initial greeting."""
+        return COACH_GREETING
+
+    def process_turn(self, user_input: str) -> str:
+        """Handle a text-only turn.
+
+        If an image was previously submitted (self.current_image is set),
+        it will persist and be passed to the tutor for follow-up questions.
+
+        Args:
+            user_input: The student's text input.
+
+        Returns:
+            The agent's response.
+        """
+        if self.bot_session_manager and self.bot_session_manager.is_active:
+            return self._handle_bot_turn(user_input)
+        return self._handle_coach_turn(user_input)
+
+    def process_multimodal_turn(self, text: str, image: str) -> str:
+        """Handle a turn that includes an image.
+
+        Stores the image, builds a combined text query from the image analysis,
+        then delegates to process_turn.
+
+        Args:
+            text: Optional text input.
+            image: Path or identifier for the image.
+
+        Returns:
+            The agent's response.
+        """
+        query_text = self._build_image_query(text or "", image)
+        return self.process_turn(query_text)
+
+    def _build_image_query(self, text: str, image: str) -> str:
+        """Preprocess an image and return a combined text+image query string.
+
+        Sets self.current_image and self.current_image_query as side-effects
+        so the planner and tutor can access them downstream.
+
+        Args:
+            text: Optional user text.
+            image: Path or identifier for the image.
+
+        Returns:
+            Combined query string.
+        """
+        self.current_image = image
+        self.current_image_query = None
+
+        print(f"\n🖼️  Image detected: {image}")
+
+        extra_parts: List[str] = []
+        if self.image_preprocessor:
+            try:
+                result = self.image_preprocessor.process_image(image, text or None)
+                self.current_image_query = result.query
+                self._log_image_result(result)
+
+                extra_parts = [
+                    " ".join(result.latex_content) if result.latex_content else "",
+                    result.likely_topic or "",
+                    " ".join(result.key_features[:3]) if result.key_features else "",
+                    result.query or "",
+                ]
+            except Exception as exc:
+                print(f"[Coach] Warning: image preprocessing failed ({exc}); proceeding with text only.")
+
+        parts = [p for p in [text] + extra_parts if p]
+        return "\n".join(parts).strip() or text
+
+    @staticmethod
+    def _log_image_result(result: Any) -> None:
+        """Print image analysis details for debugging.
+
+        Args:
+            result: Image analysis result from preprocessor.
+        """
+        print("📋 Image Analysis Results:")
+        print(f"   Type: {result.detected_type}")
+        print(f"   Confidence: {result.confidence:.0%}")
+        if result.likely_topic:
+            print(f"   Topic: {result.likely_topic}")
+        if result.latex_content:
+            print(f"   LaTeX: {result.latex_content[:2]}...")
+        if result.key_features:
+            print(f"   Features: {result.key_features[:3]}")
+        print(f"   Generated Query: {result.query[:100]}...")
+        print()
+
+    # -----------------------------------------------
+    # Coach mode delegation (state machines below)
+    # -----------------------------------------------
+
+    def _handle_coach_turn(self, user_input: str, synthetic: bool = False) -> str:
+        """Route to coach router."""
+        if not self.coach_router:
+            return "Coach system not initialized."
+        return self.coach_router.handle_turn(user_input, synthetic)
+
+    def _handle_bot_turn(self, user_input: str) -> str:
+        """Route to bot session manager."""
+        if not self.bot_session_manager:
+            return "Bot system not initialized."
+        return self.bot_session_manager.handle_turn(user_input)
+
+    # -----------------------------------------------
+    # Conversation helpers (used by both router + bot manager)
+    # -----------------------------------------------
+
+    def _record_message(self, speaker: str, text: str) -> None:
+        """Record a message in the conversation history.
+
+        Args:
+            speaker: "student" or "assistant".
+            text: The message text.
+        """
+        text = (text or "").strip()
+        if not text:
+            return
+        self.conversation_history.append({"speaker": speaker, "text": text})
+        if len(self.conversation_history) > 20:
+            self.conversation_history = self.conversation_history[-20:]
+
+    def _last_student_message(self) -> str:
+        """Return the most recent student message from conversation history.
+
+        Returns:
+            The message text or empty string if no student message found.
+        """
+        for message in reversed(self.conversation_history):
+            if message["speaker"] == "student":
+                return message["text"]
+        return ""
+
+    def _reset_syllabus_escalation(self) -> None:
+        """Clear syllabus escalation flags."""
+        self.syllabus_request_active = False
+        self.syllabus_clarification_count = 0
+
+    # -----------------------------------------------
+    # Planner calls (delegated from coach_router)
+    # -----------------------------------------------
+
+    def _call_tutoring_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Call the tutoring planner with the given parameters.
+
+        Args:
+            params: Planner parameters.
+
+        Returns:
+            Planner result dict.
+        """
+        import json
+
+        print("\n🔧 Tutoring Session Planner")
+
+        student_request = params.get("student_request") or self._last_student_message() or ""
+        mode = params.get("mode") or "conceptual_review"
+
+        # Build combined query from text + OCR
+        query_parts = [student_request]
+        if self.current_image_query:
+            query_parts.append(self.current_image_query)
+        combined_query = " ".join(p for p in query_parts if p).strip()
+
+        if not combined_query:
+            return {
+                "status": "need_info",
+                "plan": None,
+                "message": "What topic would you like to learn about?",
+            }
+
+        print(f"  Query: {combined_query[:100]}...")
+        if self.current_image:
+            print(f"  Image: {self.current_image}")
+
+        result = self.tutoring_planner.create_simplified_plan(
+            student_request=combined_query,
+            mode=mode,
+            student_profile=self.student_profile,
+            image_path=self.current_image,
+        )
+
+        print("📩 Planner response:")
+        print(json.dumps(result, indent=2, default=str))
+        return result
+
+    def _call_faq_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Call the FAQ planner with the given parameters.
+
+        Args:
+            params: Planner parameters.
+
+        Returns:
+            Planner result dict.
+        """
+        import json
+
+        print("\n🔧 FAQ/Syllabus Planner")
+        planner_params = dict(params)
+        if not planner_params.get("student_request"):
+            planner_params["student_request"] = self._last_student_message() or "Student requested FAQ help."
+        print(json.dumps(planner_params, indent=2))
+        result = self.faq_planner.create_plan(planner_params)
+        print("📩 Planner response:")
+        print(json.dumps(result, indent=2))
+        if result.get("status") == "complete":
+            self._reset_syllabus_escalation()
+        return result
