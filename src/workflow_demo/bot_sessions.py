@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from .session_memory import create_handoff_context
 from .tutor import tutor_bot, faq_bot
 
+# Import CoachAgent only for type checkers to avoid circular import at runtime.
 if TYPE_CHECKING:
     from .coach_agent import CoachAgent
 
@@ -112,16 +113,24 @@ class BotSessionManager:
         Returns:
             Merged session parameters dict.
         """
+        # Start with everything the planner decided.
         plan = (self.agent.planner_result or {}).get("plan") or {}
         session_params = dict(plan)
+
+        # Fill in gaps from tool_params (only keys the plan didn't cover).
         for k, v in tool_params.items():
             if v and not session_params.get(k):
                 session_params[k] = v
+
+        # Ensure student_request is always present.
         session_params["student_request"] = (
             session_params.get("student_request") or self.agent._last_student_message()
         )
+
+        # Attach image analysis query if the student submitted an image.
         if self.agent.current_image_query and "image_query" not in session_params:
             session_params["image_query"] = self.agent.current_image_query
+
         return session_params
 
     def _reset(self) -> None:
@@ -145,15 +154,19 @@ class BotSessionManager:
         Returns:
             The bot's response message or a final greeting if session ended.
         """
+        # Guard: if session state is missing, bail to coach greeting.
         if not self.bot_type or not self.handoff_context:
             self._reset()
             return self.agent.initial_greeting()
 
+        # First call gets empty history so the bot generates its opener.
         history = [] if initial else self.conversation_history
 
+        # Safety net (should never fire -- manager is only created with LLM).
         if not self.agent.llm_client or not self.agent.llm_model:
             raise RuntimeError("LLM client is required for tutor/FAQ bots.")
 
+        # Dispatch to the appropriate bot.
         if self.bot_type == "tutor":
             bot_response = tutor_bot(
                 llm_client=self.agent.llm_client,
@@ -170,10 +183,12 @@ class BotSessionManager:
                 conversation_history=history,
             )
 
+        # Record the bot's reply in conversation history.
         message = (bot_response.get("message_to_student") or "").strip()
         if message:
             self.conversation_history.append({"speaker": "assistant", "text": message})
 
+        # If the bot ended the session, finalize (save memory, update mastery).
         if bot_response.get("end_activity"):
             return self._finalize_bot_session(bot_response)
 
@@ -188,21 +203,27 @@ class BotSessionManager:
         Returns:
             A return greeting or switch request routed back to coach.
         """
+        # Capture session data before reset clears it.
         summary = bot_response.get("session_summary") or {}
         session_type = self.bot_type or "tutor"
         params = (self.handoff_context or {}).get("session_params", {})
         exchanges = list(self.conversation_history)
+
+        # Persist the completed session record.
         self.agent.session_memory.add_session(session_type, params, summary, exchanges)
 
+        # Update mastery score and flush to disk (tutor sessions only).
         if session_type == "tutor":
             self._update_lo_mastery(params, summary)
             self.agent.session_memory.save()
 
+        # Extract switch requests before reset wipes them.
         switch_topic = summary.get("switch_topic_request")
         switch_mode = summary.get("switch_mode_request")
 
         self._reset()
 
+        # If the bot requested a topic or mode switch, route back to coach.
         if switch_topic:
             self.agent.returning_from_session = True
             return self.agent._handle_coach_turn(switch_topic, synthetic=True)
@@ -211,6 +232,7 @@ class BotSessionManager:
             self.agent.returning_from_session = True
             return self.agent._handle_coach_turn(switch_mode, synthetic=True)
 
+        # Normal end: return a continuity-aware greeting.
         greeting = self._build_return_greeting(params, session_type)
         self.agent._record_message("assistant", greeting)
         return greeting
@@ -222,10 +244,13 @@ class BotSessionManager:
             params: Session parameters containing the learning objective.
             summary: Session summary containing student_understanding assessment.
         """
-        understanding = summary.get("student_understanding") or ""
+        # Resolve the LO identifier (title or numeric id).
         lo_key = params.get("learning_objective") or params.get("lo_id")
         if not lo_key:
             return
+
+        # Map the tutor's qualitative label to a 0-1 score (default 0.4).
+        understanding = summary.get("student_understanding") or ""
         score = UNDERSTANDING_TO_MASTERY.get(understanding.lower(), 0.4)
         self.agent.student_profile.setdefault("lo_mastery", {})[lo_key] = score
 
