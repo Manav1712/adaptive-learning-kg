@@ -302,3 +302,176 @@ for attempt in range(3):
 
 all retries exhausted --> return "trouble connecting" fallback
 ```
+
+---
+
+# coach_router.py
+
+## Purpose
+
+Policy layer between the student's message and the planners/bots. Runs an action loop that asks the LLM for a directive, validates it against policy rules (plan conflict detection, syllabus escalation), and dispatches to the appropriate planner or bot session. Pre-classifies simple inputs (FAQ keywords, session history questions) to skip unnecessary LLM calls.
+
+## Dependencies
+
+- `CoachLLMClient` -- gets directives from the LLM via `get_directive`.
+- `FAQPlanner` -- used for its `FAQ_TOPICS` dict during keyword detection.
+- `CoachAgent` (via `self.agent`) -- owns all shared state: conversation history, session memory, planner result, collected params, student profile, bot session manager.
+
+## Module-Level Constants
+
+### `SYLLABUS_FAQ_TOPIC`
+
+The FAQ topic string (`"syllabus_topics"`) used when the student asks about the syllabus or course outline.
+
+### `SYLLABUS_CLARIFICATION_LIMIT`
+
+Number of `action=none` turns with an active syllabus flag before the router bypasses the LLM and force-starts an FAQ session (default: 2).
+
+### `SYLLABUS_KEYWORDS`
+
+Set of keyword phrases that trigger the syllabus escalation flag. Also used by `_detect_faq_topic` to map these phrases to `SYLLABUS_FAQ_TOPIC`.
+
+### `COACH_GREETING`
+
+Default greeting shown to the student at the start of a conversation.
+
+### `REPLANNABLE_KEYS`
+
+Frozen set of keys (`mode`, `subject`, `topic`) where a mismatch between tool_params and the current plan triggers a re-plan instead of starting the session.
+
+### `_MAX_LOOP_ITERATIONS`
+
+Maximum number of directive-loop iterations before bailing out (default: 5).
+
+### `_UNDERSTANDING_MAP`
+
+Maps understanding labels to human-friendly descriptions. Used by `_handle_session_history_question` to describe how the student did in their last session.
+
+### `_FAQ_KEYWORD_MAP`
+
+Maps non-syllabus FAQ keywords (exam, quiz, homework, etc.) to their FAQ topic strings. Used by `_detect_faq_topic`.
+
+### `_SESSION_HISTORY_RE`
+
+Precompiled regex that matches phrases like "what did we cover", "last session", "where did we leave off". Used by `_is_session_history_question`.
+
+## Class: CoachRouter
+
+### `__init__(agent, llm_client)`
+
+Stores references to the CoachAgent and the LLM client.
+
+### `handle_turn(user_input, synthetic=False) -> str`
+
+Main entry point for coach-mode turns. Steps:
+1. Record the student's message.
+2. Run pre-classification (`_classify_input`) -- if handled, return early.
+3. Enter the action loop (up to 5 iterations):
+   - Get a directive from the LLM.
+   - Ensure `student_request` is set.
+   - Dispatch based on action: planner call, session start, proficiency report, or none.
+4. On loop exhaustion, return a generic error.
+
+**Called from:** `CoachAgent.process_turn` (when not in a bot session).
+
+### `_get_directive() -> dict`
+
+Builds the LLM payload (conversation history, session summaries, planner result, collected params, returning flag) and calls `CoachLLMClient.get_directive`.
+
+### `_handle_planner_call(planner_fn, tool_params, fallback_msg, attempted_actions) -> Optional[str]`
+
+Calls a planner function and handles its status. Returns a reply string for `need_info` or unexpected status. Returns `None` for `complete` (caller continues the loop).
+
+**Called from:** `handle_turn` -- for both `call_tutoring_planner` and `call_faq_planner` actions.
+
+### `_start_session(bot_type, tool_params, planner_fn, directive, default_summary) -> Optional[str]`
+
+Checks for plan conflicts. If found, forces a re-plan and returns `None` (loop continues). Otherwise starts the bot session via `BotSessionManager.begin`.
+
+**Called from:** `handle_turn` -- for both `start_tutor` and `start_faq` actions.
+
+### `_classify_input(user_input) -> Optional[str]`
+
+Pre-processes input before the action loop:
+- Restores last session's params if returning from a bot session.
+- Flags syllabus intent for escalation tracking.
+- Detects FAQ topic from keywords.
+- Intercepts session history questions.
+
+Returns a reply if fully handled, `None` to continue to the loop.
+
+### `_coach_reply(message) -> str`
+
+Records the message in conversation history and returns it.
+
+### `_detect_plan_conflicts(tool_params) -> dict`
+
+Compares tool_params against the current plan on `REPLANNABLE_KEYS`. Returns a dict of conflicting key-value pairs (empty if no conflicts).
+
+### `_update_collected_params(tool_params)`
+
+Merges truthy values from tool_params into the agent's collected_params.
+
+### `_is_session_history_question(normalized_input) -> bool` (static)
+
+Checks input against the precompiled `_SESSION_HISTORY_RE` regex.
+
+### `_handle_session_history_question() -> str`
+
+Builds a human-readable summary of the last session (LO, subject, mode, understanding level) and asks if the student wants to continue or start something new.
+
+### `_detect_faq_topic(normalized_input) -> Optional[str]` (static)
+
+Checks input against `_FAQ_KEYWORD_MAP`, then `SYLLABUS_KEYWORDS`, then `FAQPlanner.FAQ_TOPICS`. Returns the first matching topic or `None`.
+
+### `_contains_syllabus_keyword(normalized_input) -> bool`
+
+Checks if any `SYLLABUS_KEYWORDS` phrase appears in the input.
+
+### `_reset_syllabus_escalation()`
+
+Clears `syllabus_request_active` and `syllabus_clarification_count` on the agent.
+
+### `_maybe_force_syllabus_plan(latest_request) -> Optional[str]`
+
+If the syllabus flag is active and the clarification count has reached the limit, bypasses the LLM and force-calls the FAQ planner. Returns the bot session response, a need_info reply, or `None` if not applicable.
+
+## Flow
+
+```
+Student sends message (not in bot session)
+  |
+  v
+handle_turn(user_input)
+  |
+  |-- record message
+  |-- _classify_input(user_input)
+  |     |-- restore params if returning from session
+  |     |-- flag syllabus keywords
+  |     |-- detect FAQ topic
+  |     |-- intercept session history question? --> return
+  |
+  |-- action loop (up to 5 iterations):
+  |     |
+  |     |-- _get_directive() --> ask LLM what to do
+  |     |-- set student_request, update collected_params
+  |     |
+  |     |-- call_tutoring_planner / call_faq_planner?
+  |     |     |-- _handle_planner_call(...)
+  |     |     |-- need_info? --> return clarifying question
+  |     |     |-- complete? --> loop again
+  |     |
+  |     |-- start_tutor / start_faq?
+  |     |     |-- _start_session(...)
+  |     |     |-- conflict? --> re-plan, loop again
+  |     |     |-- no conflict? --> begin session, return
+  |     |
+  |     |-- show_proficiency? --> return report
+  |     |
+  |     |-- none?
+  |           |-- _maybe_force_syllabus_plan? --> return
+  |           |-- message? --> return LLM's message
+  |           |-- else --> return ""
+  |
+  |-- loop exhausted --> return error message
+```
