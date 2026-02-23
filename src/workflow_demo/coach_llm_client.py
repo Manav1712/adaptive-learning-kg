@@ -1,13 +1,26 @@
-"""OpenAI API wrapper with retry logic and directive parsing for the coach agent."""
+"""OpenAI API wrapper with retry logic and directive parsing for the coach agent.
+
+The coach agent delegates every routing decision to an LLM. This module
+is the single point where that LLM call happens. It sends the current
+conversation state (history, session summaries, planner results, etc.)
+to OpenAI with a system prompt that defines the coach's behaviour, and
+parses the JSON response into a structured directive containing:
+  - action: what the coach should do next (e.g. call a planner, start
+    a tutor/FAQ session, show proficiency, or do nothing).
+  - message_to_student: text to display to the student (if any).
+  - tool_params: subject/topic/mode metadata for downstream tools.
+  - conversation_summary: short summary used during handoffs.
+
+Transient errors (rate limits, timeouts, 5xx) are retried with
+exponential backoff. Non-recoverable errors return a safe fallback
+directive so the coach never crashes.
+"""
 
 import json
 import time
-from typing import Any, Dict, List, Optional
-
+from typing import Any, Dict, List
 from openai import APIError, APIConnectionError, APITimeoutError, RateLimitError, OpenAI
-
 from .json_utils import coerce_json
-
 
 COACH_SYSTEM_PROMPT = """
 You are the orchestrator of a learning assistant. The student only talks to you,
@@ -73,6 +86,10 @@ _FALLBACK_DIRECTIVE: Dict[str, Any] = {
     "conversation_summary": None,
 }
 
+_MAX_RETRIES = 3
+# Starting delay for exponential backoff: 1s, 2s, 4s, ...
+_RETRY_DELAY_BASE = 1.0
+
 
 class CoachLLMClient:
     """Wrapper around OpenAI API with retry logic, exponential backoff, and directive parsing."""
@@ -87,84 +104,137 @@ class CoachLLMClient:
         self.openai_client = openai_client
         self.model = model
 
-    def get_directive(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Call the OpenAI API with the coach brain payload and return a parsed directive.
+    @staticmethod
+    def _should_retry(
+        attempt: int, error: Exception
+    ) -> bool:
+        """Log the error and sleep with exponential backoff if
+        retries remain. Returns True if the caller should retry.
+        """
+        if attempt >= _MAX_RETRIES - 1:
+            return False
+        wait_time = _RETRY_DELAY_BASE * (2 ** attempt)
+        print(
+            f"[Coach] {type(error).__name__} "
+            f"(attempt {attempt + 1}/{_MAX_RETRIES}). "
+            f"Retrying in {wait_time:.1f}s..."
+        )
+        time.sleep(wait_time)
+        return True
 
-        Implements retry logic with exponential backoff for transient errors.
+    def get_directive(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Call the OpenAI API with the coach brain payload and
+        return a parsed directive.
+
+        Implements retry logic with exponential backoff for
+        transient errors.
 
         Args:
-            payload: JSON-serializable dict with conversation history, session state, etc.
+            payload: JSON-serializable dict with conversation
+                history, session state, etc.
 
         Returns:
-            Parsed directive dict with action, message_to_student, tool_params, conversation_summary.
+            Parsed directive dict with action, message_to_student,
+            tool_params, conversation_summary.
         """
-        MAX_RETRIES = 3
-        RETRY_DELAY_BASE = 1.0
-
+        # Build the two-message prompt: system instructions + state.
         messages: List[Dict[str, str]] = [
             {"role": "system", "content": COACH_SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(payload, indent=2)},
+            {
+                "role": "user",
+                "content": json.dumps(payload, indent=2),
+            },
         ]
 
-        for attempt in range(MAX_RETRIES):
+        for attempt in range(_MAX_RETRIES):
             try:
-                response = self.openai_client.chat.completions.create(
-                    model=self.model,
-                    temperature=0,
-                    messages=messages,
-                    timeout=30.0,
+                # Send conversation state to OpenAI; temp=0 for
+                # deterministic output.
+                response = (
+                    self.openai_client.chat.completions.create(
+                        model=self.model,
+                        temperature=0,
+                        messages=messages,
+                        timeout=30.0,
+                    )
                 )
+
+                # Extract the text content from the response.
                 content = response.choices[0].message.content
                 if not content:
                     return {
                         **_FALLBACK_DIRECTIVE,
-                        "message_to_student": "I didn't receive a response. Could you try again?",
+                        "message_to_student": (
+                            "I didn't receive a response. "
+                            "Could you try again?"
+                        ),
                     }
+
+                # Parse the JSON string into a directive dict.
                 return coerce_json(content)
 
-            except (RateLimitError, APIConnectionError, APITimeoutError) as e:
-                if attempt < MAX_RETRIES - 1:
-                    wait_time = RETRY_DELAY_BASE * (2 ** attempt)
-                    print(
-                        f"[Coach] {type(e).__name__} (attempt {attempt + 1}/{MAX_RETRIES}). "
-                        f"Retrying in {wait_time:.1f}s..."
-                    )
-                    time.sleep(wait_time)
+            # -- Transient network / rate-limit errors: retry. --
+            except (
+                RateLimitError,
+                APIConnectionError,
+                APITimeoutError,
+            ) as e:
+                if self._should_retry(attempt, e):
                     continue
-                print(f"[Coach] {type(e).__name__} after {MAX_RETRIES} attempts: {e}")
+                print(
+                    f"[Coach] {type(e).__name__} "
+                    f"after {_MAX_RETRIES} attempts: {e}"
+                )
                 return {
                     **_FALLBACK_DIRECTIVE,
-                    "message_to_student": "I'm having connection issues. Please try again.",
+                    "message_to_student": (
+                        "I'm having connection issues. "
+                        "Please try again."
+                    ),
                 }
 
+            # -- Server-side 5xx errors: retry if attempts remain. --
             except APIError as e:
                 status_code = getattr(e, "status_code", 0)
-                if status_code and status_code >= 500 and attempt < MAX_RETRIES - 1:
-                    wait_time = RETRY_DELAY_BASE * (2 ** attempt)
-                    print(
-                        f"[Coach] API error {status_code} (attempt {attempt + 1}/{MAX_RETRIES}). "
-                        f"Retrying in {wait_time:.1f}s..."
-                    )
-                    time.sleep(wait_time)
-                    continue
+                if status_code and status_code >= 500:
+                    if self._should_retry(attempt, e):
+                        continue
                 print(f"[Coach] API error: {e}")
                 return {
                     **_FALLBACK_DIRECTIVE,
-                    "message_to_student": "I encountered an error. Could you rephrase your request?",
+                    "message_to_student": (
+                        "I encountered an error. "
+                        "Could you rephrase your request?"
+                    ),
                 }
 
-            except (json.JSONDecodeError, IndexError, AttributeError) as e:
-                print(f"[Coach] Failed to parse LLM response: {e}")
+            # -- Response parsing failures: no retry. --
+            except (
+                json.JSONDecodeError,
+                IndexError,
+                AttributeError,
+            ) as e:
+                print(
+                    f"[Coach] Failed to parse LLM response: {e}"
+                )
                 return {
                     **_FALLBACK_DIRECTIVE,
-                    "message_to_student": "I'm having trouble processing that. Could you rephrase your request?",
+                    "message_to_student": (
+                        "I'm having trouble processing that. "
+                        "Could you rephrase your request?"
+                    ),
                 }
 
+            # -- Catch-all for anything unexpected. --
             except Exception as e:
                 print(f"[Coach] Unexpected error: {e}")
                 return {**_FALLBACK_DIRECTIVE}
 
+        # All retries exhausted without a successful response.
         return {
             **_FALLBACK_DIRECTIVE,
-            "message_to_student": "I'm having trouble connecting right now. Could you try again?",
+            "message_to_student": (
+                "I'm having trouble connecting right now. "
+                "Could you try again?"
+            ),
         }
