@@ -1,18 +1,24 @@
 """
 CLIP embedding backend for shared text-image vector space.
-Uses sentence-transformers' clip-ViT-B-32 for a lightweight, local embedding
-option that supports both text and images. Requires:
+
+CLIP is a model from OpenAI trained on text-image pairs. The key property
+is that it puts text and images into the same vector space -- so you can
+directly compare a text embedding against an image embedding and get a
+meaningful similarity score.
+
+Uses sentence-transformers' clip-ViT-B-32 for a lightweight, local
+embedding option that supports both text and images. Requires:
 - sentence-transformers
 - Pillow
 """
 
 from __future__ import annotations
-
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import numpy as np
-
+from PIL import Image
+from sentence_transformers import SentenceTransformer
 
 class CLIPEmbeddingBackend:
     """
@@ -20,14 +26,6 @@ class CLIPEmbeddingBackend:
     """
 
     def __init__(self, model_name: str = "clip-ViT-B-32") -> None:
-        try:
-            from sentence_transformers import SentenceTransformer
-        except Exception as exc:  # pragma: no cover - import guard
-            raise RuntimeError(
-                "sentence-transformers is required for CLIP embeddings. "
-                "Install with `pip install sentence-transformers Pillow`."
-            ) from exc
-
         self.model_name = model_name
         self.model = SentenceTransformer(model_name)
 
@@ -35,28 +33,18 @@ class CLIPEmbeddingBackend:
         """
         Encode a list of texts into CLIP text embeddings.
         """
-        if not texts:
-            return np.zeros((0, 512), dtype="float32")
+        # Run texts through CLIP; returns L2-normalized numpy vectors.
         embeddings = self.model.encode(
             texts, convert_to_numpy=True, normalize_embeddings=True
         )
+        # Ensure consistent float32 dtype for downstream math.
         return embeddings.astype("float32")
 
     def encode_images(self, image_paths: List[Path]) -> np.ndarray:
         """
         Encode a list of image file paths into CLIP image embeddings.
         """
-        if not image_paths:
-            return np.zeros((0, 512), dtype="float32")
-
-        try:
-            from PIL import Image
-        except Exception as exc:  # pragma: no cover - import guard
-            raise RuntimeError(
-                "Pillow is required for image encoding. "
-                "Install with `pip install Pillow`."
-            ) from exc
-
+        # Load each image as RGB; raise on any unreadable file.
         images = []
         for path in image_paths:
             try:
@@ -66,14 +54,11 @@ class CLIPEmbeddingBackend:
                     f"Failed to load image at {path}: {exc}"
                 ) from exc
 
-        if not images:
-            return np.zeros((0, 512), dtype="float32")
-
+        # Encode images through CLIP into the shared vector space.
         embeddings = self.model.encode(
             images, convert_to_numpy=True, normalize_embeddings=True
         )
         return embeddings.astype("float32")
-
 
 def normalize_dense(arr: np.ndarray) -> np.ndarray:
     """
@@ -81,6 +66,7 @@ def normalize_dense(arr: np.ndarray) -> np.ndarray:
     """
     if arr.size == 0:
         return arr
+    # Compute per-row L2 norms; epsilon avoids division by zero.
     norms = np.linalg.norm(arr, axis=1, keepdims=True) + 1e-12
     return arr / norms
 
