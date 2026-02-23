@@ -195,7 +195,7 @@ class BotSessionManager:
         return message or ""
 
     def _finalize_bot_session(self, bot_response: Dict[str, Any]) -> str:
-        """Save the session to memory, update proficiency, and handle topic/mode switches.
+        """Save session to memory, update proficiency, handle switches.
 
         Args:
             bot_response: The final response from the bot.
@@ -237,7 +237,9 @@ class BotSessionManager:
         self.agent._record_message("assistant", greeting)
         return greeting
 
-    def _update_lo_mastery(self, params: Dict[str, Any], summary: Dict[str, Any]) -> None:
+    def _update_lo_mastery(
+        self, params: Dict[str, Any], summary: Dict[str, Any],
+    ) -> None:
         """Map the tutor's student_understanding assessment to a numeric mastery score.
 
         Args:
@@ -264,7 +266,8 @@ class BotSessionManager:
 
         if not lo_mastery:
             return (
-                "You haven't completed any tutoring sessions yet, so I don't have proficiency data. "
+                "You haven't completed any tutoring sessions yet, "
+                "so I don't have proficiency data. "
                 "Start a tutoring session and I'll track your progress!"
             )
 
@@ -280,40 +283,40 @@ class BotSessionManager:
             else:
                 return "Struggling"
 
+        # Split LOs into strong (>=65%) and weak (<65%), sorted best-first.
         sorted_items = sorted(lo_mastery.items(), key=lambda x: -x[1])
-
         strong = [(lo, score) for lo, score in sorted_items if score >= 0.65]
         needs_work = [(lo, score) for lo, score in sorted_items if score < 0.65]
 
-        lines = ["Your Learning Progress:"]
-        lines.append("")
+        lines = ["Your Learning Progress:", ""]
 
+        # List strong areas.
         if strong:
             lines.append("Strong areas:")
             for lo, score in strong:
-                pct = int(score * 100)
-                label = score_to_label(score)
-                lines.append(f"  - {lo}: {pct}% ({label})")
+                lines.append(f"  - {lo}: {int(score * 100)}% ({score_to_label(score)})")
 
+        # List weak areas, with a blank separator if both sections exist.
         if needs_work:
             if strong:
                 lines.append("")
             lines.append("Areas to focus on:")
             for lo, score in needs_work:
-                pct = int(score * 100)
-                label = score_to_label(score)
-                lines.append(f"  - {lo}: {pct}% ({label})")
+                lines.append(f"  - {lo}: {int(score * 100)}% ({score_to_label(score)})")
 
-        if needs_work:
-            lowest_lo = needs_work[-1][0]
+            # Suggest the weakest LO (last in descending-sorted list).
+            weakest = needs_work[-1][0]
             lines.append("")
-            lines.append(f"Tip: Consider practicing '{lowest_lo}' next to strengthen your foundation.")
+            lines.append(
+                f"Tip: Consider practicing '{weakest}' "
+                "next to strengthen your foundation."
+            )
 
         return "\n".join(lines)
 
     def _build_return_greeting(self, params: Dict[str, Any], session_type: str) -> str:
-        """Build a continuity-aware greeting after a completed session.
-
+        """Build a greeting after a completed session.
+        
         Args:
             params: Session parameters.
             session_type: "tutor" or "faq".
@@ -323,13 +326,32 @@ class BotSessionManager:
         """
         lo = params.get("learning_objective")
         mode = params.get("mode")
+
+        # Tutor: mention the LO (and mode if present).
         if session_type == "tutor" and lo:
             mode_str = (mode or "").replace("_", " ")
             if mode_str:
-                return f"Nice work on {lo} in {mode_str} mode! What would you like to work on next?"
-            return f"Nice work on {lo}! What would you like to work on next?"
+                return (
+                    f"Nice work on {lo} in {mode_str} mode! "
+                    "What would you like to work on next?"
+                )
+            return (
+                f"Nice work on {lo}! "
+                "What would you like to work on next?"
+            )
+
+        # FAQ: mention the topic.
         if session_type == "faq":
             topic = params.get("topic")
             if topic:
-                return f"Glad I could help with {topic}. What else would you like to explore?"
-        return "Hi! I'm your learning coach. I can help you start a tutoring session or answer questions about FAQs and syllabus. What would you like to work on?"
+                return (
+                    f"Glad I could help with {topic}. "
+                    "What else would you like to explore?"
+                )
+
+        # Fallback: generic coach greeting.
+        return (
+            "Hi! I'm your learning coach. I can help you start a "
+            "tutoring session or answer questions about FAQs and "
+            "syllabus. What would you like to work on?"
+        )
