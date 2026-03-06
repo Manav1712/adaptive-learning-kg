@@ -1,8 +1,23 @@
 """
-Image Preprocessor for Adaptive Learning System.
+Image preprocessing bridge from student images to retriever-ready text.
 
-student-uploaded images (graphs, handwritten math, screenshots) into
-text queries suitable for the existing retriever pipeline.
+This module analyzes student-uploaded images (graphs, equations,
+handwritten work, screenshots) and converts them into structured
+signals that the text-first retrieval pipeline can use.
+
+What it does:
+1. Takes an image and optional student text.
+2. Sends both to GPT-4o Vision.
+3. Gets back a clean retrieval query plus image metadata.
+4. Returns a safe default result if model output is malformed.
+
+How this is achieved:
+- ``ImagePreprocessor.process_image`` builds a multimodal chat payload
+  and calls the vision model using a strict JSON-oriented system prompt.
+- ``_load_image_as_base64`` and ``_get_image_media_type`` handle
+  defensive input normalization so callers can pass multiple image forms.
+- ``_parse_response`` validates and sanitizes model output into
+  ``ImageQueryResult``, including markdown-JSON extraction and defaults.
 """
 
 from __future__ import annotations
@@ -12,10 +27,22 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Literal
+from openai import OpenAI
 
 # Type alias for detected image types
 ImageType = Literal["graph", "diagram", "handwritten", "screenshot", "equation", "unknown"]
+VALID_IMAGE_TYPES = frozenset(
+    {"graph", "diagram", "handwritten", "screenshot", "equation", "unknown"}
+)
+IMAGE_URL_PREFIXES = ("http://", "https://")
+SUFFIX_TO_MEDIA_TYPE = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+}
 
 
 @dataclass
@@ -31,22 +58,13 @@ class ImageQueryResult:
     confidence: float
     """Confidence score from 0-1 for the detection."""
 
-    extracted_text: Optional[str]
-    """Any visible text or mathematical expressions extracted."""
-
-    raw_analysis: Optional[str]
-    """Full analysis from the vision model (for debugging)."""
-
-    latex_content: List[str] = field(default_factory=list)
+    latex_content: list[str] = field(default_factory=list)
     """List of LaTeX strings extracted from the image."""
 
-    function_type: Optional[str] = None
-    """Detected function type for graphs (e.g., linear, quadratic, trig)."""
-
-    key_features: List[str] = field(default_factory=list)
+    key_features: list[str] = field(default_factory=list)
     """Notable features such as intercepts, asymptotes, or labeled elements."""
 
-    likely_topic: Optional[str] = None
+    likely_topic: str | None = None
     """Best-guess topic to guide retrieval (e.g., derivatives, limits)."""
 
 
@@ -66,214 +84,163 @@ class ImagePreprocessor:
 
     VISION_MODEL = "gpt-4o"
 
-    # System prompt optimized for educational content analysis
-    SYSTEM_PROMPT = """You are an expert educational content analyzer for math/science tutoring.
+    # System prompt optimized for retrieval-oriented educational image analysis.
+    SYSTEM_PROMPT = """You are an educational image-to-query converter for a math tutoring retrieval system.
 
-EXTRACTION REQUIREMENTS:
-1. GRAPH ANALYSIS (if image is a graph):
-   - Identify function type: linear, quadratic, polynomial, trigonometric, exponential, logarithmic
-   - Extract visible points, intercepts, asymptotes
-   - Describe slope/curvature behavior
-   - Note any labeled axes, scales, or annotations
+Your job is not to write a full visual report. Your job is to convert a
+student image into a short, accurate, retrieval-ready representation of the
+underlying math concept.
 
-2. EQUATION EXTRACTION (if equations visible):
-   - Convert ALL visible math to LaTeX notation
-   - Identify equation type: algebraic, differential, integral, limit
-   - Note any numbered steps or worked solutions
+Priorities:
+1. Identify the most likely learning objective or math topic.
+2. Produce a concise search query that would retrieve the right tutoring content.
+3. Extract visible math expressions as LaTeX when they are clearly readable.
+4. Return only the most important visual features that help disambiguate the topic.
 
-3. HANDWRITTEN WORK:
-   - Transcribe the student's work step-by-step
-   - Identify potential errors or misconceptions
-   - Note the problem being solved
+Rules:
+- Prefer canonical textbook topic names over vague visual descriptions.
+- Use the student's text prompt as extra context when it helps clarify intent.
+- Do not invent unreadable text, labels, or equations.
+- If the image is ambiguous, return a broader topic, fewer details, and lower confidence.
+- Return at most 3 key_features.
+- Return valid JSON only. No markdown. No extra commentary.
 
-4. DIAGRAM ANALYSIS:
-   - Identify diagram type (unit circle, triangle, coordinate plane, etc.)
-   - Extract all labels and measurements
-   - Describe geometric relationships
+Field guidance:
+- detected_type: one of graph, equation, handwritten, diagram, screenshot, unknown.
+- latex_content: list only clearly readable expressions in LaTeX; otherwise [].
+- key_features: short phrases describing the most useful visual clues.
+- likely_topic: one main textbook-style topic name, or "unknown" if unclear.
+- query: a short retrieval query using canonical math wording, not a full sentence.
+- confidence: a number from 0.0 to 1.0.
+
+Confidence rubric:
+- 0.85-1.0: topic is very clear and strongly supported by visible evidence.
+- 0.60-0.84: likely topic is clear but some details are uncertain.
+- 0.30-0.59: only a broad topic can be inferred.
+- 0.00-0.29: image is unclear or does not provide enough information.
 
 OUTPUT JSON:
 {
     "detected_type": "graph|equation|handwritten|diagram|screenshot|unknown",
-    "function_type": "linear|quadratic|trig|exponential|...|null",
-    "latex_content": ["\\\\frac{d}{dx}...", ...],
-    "extracted_text": "any visible text or math expressions",
-    "key_features": ["intercept at (0,0)", "asymptote at x=2", ...],
-    "likely_topic": "derivatives|limits|integrals|...",
-    "query": "search query for retrieval",
-    "confidence": 0.0-1.0
+    "latex_content": ["\\\\frac{d}{dx}(x^2)", "..."],
+    "key_features": ["x-intercepts visible", "worked derivative steps"],
+    "likely_topic": "derivatives|limits|trigonometric equations|complex numbers|unknown",
+    "query": "short retrieval query using canonical math topic wording",
+    "confidence": 0.0
 }"""
 
     def __init__(self, model: str = "gpt-4o") -> None:
-        """
-        Initialize the ImagePreprocessor.
-
-        Args:
-            model: OpenAI vision model to use. Defaults to gpt-4o.
-
-        Raises:
-            RuntimeError: If OPENAI_API_KEY environment variable is not set.
-        """
-        self._model = model
-        self._client: Any = None
-
+        """Initialize model + OpenAI client."""
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            raise RuntimeError(
-                "OPENAI_API_KEY environment variable not set. "
-                "Image preprocessing requires OpenAI API access."
-            )
+            raise RuntimeError("OPENAI_API_KEY environment variable not set.")
 
-        try:
-            from openai import OpenAI
+        self._model = model
+        self._client: Any = OpenAI(api_key=api_key)
 
-            self._client = OpenAI(api_key=api_key)
-        except ImportError as e:
-            raise RuntimeError(
-                "openai package is required for image preprocessing. "
-                "Install with: pip install openai"
-            ) from e
-
-    def _load_image_as_base64(self, image: Union[str, bytes, Path]) -> str:
-        """
-        Convert image input to base64-encoded string.
-
-        Args:
-            image: Can be:
-                - A file path (str or Path)
-                - A URL (str starting with http:// or https://)
-                - Raw bytes
-                - Already base64-encoded string
-
-        Returns:
-            Base64-encoded image string.
-
-        Raises:
-            ValueError: If image format is not supported or file not found.
-        """
-        # Handle Path objects
-        if isinstance(image, Path):
-            image = str(image)
-
-        # Handle bytes
+    def _load_image_as_base64(self, image: str | bytes | Path) -> str:
+        """Normalize image input to either URL or base64 payload."""
+        # Raw bytes -> base64 payload.
         if isinstance(image, bytes):
             return base64.b64encode(image).decode("utf-8")
 
-        # Handle string inputs
-        if isinstance(image, str):
-            # Check if it's a URL
-            if image.startswith(("http://", "https://")):
-                # Return URL directly - GPT-4o can handle URLs
-                return image
+        # Normalize to string for URL/path/base64 checks.
+        image_str = str(image) if isinstance(image, Path) else image
+        if not isinstance(image_str, str):
+            raise ValueError(f"Unsupported image type: {type(image)}")
 
-            # Check if it's already base64 (simple heuristic)
-            if len(image) > 100 and not os.path.exists(image):
-                # Likely already base64
-                try:
-                    base64.b64decode(image)
-                    return image
-                except Exception:
-                    pass
+        # URLs are forwarded as-is to the model.
+        if image_str.startswith(IMAGE_URL_PREFIXES):
+            return image_str
 
-            # Treat as file path
-            path = Path(image)
-            if not path.exists():
-                raise ValueError(f"Image file not found: {image}")
+        # Existing local file -> read and encode.
+        path = Path(image_str)
+        if path.is_file():
+            return base64.b64encode(path.read_bytes()).decode("utf-8")
+        if path.exists():
+            raise ValueError(f"Path is not a file: {image_str}")
 
-            if not path.is_file():
-                raise ValueError(f"Path is not a file: {image}")
+        # Fallback: treat long non-path strings as base64 payloads.
+        if self._try_decode_base64(image_str) is not None:
+            return image_str
 
-            # Read and encode file
-            with open(path, "rb") as f:
-                return base64.b64encode(f.read()).decode("utf-8")
+        raise ValueError(f"Image file not found: {image_str}")
 
-        raise ValueError(f"Unsupported image type: {type(image)}")
+    def _get_image_media_type(self, image: str | bytes | Path) -> str:
+        """Infer media type from suffix or image bytes; default to JPEG."""
+        # Raw bytes -> detect directly from signature.
+        if isinstance(image, bytes):
+            return self._media_type_from_bytes(image)
 
-    def _get_image_media_type(self, image: Union[str, bytes, Path]) -> str:
-        """
-        Determine the media type of the image.
+        # Normalize to string for suffix checks.
+        image_str = str(image) if isinstance(image, Path) else image
+        if not isinstance(image_str, str):
+            return "image/jpeg"
 
-        Args:
-            image: Image input (path, URL, bytes, or base64).
+        lower = image_str.lower().split("?", 1)[0]
 
-        Returns:
-            Media type string (e.g., "image/png", "image/jpeg").
-        """
-        if isinstance(image, Path):
-            image = str(image)
+        # Prefer file/URL suffix when available.
+        for suffix, media_type in SUFFIX_TO_MEDIA_TYPE.items():
+            if lower.endswith(suffix):
+                return media_type
 
-        if isinstance(image, str):
-            lower = image.lower()
-            if lower.endswith(".png"):
-                return "image/png"
-            elif lower.endswith((".jpg", ".jpeg")):
-                return "image/jpeg"
-            elif lower.endswith(".gif"):
-                return "image/gif"
-            elif lower.endswith(".webp"):
-                return "image/webp"
+        # If this is base64 text, inspect decoded bytes.
+        decoded = self._try_decode_base64(image_str)
+        if decoded is not None:
+            return self._media_type_from_bytes(decoded)
 
-        # Default to jpeg for unknown types
+        return "image/jpeg"
+
+    @staticmethod
+    def _media_type_from_bytes(image_bytes: bytes) -> str:
+        """Infer media type from common image file signatures."""
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "image/png"
+        if image_bytes.startswith(b"\xff\xd8\xff"):
+            return "image/jpeg"
+        if image_bytes.startswith((b"GIF87a", b"GIF89a")):
+            return "image/gif"
+        if image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+            return "image/webp"
         return "image/jpeg"
 
     def process_image(
         self,
-        image: Union[str, bytes, Path],
-        user_prompt: Optional[str] = None,
+        image: str | bytes | Path,
+        user_prompt: str | None = None,
     ) -> ImageQueryResult:
-        """
-        Analyze an image and generate a text query for the retriever.
+        """Analyze an image and return a retrieval-ready result."""
+        # Clean prompt text once so whitespace-only input is treated as empty.
+        prompt_text = (user_prompt or "").strip() or None
 
-        Args:
-            image: The image to analyze. Can be:
-                - A file path (str or Path)
-                - A URL (str starting with http:// or https://)
-                - Raw bytes
-                - Base64-encoded string
-            user_prompt: Optional text prompt from the student providing context
-                about what they're asking.
+        # Build the text instruction that gives the model student context.
+        text_part = {
+            "type": "text",
+            "text": (
+                f"Student's question: {prompt_text}\n\n"
+                "Analyze the following image:"
+                if prompt_text
+                else "Analyze the following educational image:"
+            ),
+        }
 
-        Returns:
-            ImageQueryResult containing the generated query and analysis.
-
-        Raises:
-            ValueError: If the image format is invalid.
-            RuntimeError: If the API call fails.
-        """
-        # Build the user message content
-        content: list[Dict[str, Any]] = []
-
-        # Add user's text prompt if provided
-        if user_prompt:
-            content.append({
-                "type": "text",
-                "text": f"Student's question: {user_prompt}\n\nAnalyze the following image:",
-            })
-        else:
-            content.append({
-                "type": "text",
-                "text": "Analyze the following educational image:",
-            })
-
-        # Handle image input
+        # Normalize the image into either a direct URL or a base64 data URL.
         image_data = self._load_image_as_base64(image)
-
-        if image_data.startswith(("http://", "https://")):
-            # URL-based image
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": image_data},
-            })
-        else:
-            # Base64-encoded image
+        image_url = image_data
+        if not image_data.startswith(("http://", "https://")):
             media_type = self._get_image_media_type(image)
-            content.append({
-                "type": "image_url",
-                "image_url": {
-                    "url": f"data:{media_type};base64,{image_data}",
-                },
-            })
+            image_url = f"data:{media_type};base64,{image_data}"
 
-        # Call the vision API
+        # Build the multimodal user message expected by the vision model.
+        content: list[dict[str, Any]] = [
+            text_part,
+            {
+                "type": "image_url",
+                "image_url": {"url": image_url},
+            },
+        ]
+
+        # Call the vision model and request JSON-shaped output.
         try:
             response = self._client.chat.completions.create(
                 model=self._model,
@@ -282,89 +249,96 @@ OUTPUT JSON:
                     {"role": "user", "content": content},
                 ],
                 max_tokens=500,
-                temperature=0.3,  # Lower temperature for more consistent output
+                temperature=0.3,
+                response_format={"type": "json_object"},
             )
-
             raw_response = response.choices[0].message.content or ""
-
         except Exception as e:
             raise RuntimeError(f"OpenAI API call failed: {e}") from e
 
-        # Parse the JSON response
-        return self._parse_response(raw_response, user_prompt)
+        # Parse the structured response into the typed result object.
+        return self._parse_response(raw_response, prompt_text)
 
     def _parse_response(
-        self, raw_response: str, user_prompt: Optional[str]
+        self, raw_response: str, user_prompt: str | None
     ) -> ImageQueryResult:
-        """
-        Parse the vision model's JSON response into an ImageQueryResult.
-
-        Args:
-            raw_response: Raw text response from the model.
-            user_prompt: Original user prompt for fallback query generation.
-
-        Returns:
-            Parsed ImageQueryResult.
-        """
+        """Parse model JSON into ImageQueryResult with safe defaults."""
         try:
-            # Try to extract JSON from the response
-            # Sometimes the model wraps JSON in markdown code blocks
-            json_str = raw_response
-            if "```json" in raw_response:
-                start = raw_response.find("```json") + 7
-                end = raw_response.find("```", start)
-                json_str = raw_response[start:end].strip()
-            elif "```" in raw_response:
-                start = raw_response.find("```") + 3
-                end = raw_response.find("```", start)
-                json_str = raw_response[start:end].strip()
+            # Parse structured JSON response from the vision model.
+            data = json.loads(raw_response)
 
-            data = json.loads(json_str)
-
-            detected_type = data.get("detected_type", "unknown")
-            if detected_type not in (
-                "graph",
-                "diagram",
-                "handwritten",
-                "screenshot",
-                "equation",
-                "unknown",
-            ):
+            # Normalize fields so malformed model output degrades safely.
+            detected_type = str(data.get("detected_type", "unknown")).strip().lower()
+            if detected_type not in VALID_IMAGE_TYPES:
                 detected_type = "unknown"
 
-            confidence = float(data.get("confidence", 0.5))
-            confidence = max(0.0, min(1.0, confidence))  # Clamp to 0-1
+            confidence = self._coerce_confidence(data.get("confidence"))
+            query = str(
+                data.get("query") or user_prompt or "educational content"
+            ).strip()
+            likely_topic = data.get("likely_topic")
+            if isinstance(likely_topic, str):
+                likely_topic = likely_topic.strip() or None
+            else:
+                likely_topic = None
 
             return ImageQueryResult(
-                query=data.get("query", user_prompt or "educational content"),
+                query=query,
                 detected_type=detected_type,  # type: ignore
                 confidence=confidence,
-                extracted_text=data.get("extracted_text"),
-                raw_analysis=raw_response,
-                latex_content=data.get("latex_content") or [],
-                function_type=data.get("function_type"),
-                key_features=data.get("key_features") or [],
-                likely_topic=data.get("likely_topic"),
+                latex_content=self._coerce_string_list(data.get("latex_content")),
+                key_features=self._coerce_string_list(data.get("key_features")),
+                likely_topic=likely_topic,
             )
 
-        except (json.JSONDecodeError, KeyError, TypeError):
-            # Fallback: use raw response as query if JSON parsing fails
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+            # Fallback: return a conservative best-effort result.
             return ImageQueryResult(
-                query=user_prompt or raw_response[:200] if raw_response else "educational image",
+                query=(
+                    user_prompt
+                    or raw_response[:200]
+                    if raw_response
+                    else "educational image"
+                ),
                 detected_type="unknown",
                 confidence=0.3,
-                extracted_text=None,
-                raw_analysis=raw_response,
                 latex_content=[],
-                function_type=None,
                 key_features=[],
                 likely_topic=None,
             )
 
+    @staticmethod
+    def _try_decode_base64(value: str) -> bytes | None:
+        """Decode base64 text; return None when not valid base64."""
+        if len(value) <= 100:
+            return None
+        try:
+            return base64.b64decode(value, validate=True)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _coerce_confidence(value: Any) -> float:
+        """Convert model confidence to a clamped float in [0.0, 1.0]."""
+        try:
+            score = float(value if value is not None else 0.5)
+        except (TypeError, ValueError):
+            score = 0.5
+        return max(0.0, min(1.0, score))
+
+    @staticmethod
+    def _coerce_string_list(value: Any) -> list[str]:
+        """Normalize model list fields into a clean list of strings."""
+        if isinstance(value, str):
+            value = [value]
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip() for item in value if str(item).strip()]
+
 
 def process_image_query(
-    image: Union[str, bytes, Path],
-    user_prompt: Optional[str] = None,
+    image: str | bytes | Path,
+    user_prompt: str | None = None,
     model: str = "gpt-4o",
 ) -> str:
     """
