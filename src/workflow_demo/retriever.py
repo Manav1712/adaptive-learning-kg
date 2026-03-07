@@ -24,14 +24,14 @@ try:
     from src.workflow_demo.data_loader import KnowledgeGraphData, load_demo_frames
     from src.workflow_demo.models import (
         PlanStep, SessionPlan, TeachingPack,
-        RetrievalCandidate, RetrievalResult, SimplifiedPlan, LearningObjectiveEntry,
+        RetrievalCandidate, RetrievalResult,
     )
     from src.workflow_demo.clip_embeddings import CLIPEmbeddingBackend, normalize_dense
 except ImportError:
     from .data_loader import KnowledgeGraphData, load_demo_frames
     from .models import (
         PlanStep, SessionPlan, TeachingPack,
-        RetrievalCandidate, RetrievalResult, SimplifiedPlan, LearningObjectiveEntry,
+        RetrievalCandidate, RetrievalResult,
     )
     from .clip_embeddings import CLIPEmbeddingBackend, normalize_dense
 

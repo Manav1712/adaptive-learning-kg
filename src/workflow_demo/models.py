@@ -1,124 +1,9 @@
 """
 Dataclasses shared across the workflow_demo package.
-
-Simplified plan structure per meeting requirements:
-- current_plan: 1 primary LO + up to 2 dependent LOs (all same mode)
-- future_plan: 1 LO
-- Each LO includes proficiency score and teaching notes
 """
-
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
-
-
-@dataclass
-class LearningObjectiveEntry:
-    """
-    A single learning objective with proficiency and teaching guidance.
-    
-    Used in both current_plan and future_plan.
-    """
-    lo_id: int
-    title: str
-    proficiency: float  # 0.0 - 1.0, from student profile
-    how_to_teach: str   # Instructional approach from KG
-    why_to_teach: str   # Pedagogical rationale from KG
-    notes: str = ""     # Short qualitative notes (e.g., "mastered because...")
-    is_primary: bool = False  # True for the main LO, False for dependents
-
-
-@dataclass
-class SimplifiedPlan:
-    """
-    Simplified tutoring plan structure.
-    
-    current_plan: 1 primary LO + up to 2 dependent LOs (prereqs)
-    future_plan: 1 LO for next session
-    All LOs share the same mode.
-    """
-    subject: str
-    mode: str  # "conceptual_review" | "examples" | "practice"
-    current_plan: List[LearningObjectiveEntry]  # 1 primary + up to 2 dependents
-    future_plan: List[LearningObjectiveEntry]   # 1 LO
-    
-    # Metadata from KG
-    book: Optional[str] = None
-    unit: Optional[str] = None
-    chapter: Optional[str] = None
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dict for JSON serialization."""
-        return {
-            "subject": self.subject,
-            "mode": self.mode,
-            "current_plan": [
-                {
-                    "lo_id": lo.lo_id,
-                    "title": lo.title,
-                    "proficiency": lo.proficiency,
-                    "how_to_teach": lo.how_to_teach,
-                    "why_to_teach": lo.why_to_teach,
-                    "notes": lo.notes,
-                    "is_primary": lo.is_primary,
-                }
-                for lo in self.current_plan
-            ],
-            "future_plan": [
-                {
-                    "lo_id": lo.lo_id,
-                    "title": lo.title,
-                    "proficiency": lo.proficiency,
-                    "how_to_teach": lo.how_to_teach,
-                    "why_to_teach": lo.why_to_teach,
-                    "notes": lo.notes,
-                    "is_primary": lo.is_primary,
-                }
-                for lo in self.future_plan
-            ],
-            "book": self.book,
-            "unit": self.unit,
-            "chapter": self.chapter,
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SimplifiedPlan":
-        """Create from dict."""
-        current_plan = [
-            LearningObjectiveEntry(
-                lo_id=lo["lo_id"],
-                title=lo["title"],
-                proficiency=lo["proficiency"],
-                how_to_teach=lo["how_to_teach"],
-                why_to_teach=lo["why_to_teach"],
-                notes=lo.get("notes", ""),
-                is_primary=lo.get("is_primary", False),
-            )
-            for lo in data.get("current_plan", [])
-        ]
-        future_plan = [
-            LearningObjectiveEntry(
-                lo_id=lo["lo_id"],
-                title=lo["title"],
-                proficiency=lo["proficiency"],
-                how_to_teach=lo["how_to_teach"],
-                why_to_teach=lo["why_to_teach"],
-                notes=lo.get("notes", ""),
-                is_primary=lo.get("is_primary", False),
-            )
-            for lo in data.get("future_plan", [])
-        ]
-        return cls(
-            subject=data.get("subject", ""),
-            mode=data.get("mode", "conceptual_review"),
-            current_plan=current_plan,
-            future_plan=future_plan,
-            book=data.get("book"),
-            unit=data.get("unit"),
-            chapter=data.get("chapter"),
-        )
-
 
 @dataclass
 class RetrievalCandidate:
@@ -174,8 +59,7 @@ class RetrievalResult:
         }
 
 
-# Legacy dataclasses kept for backwards compatibility during transition
-# TODO: Remove after full migration to SimplifiedPlan
+# Dataclasses used by the current planning and retrieval flow.
 
 @dataclass
 class PlanStep:
@@ -225,12 +109,3 @@ class SessionPlan:
     unit: Optional[str] = None
     chapter: Optional[str] = None
 
-
-@dataclass
-class MultimodalInput:
-    """
-    Student input that may include an image reference.
-    """
-    text: str
-    image: Optional[str] = None  # File path or URL
-    image_query: Optional[str] = None  # Text query derived from the image (OCR)

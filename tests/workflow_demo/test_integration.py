@@ -105,19 +105,17 @@ def test_session_memory_captures_completed_tutor_sessions(
 
 @pytest.mark.integration
 def test_tutoring_planner_uses_mock_retriever(mock_retriever, sample_session_plan):
-    """Planner + retriever fixture should surface the session plan dict."""
+    """Planner + retriever fixture should surface the simplified tutoring plan."""
     planner = TutoringPlanner(mock_retriever)
-    planner.llm_enabled = False
     params = {
-        "subject": "calculus",
-        "learning_objective": sample_session_plan.learning_objective,
-        "mode": "conceptual_review",
         "student_request": "Teach me derivatives",
+        "mode": "conceptual_review",
         "student_profile": {"lo_mastery": {}},
     }
     response = planner.create_plan(params)
     assert response["status"] == "complete"
-    assert response["plan"]["learning_objective"] == sample_session_plan.learning_objective
+    assert response["plan"]["subject"] == "calculus"
+    assert response["plan"]["current_plan"]
 
 
 @pytest.mark.integration

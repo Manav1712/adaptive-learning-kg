@@ -12,114 +12,115 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Dict, List, Optional, Tuple
-
 from openai import OpenAI
-
-try:
-    from src.workflow_demo.models import (
-        SessionPlan, SimplifiedPlan, LearningObjectiveEntry,
-        RetrievalCandidate, RetrievalResult,
-    )
-    from src.workflow_demo.retriever import TeachingPackRetriever
-except ImportError:
-    from .models import (
-        SessionPlan, SimplifiedPlan, LearningObjectiveEntry,
-        RetrievalCandidate, RetrievalResult,
-    )
 from .json_utils import coerce_json
+from .models import RetrievalCandidate
 from .retriever import TeachingPackRetriever
 
 
-# New simplified planner prompt
-SIMPLIFIED_PLANNER_PROMPT = """You are the Tutoring Session Planner. Given retrieval candidates from the knowledge graph,
-create a focused tutoring plan.
+TUTORING_PLANNER_PROMPT = """You are the tutoring session planner for an adaptive learning system.
 
-INPUT: You receive:
-- student_request: What the student asked for
-- mode: The tutoring mode (conceptual_review, examples, or practice)
-- candidates: Top LO candidates from retrieval, each with:
-  - lo_id, title, score, book, unit, chapter
-  - how_to_teach: Instructional approach
-  - why_to_teach: Pedagogical rationale
-- student_proficiency: Dict mapping LO titles to proficiency scores (0.0-1.0)
+Your job is to convert retrieved learning-objective candidates into one focused tutoring plan.
 
-OUTPUT: Return a simplified plan as strict JSON:
+You will receive:
+- `student_request`: the student's question or goal
+- `mode`: one of `conceptual_review`, `examples`, or `practice`
+- `candidates`: ranked learning-objective candidates from retrieval
+- `student_proficiency`: a mapping from candidate title to mastery score from `0.0` to `1.0`
+
+Plan selection rules:
+1. Use only the provided candidates. Never invent or rename ids, titles, book, unit, chapter, `how_to_teach`, or `why_to_teach`.
+2. Return exactly 1 primary learning objective in `current_plan` with `is_primary: true`.
+3. Add 0 to 2 supporting learning objectives to `current_plan` only if they are genuine prerequisites or close supporting concepts for the primary objective.
+4. Return exactly 1 learning objective in `future_plan`. It must not duplicate any item already used in `current_plan`.
+5. Keep `mode` exactly equal to the input mode.
+6. Prefer the candidate that best matches the student request. Use retrieval rank as a tiebreaker.
+7. Use lower proficiency scores to justify support LOs and beginner notes. Use higher proficiency scores to justify shorter or more advanced notes.
+8. Copy `how_to_teach` and `why_to_teach` directly from the chosen candidates. Do not rewrite them unless the input value is empty.
+9. Keep `notes` short, concrete, and student-specific.
+10. Set `subject` from the selected primary candidate context. Use only `calculus`, `algebra`, or `trigonometry`.
+
+Return only valid JSON. Do not include markdown, comments, or extra text.
+
+Return one of these shapes:
 {
   "status": "complete",
   "plan": {
-    "subject": "calculus|algebra|trigonometry",
-    "mode": "conceptual_review|examples|practice",
+    "subject": "calculus",
+    "mode": "conceptual_review",
     "current_plan": [
       {
         "lo_id": 123,
-        "title": "Primary LO Title",
-        "proficiency": 0.65,
-        "how_to_teach": "...",
-        "why_to_teach": "...",
-        "notes": "Short note about student's state",
+        "title": "Limits and continuity",
+        "proficiency": 0.42,
+        "how_to_teach": "Use intuitive graphs before formal notation.",
+        "why_to_teach": "This concept supports derivative reasoning.",
+        "notes": "Start with intuition, then formalize.",
         "is_primary": true
       },
-      // Up to 2 more dependent/prerequisite LOs (is_primary: false)
-    ],
-    "future_plan": [
       {
-        "lo_id": 456,
-        "title": "Next LO Title",
-        "proficiency": 0.0,
-        "how_to_teach": "...",
-        "why_to_teach": "...",
-        "notes": "",
+        "lo_id": 98,
+        "title": "Function notation",
+        "proficiency": 0.3,
+        "how_to_teach": "Briefly review input-output mapping.",
+        "why_to_teach": "Needed to read limit expressions correctly.",
+        "notes": "Quick prerequisite refresh.",
         "is_primary": false
       }
     ],
-    "book": "...",
-    "unit": "...",
-    "chapter": "..."
-  }
+    "future_plan": [
+      {
+        "lo_id": 140,
+        "title": "Derivative as rate of change",
+        "proficiency": 0.0,
+        "how_to_teach": "Connect slopes to motion examples.",
+        "why_to_teach": "Natural next step after limits.",
+        "notes": "Next session topic.",
+        "is_primary": false
+      }
+    ],
+    "book": "OpenStax Calculus Volume 1",
+    "unit": "Unit 1",
+    "chapter": "Chapter 2"
+  },
+  "message": null
 }
 
-Rules:
-1. Select 1 PRIMARY LO that best matches the student's request (is_primary: true)
-2. Add up to 2 DEPENDENT LOs if the student's proficiency is low (<0.65) on prerequisites
-3. Add 1 LO to future_plan for the next session
-4. All LOs in current_plan must use the SAME mode
-5. Use proficiency scores to write helpful notes (e.g., "Student has mastered X, skip basics")
-6. Keep how_to_teach and why_to_teach from the candidates - these are from the knowledge graph
-"""
-
-# Legacy prompt (kept for backward compatibility)
-TUTORING_PLANNER_SYSTEM_PROMPT = """You are the Tutoring Session Planner Tool. Your job is to match student requests to the
-best OpenStax learning objective and learning mode.
-
-Guidelines:
-- Use ONLY the provided books/learning objectives (verbatim).
-- If key information is missing, return status "need_info" with a short clarification question.
-- When confident, return status "complete" with a plan payload:
-  {
-    "subject": "...",
-    "book": "...",
-    "learning_objective": "...",
-    "mode": "conceptual_review|examples|practice"
-  }
-- Mode must be one of: conceptual_review, examples, practice.
-
-Return STRICT JSON:
 {
-  "status": "complete|need_info",
-  "plan": null or {...},
-  "message": null or "clarification question"
+  "status": "need_info",
+  "plan": null,
+  "message": "Short clarification question"
 }
 """
 
-FAQ_PLANNER_SYSTEM_PROMPT = """You are the FAQ/Syllabus Session Planner Tool. Decide which known topic best answers the student's question.
-- If confident, return status "complete" with {"topic": "..."} using one of the known topics verbatim.
-- Otherwise, return status "need_info" with a clarifying question.
+FAQ_PLANNER_SYSTEM_PROMPT = """You are the FAQ and syllabus topic planner for an adaptive learning system.
 
-Return STRICT JSON:
+Your job is to map the student's question to exactly one known FAQ topic.
+
+You will receive:
+- `current_topic_guess`: an optional existing topic guess
+- `student_request`: the student's question
+- `known_topics`: the only valid topic labels
+
+Decision rules:
+1. Use only a topic from `known_topics`. Never invent, rename, or generalize a topic.
+2. Choose `complete` only when one known topic is clearly the best match.
+3. Choose `need_info` when the request is ambiguous, multi-topic, or does not match any known topic closely enough.
+4. If you return `need_info`, ask one short clarification question that helps distinguish between the known topics.
+
+Return only valid JSON. Do not include markdown or extra text.
+
+Return one of these shapes:
 {
-  "status": "complete|need_info",
-  "plan": null or {"topic": "..."},
-  "message": null or "clarification question"
+  "status": "complete",
+  "plan": {"topic": "exact topic from known_topics"},
+  "message": null
+}
+
+{
+  "status": "need_info",
+  "plan": null,
+  "message": "Short clarification question"
 }
 """
 
@@ -133,135 +134,148 @@ def _planner_llm_requested() -> bool:
     return flag.lower() in {"1", "true", "yes", "on"}
 
 
+def _init_planner_llm(warning_label: str) -> Tuple[Optional[OpenAI], Optional[str]]:
+    """
+    Initialize the shared planner LLM client when the feature flag is enabled.
+
+    Inputs:
+        warning_label: Short label used in fallback log messages.
+
+    Outputs:
+        Tuple of `(llm_client, llm_model)`, or `(None, None)` when LLM planning
+        is disabled or initialization fails.
+    """
+    if not _planner_llm_requested():
+        return None, None
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    model_name = os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
+    if not api_key:
+        print(f"[Planner] {warning_label} unavailable (OPENAI_API_KEY environment variable not set).")
+        return None, None
+
+    try:
+        return OpenAI(api_key=api_key), model_name
+    except Exception as exc:
+        print(f"[Planner] {warning_label} unavailable ({exc}).")
+        return None, None
+
+
 class TutoringPlanner:
     """
-    Builds tutoring plans by delegating context assembly to the retriever, with optional LLM validation.
+    Builds tutoring plans by delegating retrieval to the retriever and optional plan selection to the LLM.
     """
 
     def __init__(self, retriever: TeachingPackRetriever) -> None:
         self.retriever = retriever
-        self.available_books = self._build_available_books()
-        self.llm_client: Optional[OpenAI] = None
-        self.llm_model: Optional[str] = None
-        self.llm_enabled = False
-
-        if _planner_llm_requested():
-            API_KEY = os.getenv("OPENAI_API_KEY")
-            model_name = os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
-            try:
-                if not API_KEY:
-                    raise ValueError("OPENAI_API_KEY environment variable not set")
-                self.llm_client = OpenAI(api_key=API_KEY)
-                self.llm_model = model_name
-                self.llm_enabled = True
-            except Exception as exc:
-                print(f"[Planner] Warning: failed to initialize OpenAI client ({exc}). Using heuristic planner.")
+        self.llm_client, self.llm_model = _init_planner_llm("Tutoring planner LLM")
 
     def create_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
-        subject = payload.get("subject")
-        learning_objective = payload.get("learning_objective")
-        mode = payload.get("mode")
-        student_request = payload.get("student_request") or ""
-        student_profile = payload.get("student_profile") or {}
-
-        missing_fields = [
-            name
-            for name, value in [
-                ("subject", subject),
-                ("learning_objective", learning_objective),
-                ("mode", mode),
-            ]
-            if not value
-        ]
-        if missing_fields:
-            return {
-                "status": "need_info",
-                "plan": None,
-                "message": f"Missing fields: {', '.join(missing_fields)}",
-            }
-
-        subject, learning_objective, mode, need_info_msg = self._maybe_run_llm_tutor_planner(
-            subject, learning_objective, mode, student_request
-        )
-        if need_info_msg:
-            return {"status": "need_info", "plan": None, "message": need_info_msg}
-
-        session_plan = self.retriever.retrieve_plan(
-            query=student_request or learning_objective,
-            subject=subject,
-            learning_objective=learning_objective,
-            mode=mode,
-            student_profile=student_profile,
-        )
-        plan_dict = self._session_plan_to_dict(session_plan)
-        return {"status": "complete", "plan": plan_dict, "message": None}
-
-    def create_simplified_plan(
-        self,
-        student_request: str,
-        mode: str,
-        student_profile: Optional[Dict[str, Any]] = None,
-        image_path: Optional[str] = None,
-    ) -> Dict[str, Any]:
         """
-        Create a simplified tutoring plan using the new retrieval + LLM flow.
-        
-        This is the new interface that:
-        1. Calls retriever.retrieve_candidates() to get candidates from text + image
-        2. Passes candidates to LLM with proficiency scores
-        3. Returns simplified plan (1 primary + 2 dependent LOs, 1 future LO)
+        Build one tutoring plan from the student request using the simplified flow.
         
         Inputs:
-            student_request: What the student asked for (text, may include OCR)
-            mode: Tutoring mode (conceptual_review, examples, practice)
-            student_profile: Dict with lo_mastery scores
-            image_path: Optional path to image for CLIP retrieval
+            payload: Request dictionary with tutoring fields. Primary fields are
+                `student_request`, `mode`, `student_profile`, and `image_path`.
+                Legacy fields like `learning_objective` are still accepted as a
+                fallback query source.
         
         Outputs:
-            Dict with status, plan (SimplifiedPlan as dict), and optional message
+            Standard planner response dictionary:
+            - `status`: "complete" or "need_info"
+            - `plan`: plan payload or None
+            - `message`: clarification text or None
         """
-        mode = (mode or "conceptual_review").strip() or "conceptual_review"
-        lo_mastery = (student_profile or {}).get("lo_mastery", {})
-        
-        # Step 1: Retrieve candidates (text + image in parallel)
-        retrieval_result = self.retriever.retrieve_candidates(
-            text_query=student_request,
-            image_path=image_path,
-            top_k=6,
-            debug=True,  # Print top retrieved LOs
-        )
-        
-        if not retrieval_result.merged_candidates:
-            return {
-                "status": "need_info",
-                "plan": None,
-                "message": "I couldn't find relevant learning objectives. Could you rephrase your question?",
-            }
-        
-        # Step 2: Build proficiency map for candidates
-        proficiency_map = {}
-        for c in retrieval_result.merged_candidates:
-            # Check lo_mastery by title (main key) and lo_id (fallback)
-            prof = lo_mastery.get(c.title, lo_mastery.get(str(c.lo_id), 0.0))
-            proficiency_map[c.title] = prof
-        
-        # Step 3: Call LLM to generate simplified plan (if enabled)
-        if self.llm_enabled and self.llm_client:
+        # Normalize incoming tutoring inputs from both new and legacy payload shapes.
+        request = self._normalize_tutoring_payload(payload)
+        query = request["query"]
+        mode = request["mode"]
+        student_profile = request["student_profile"]
+        image_path = request["image_path"]
+
+        # Ask for clarification early when there is no usable tutoring query.
+        if not query:
+            return self._build_need_info_response("What topic would you like to learn about?")
+
+        # Retrieve top LO candidates across text and optional image signals.
+        candidates = self._retrieve_tutoring_candidates(query, image_path)
+        if not candidates:
+            return self._build_need_info_response(
+                "I couldn't find relevant learning objectives. Could you rephrase your question?"
+            )
+
+        # Build proficiency context used by both LLM and heuristic planning.
+        proficiency_map = self._build_proficiency_map(candidates, student_profile)
+
+        # Use LLM planning when available, otherwise fall back to deterministic heuristics.
+        if self.llm_client and self.llm_model:
             plan = self._generate_plan_with_llm(
-                student_request=student_request,
+                student_request=query,
                 mode=mode,
-                candidates=retrieval_result.merged_candidates,
+                candidates=candidates,
                 proficiency_map=proficiency_map,
             )
             if plan:
-                return {"status": "complete", "plan": plan, "message": None}
+                return self._build_complete_response(plan)
         
-        # Step 4: Fallback - build plan heuristically from top candidates
+        # Deterministic fallback keeps tutoring available even when LLM is disabled.
         plan = self._build_heuristic_plan(
-            candidates=retrieval_result.merged_candidates,
+            candidates=candidates,
             mode=mode,
             proficiency_map=proficiency_map,
         )
+        return self._build_complete_response(plan)
+
+    def _normalize_tutoring_payload(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize tutoring request data across current and legacy payload shapes."""
+        student_request = (payload.get("student_request") or "").strip()
+        learning_objective = (payload.get("learning_objective") or "").strip()
+        query = student_request or learning_objective
+        mode = (payload.get("mode") or "conceptual_review").strip() or "conceptual_review"
+        return {
+            "query": query,
+            "mode": mode,
+            "student_profile": payload.get("student_profile") or {},
+            "image_path": payload.get("image_path"),
+        }
+
+    def _retrieve_tutoring_candidates(
+        self,
+        query: str,
+        image_path: Optional[str],
+    ) -> List[RetrievalCandidate]:
+        """Retrieve merged tutoring candidates from text and optional image signals."""
+        result = self.retriever.retrieve_candidates(
+            text_query=query,
+            image_path=image_path,
+            top_k=6,
+            debug=True,
+        )
+        return result.merged_candidates
+
+    @staticmethod
+    def _build_proficiency_map(
+        candidates: List[RetrievalCandidate],
+        student_profile: Dict[str, Any],
+    ) -> Dict[str, float]:
+        """Map each candidate title to the student's proficiency score."""
+        lo_mastery = student_profile.get("lo_mastery", {})
+        proficiency_map: Dict[str, float] = {}
+        for candidate in candidates:
+            proficiency_map[candidate.title] = lo_mastery.get(
+                candidate.title,
+                lo_mastery.get(str(candidate.lo_id), 0.0),
+            )
+        return proficiency_map
+
+    @staticmethod
+    def _build_need_info_response(message: str) -> Dict[str, Any]:
+        """Build a standard clarification response envelope."""
+        return {"status": "need_info", "plan": None, "message": message}
+
+    @staticmethod
+    def _build_complete_response(plan: Dict[str, Any]) -> Dict[str, Any]:
+        """Build a standard complete response envelope."""
         return {"status": "complete", "plan": plan, "message": None}
     
     def _generate_plan_with_llm(
@@ -296,7 +310,7 @@ class TutoringPlanner:
         
         try:
             raw = self._chat_json(
-                SIMPLIFIED_PLANNER_PROMPT,
+                TUTORING_PLANNER_PROMPT,
                 f"INPUT:\n{json.dumps(payload, indent=2)}",
             )
             if raw.get("status") == "complete" and raw.get("plan"):
@@ -362,14 +376,8 @@ class TutoringPlanner:
                 })
                 break
         
-        # Infer subject from book name
-        subject = "calculus"
-        if primary.book:
-            book_lower = primary.book.lower()
-            if "algebra" in book_lower:
-                subject = "algebra"
-            elif "trig" in book_lower:
-                subject = "trigonometry"
+        # Infer subject from the candidate context, not just the book title.
+        subject = self._infer_subject(primary)
         
         return {
             "subject": subject,
@@ -380,7 +388,26 @@ class TutoringPlanner:
             "unit": primary.unit,
             "chapter": primary.chapter,
         }
-    
+
+    @staticmethod
+    def _infer_subject(candidate: RetrievalCandidate) -> str:
+        """Infer the tutoring subject from book and nearby curriculum metadata."""
+        context = " ".join(
+            part for part in [
+                candidate.book or "",
+                candidate.unit or "",
+                candidate.chapter or "",
+                candidate.title or "",
+            ]
+            if part
+        ).lower()
+
+        if "trig" in context or "trigon" in context:
+            return "trigonometry"
+        if "algebra" in context or "quadratic" in context or "polynomial" in context:
+            return "algebra"
+        return "calculus"
+
     def _generate_proficiency_note(self, proficiency: float) -> str:
         """Generate a short note based on proficiency score."""
         if proficiency >= 0.85:
@@ -392,52 +419,8 @@ class TutoringPlanner:
         else:
             return "Student is new to this - start from fundamentals."
 
-    def _build_available_books(self) -> Dict[str, List[str]]:
-        books: Dict[str, set] = {}
-        for row in self.retriever.kg.los.itertuples(index=False):
-            books.setdefault(row.book, set()).add(row.learning_objective)
-        return {book: sorted(list(objs)) for book, objs in books.items()}
-
-    def _maybe_run_llm_tutor_planner(
-        self,
-        subject: str,
-        learning_objective: str,
-        mode: str,
-        student_request: str,
-    ) -> Tuple[str, str, str, Optional[str]]:
-        if not self.llm_enabled:
-            return subject, learning_objective, mode, None
-
-        payload = {
-            "subject": subject,
-            "learning_objective": learning_objective,
-            "mode": mode,
-            "student_request": student_request,
-            "available_books": self.available_books,
-        }
-
-        try:
-            raw = self._chat_json(
-                TUTORING_PLANNER_SYSTEM_PROMPT,
-                f"INPUT:\n{json.dumps(payload, indent=2)}",
-            )
-        except Exception as exc:
-            print(f"[Planner] Tutoring planner LLM failed ({exc}); using heuristic values.")
-            return subject, learning_objective, mode, None
-
-        status = raw.get("status", "complete")
-        if status == "need_info":
-            return subject, learning_objective, mode, raw.get("message") or "Could you clarify the topic?"
-
-        plan = raw.get("plan") or {}
-        return (
-            plan.get("subject") or subject,
-            plan.get("learning_objective") or learning_objective,
-            plan.get("mode") or mode,
-            None,
-        )
-
     def _chat_json(self, system_prompt: str, user_prompt: str) -> Dict:
+        assert self.llm_client is not None and self.llm_model is not None
         response = self.llm_client.chat.completions.create(
             model=self.llm_model,
             temperature=0,
@@ -447,43 +430,6 @@ class TutoringPlanner:
             ],
         )
         return coerce_json(response.choices[0].message.content)
-
-    @staticmethod
-    def _session_plan_to_dict(plan: SessionPlan) -> Dict[str, Any]:
-        def _step_to_dict(step: Any) -> Dict[str, Any]:
-            return {
-                "step_id": step.step_id,
-                "step_type": step.step_type,
-                "goal": step.goal,
-                "lo_id": step.lo_id,
-                "content_id": step.content_id,
-                "how_to_teach": step.how_to_teach,
-                "why_to_teach": step.why_to_teach,
-            }
-
-        teaching_pack = {
-            "key_points": plan.teaching_pack.key_points,
-            "examples": plan.teaching_pack.examples,
-            "practice": plan.teaching_pack.practice,
-            "prerequisites": plan.teaching_pack.prerequisites,
-            "citations": plan.teaching_pack.citations,
-            "images": getattr(plan.teaching_pack, "images", []),
-        }
-
-        return {
-            "subject": plan.subject,
-            "book": plan.book,
-            "unit": plan.unit,
-            "chapter": plan.chapter,
-            "learning_objective": plan.learning_objective,
-            "mode": plan.mode,
-            "first_question": plan.first_question,
-            "current_plan": [_step_to_dict(step) for step in plan.current_plan],
-            "future_plan": [_step_to_dict(step) for step in plan.future_plan],
-            "teaching_pack": teaching_pack,
-            "session_guidance": plan.session_guidance,
-        }
-
 
 class FAQPlanner:
     """
@@ -501,21 +447,7 @@ class FAQPlanner:
     }
 
     def __init__(self) -> None:
-        self.llm_client: Optional[OpenAI] = None
-        self.llm_model: Optional[str] = None
-        self.llm_enabled = False
-
-        if _planner_llm_requested():
-            API_KEY = os.getenv("OPENAI_API_KEY")
-            model_name = os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
-            try:
-                if not API_KEY:
-                    raise ValueError("OPENAI_API_KEY environment variable not set")
-                self.llm_client = OpenAI(api_key=API_KEY)
-                self.llm_model = model_name
-                self.llm_enabled = True
-            except Exception as exc:
-                print(f"[Planner] FAQ planner LLM unavailable ({exc}); using keyword fallback.")
+        self.llm_client, self.llm_model = _init_planner_llm("FAQ planner LLM")
 
     def create_plan(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         topic = payload.get("topic")
@@ -552,7 +484,7 @@ class FAQPlanner:
         }
 
     def _maybe_run_llm_faq_planner(self, topic: str, student_request: str) -> Tuple[Optional[str], Optional[str]]:
-        if not self.llm_enabled:
+        if not self.llm_client or not self.llm_model:
             return topic, None
 
         payload = {
@@ -577,6 +509,7 @@ class FAQPlanner:
         return plan.get("topic") or topic, None
 
     def _chat_json(self, system_prompt: str, user_prompt: str) -> Dict:
+        assert self.llm_client is not None and self.llm_model is not None
         response = self.llm_client.chat.completions.create(
             model=self.llm_model,
             temperature=0,

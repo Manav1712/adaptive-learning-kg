@@ -9,12 +9,7 @@ Provides robust JSON parsing that handles common LLM response issues:
 """
 
 import json
-import re
 from typing import Any, Dict
-
-
-# Backslash constant to avoid escaping confusion
-_BS = chr(92)  # backslash character
 
 
 def coerce_json(raw: str) -> Dict[str, Any]:
@@ -83,50 +78,37 @@ def _fix_invalid_escapes(s: str) -> str:
     result = []
     i = 0
     n = len(s)
-    
+
     while i < n:
-        if s[i] == _BS:
-            # Found a backslash, check what follows
-            if i + 1 < n:
-                next_char = s[i + 1]
-                
-                # Check if this is already an escaped backslash (\\)
-                if next_char == _BS:
-                    # It's \\, keep both and skip past them
-                    result.append(_BS)
-                    result.append(_BS)
-                    i += 2
-                    continue
-                
-                # Check if it's a valid JSON escape
-                if next_char in '"/bfnrt':
-                    # Valid escape, keep as-is
-                    result.append(_BS)
-                    result.append(next_char)
-                    i += 2
-                    continue
-                
-                # Check for \uXXXX (unicode escape)
-                if next_char == 'u' and i + 5 < n:
-                    hex_part = s[i+2:i+6]
-                    if all(c in '0123456789abcdefABCDEF' for c in hex_part):
-                        # Valid unicode escape
-                        result.append(s[i:i+6])
-                        i += 6
-                        continue
-                
-                # Invalid escape - double the backslash
-                result.append(_BS)
-                result.append(_BS)
-                result.append(next_char)
-                i += 2
-            else:
-                # Trailing backslash, escape it
-                result.append(_BS)
-                result.append(_BS)
-                i += 1
-        else:
+        if s[i] != "\\":
             result.append(s[i])
             i += 1
-    
+            continue
+
+        # A trailing backslash is invalid JSON, so escape it.
+        if i == n - 1:
+            result.append("\\\\")
+            i += 1
+            continue
+
+        next_char = s[i + 1]
+
+        # Keep standard JSON escapes, including escaped backslashes, as-is.
+        if next_char in '"\\/bfnrt':
+            result.append("\\" + next_char)
+            i += 2
+            continue
+
+        # Keep valid unicode escapes as-is.
+        if next_char == "u" and i + 5 < n:
+            hex_part = s[i + 2:i + 6]
+            if all(c in "0123456789abcdefABCDEF" for c in hex_part):
+                result.append(s[i:i + 6])
+                i += 6
+                continue
+
+        # Any other backslash needs to be escaped before JSON parsing.
+        result.append("\\\\" + next_char)
+        i += 2
+
     return ''.join(result)
