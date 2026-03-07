@@ -65,3 +65,7 @@ example_notebooks/**/*.pickle
 example_notebooks/**/*.pkl
 example_notebooks/**/*.h5
 example_notebooks/**/*.hdf5
+
+# Frontend
+node_modules/
+frontend/node_modules/
