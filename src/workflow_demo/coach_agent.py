@@ -15,6 +15,7 @@ from .image_preprocessor import ImagePreprocessor
 from .coach_llm_client import CoachLLMClient
 from .planner import FAQPlanner, TutoringPlanner
 from .retriever import TeachingPackRetriever
+from .runtime_events import RuntimeEventCallback, emit_runtime_event
 from .session_memory import SessionMemory
 
 
@@ -26,6 +27,7 @@ class CoachAgent:
         retriever: Optional[TeachingPackRetriever] = None,
         llm_model: Optional[str] = None,
         session_memory_path: Optional[str] = None,
+        event_callback: Optional[RuntimeEventCallback] = None,
     ) -> None:
         """Initialize the coach agent and wire up all dependencies.
 
@@ -33,9 +35,11 @@ class CoachAgent:
             retriever: Optional custom retriever (defaults to TeachingPackRetriever).
             llm_model: Optional LLM model name (defaults to gpt-4o-mini).
             session_memory_path: Optional path to persist session memory.
+            event_callback: Optional runtime event sink used by the web UI.
         """
         self.retriever = retriever or TeachingPackRetriever()
         self.session_memory = SessionMemory(persistence_path=session_memory_path)
+        self.event_callback = event_callback
 
         # Coach-level state
         self.conversation_history: List[Dict[str, str]] = []
@@ -93,6 +97,22 @@ class CoachAgent:
         """Return the initial greeting."""
         return COACH_GREETING
 
+    def emit_event(
+        self,
+        event_type: str,
+        message: str,
+        phase: str = "system",
+        **metadata: Any,
+    ) -> Dict[str, Any]:
+        """Emit one structured runtime event when a web sink is attached."""
+        return emit_runtime_event(
+            self.event_callback,
+            event_type,
+            message,
+            phase=phase,
+            **metadata,
+        )
+
     def process_turn(self, user_input: str) -> str:
         """Handle a text-only turn.
 
@@ -140,6 +160,12 @@ class CoachAgent:
         """
         self.current_image = image
         self.current_image_query = None
+        self.emit_event(
+            "image_preprocess_started",
+            "Analyzing image input.",
+            phase="input",
+            image=image,
+        )
 
         print(f"\n🖼️  Image detected: {image}")
 
@@ -149,6 +175,15 @@ class CoachAgent:
                 result = self.image_preprocessor.process_image(image, text or None)
                 self.current_image_query = result.query
                 self._log_image_result(result)
+                self.emit_event(
+                    "image_preprocess_completed",
+                    "Image context extracted.",
+                    phase="input",
+                    image=image,
+                    detected_type=result.detected_type,
+                    likely_topic=result.likely_topic,
+                    confidence=round(result.confidence, 3),
+                )
 
                 extra_parts = [
                     " ".join(result.latex_content) if result.latex_content else "",
@@ -158,6 +193,14 @@ class CoachAgent:
                 ]
             except Exception as exc:
                 print(f"[Coach] Warning: image preprocessing failed ({exc}); proceeding with text only.")
+                self.emit_event(
+                    "image_preprocess_completed",
+                    "Image preprocessing failed; continuing with text only.",
+                    phase="input",
+                    image=image,
+                    success=False,
+                    error=str(exc),
+                )
 
         parts = [p for p in [text] + extra_parts if p]
         return "\n".join(parts).strip() or text
@@ -250,6 +293,13 @@ class CoachAgent:
 
         student_request = params.get("student_request") or self._last_student_message() or ""
         mode = params.get("mode") or "conceptual_review"
+        self.emit_event(
+            "planning_started",
+            "Building tutoring plan.",
+            phase="planning",
+            planner="tutoring",
+            mode=mode,
+        )
 
         # Build combined query from text + OCR
         query_parts = [student_request]
@@ -258,25 +308,56 @@ class CoachAgent:
         combined_query = " ".join(p for p in query_parts if p).strip()
 
         if not combined_query:
-            return {
+            result = {
                 "status": "need_info",
                 "plan": None,
                 "message": "What topic would you like to learn about?",
             }
+            self.emit_event(
+                "planning_completed",
+                "Tutoring plan needs more information.",
+                phase="planning",
+                planner="tutoring",
+                status="need_info",
+                mode=mode,
+            )
+            return result
 
         print(f"  Query: {combined_query[:100]}...")
         if self.current_image:
             print(f"  Image: {self.current_image}")
 
-        result = self.tutoring_planner.create_simplified_plan(
-            student_request=combined_query,
-            mode=mode,
-            student_profile=self.student_profile,
-            image_path=self.current_image,
+        result = self.tutoring_planner.create_plan(
+            {
+                "student_request": combined_query,
+                "mode": mode,
+                "student_profile": self.student_profile,
+                "image_path": self.current_image,
+            }
         )
 
         print("📩 Planner response:")
         print(json.dumps(result, indent=2, default=str))
+        plan = result.get("plan") or {}
+        self.emit_event(
+            "planning_completed",
+            "Tutoring plan finished.",
+            phase="planning",
+            planner="tutoring",
+            status=result.get("status"),
+            mode=plan.get("mode") or mode,
+            subject=plan.get("subject"),
+            current_plan_titles=[
+                item.get("title")
+                for item in plan.get("current_plan", [])
+                if item.get("title")
+            ],
+            future_plan_titles=[
+                item.get("title")
+                for item in plan.get("future_plan", [])
+                if item.get("title")
+            ],
+        )
         return result
 
     def _call_faq_planner(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -291,6 +372,13 @@ class CoachAgent:
         import json
 
         print("\n🔧 FAQ/Syllabus Planner")
+        self.emit_event(
+            "planning_started",
+            "Routing FAQ request.",
+            phase="planning",
+            planner="faq",
+            topic=params.get("topic"),
+        )
         planner_params = dict(params)
         if not planner_params.get("student_request"):
             planner_params["student_request"] = self._last_student_message() or "Student requested FAQ help."
@@ -298,6 +386,15 @@ class CoachAgent:
         result = self.faq_planner.create_plan(planner_params)
         print("📩 Planner response:")
         print(json.dumps(result, indent=2))
+        plan = result.get("plan") or {}
+        self.emit_event(
+            "planning_completed",
+            "FAQ planner finished.",
+            phase="planning",
+            planner="faq",
+            status=result.get("status"),
+            topic=plan.get("topic") or planner_params.get("topic"),
+        )
         if result.get("status") == "complete":
             self._reset_syllabus_escalation()
         return result

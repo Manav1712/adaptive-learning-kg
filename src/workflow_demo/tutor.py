@@ -8,6 +8,7 @@ import json
 import base64
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from json import JSONDecodeError
 
 from openai import OpenAI
 
@@ -119,6 +120,12 @@ Output STRICT JSON:
 }
 """
 
+_JSON_ONLY_RETRY_PROMPT = (
+    "Return only valid JSON that matches the required schema. "
+    "Do not include markdown, prose, or code fences."
+)
+_BOT_JSON_RETRY_LIMIT = 2
+
 
 def tutor_bot(
     llm_client: OpenAI,
@@ -167,19 +174,110 @@ def tutor_bot(
         # Text-only: use string format (for backward compatibility)
         user_content = payload_text
 
-    response = llm_client.chat.completions.create(
-        model=llm_model,
-        temperature=0,
-        messages=[
-            {"role": "system", "content": TUTOR_SYSTEM_PROMPT},
-            {"role": "user", "content": user_content},
-        ],
+    content = _request_json_content(
+        llm_client=llm_client,
+        llm_model=llm_model,
+        system_prompt=TUTOR_SYSTEM_PROMPT,
+        user_content=user_content,
+        warning_label="Tutor",
     )
-    content = response.choices[0].message.content
-    if not content:
-        # LLM returned empty response - return a fallback
-        return {"reply": "I'm sorry, I didn't catch that. Could you repeat your question?", "done": False}
-    return coerce_json(content)
+    if content is not None:
+        return _normalize_tutor_response(coerce_json(content))
+
+    print("[Tutor] Warning: invalid tutor JSON response after retry. Using fallback.")
+    return _fallback_tutor_response(
+        "I'm having trouble continuing this tutoring session. Could you try that again?"
+    )
+
+
+def _request_json_content(
+    llm_client: OpenAI,
+    llm_model: str,
+    system_prompt: str,
+    user_content: Any,
+    warning_label: str,
+) -> Optional[str]:
+    """
+    Request JSON output from the chat API with one retry on malformed output.
+
+    Inputs:
+        llm_client: OpenAI client instance.
+        llm_model: Model name for the request.
+        system_prompt: System prompt describing the JSON contract.
+        user_content: Main user payload for the model.
+        warning_label: Short label used in warning logs.
+
+    Outputs:
+        Raw JSON string when the model returns parseable JSON, else None.
+    """
+    messages: List[Dict[str, Any]] = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_content},
+    ]
+
+    for attempt in range(_BOT_JSON_RETRY_LIMIT):
+        response = llm_client.chat.completions.create(
+            model=llm_model,
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=messages,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            if attempt < _BOT_JSON_RETRY_LIMIT - 1:
+                print(f"[{warning_label}] Empty JSON response; retrying once.")
+                messages.append({"role": "user", "content": _JSON_ONLY_RETRY_PROMPT})
+                continue
+            return None
+
+        try:
+            coerce_json(content)
+            return content
+        except (JSONDecodeError, TypeError, ValueError) as exc:
+            if attempt < _BOT_JSON_RETRY_LIMIT - 1:
+                print(f"[{warning_label}] Invalid JSON response ({exc}); retrying once.")
+                messages.append({"role": "user", "content": _JSON_ONLY_RETRY_PROMPT})
+                continue
+            return None
+
+    return None
+
+
+def _normalize_tutor_response(response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize tutor output so required keys are always present.
+
+    Inputs:
+        response: Parsed tutor response dictionary.
+
+    Outputs:
+        Tutor-shaped response dictionary with safe defaults.
+    """
+    summary = response.get("session_summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    return {
+        "message_to_student": response.get("message_to_student") or "",
+        "end_activity": bool(response.get("end_activity", False)),
+        "silent_end": bool(response.get("silent_end", False)),
+        "needs_mode_confirmation": bool(
+            response.get("needs_mode_confirmation", False)
+        ),
+        "needs_topic_confirmation": bool(
+            response.get("needs_topic_confirmation", False)
+        ),
+        "requested_mode": response.get("requested_mode"),
+        "session_summary": {
+            "topics_covered": list(summary.get("topics_covered") or []),
+            "student_understanding": summary.get(
+                "student_understanding", "needs_practice"
+            ),
+            "suggested_next_topic": summary.get("suggested_next_topic"),
+            "switch_topic_request": summary.get("switch_topic_request"),
+            "switch_mode_request": summary.get("switch_mode_request"),
+            "notes": summary.get("notes", ""),
+        },
+    }
 
 
 def _image_to_content(image: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -226,13 +324,99 @@ def faq_bot(
         "handoff_context": handoff_context,
         "conversation_history": conversation_history[-12:],
     }
-    response = llm_client.chat.completions.create(
-        model=llm_model,
-        temperature=0,
-        messages=[
-            {"role": "system", "content": FAQ_SYSTEM_PROMPT},
-            {"role": "user", "content": json.dumps(payload, indent=2)},
-        ],
+    content = _request_json_content(
+        llm_client=llm_client,
+        llm_model=llm_model,
+        system_prompt=FAQ_SYSTEM_PROMPT,
+        user_content=json.dumps(payload, indent=2),
+        warning_label="FAQ",
     )
-    return coerce_json(response.choices[0].message.content)
+    if content is not None:
+        return _normalize_faq_response(coerce_json(content))
+
+    print("[FAQ] Warning: invalid FAQ JSON response after retry. Using fallback.")
+    return _fallback_faq_response(
+        "I'm having trouble answering that right now. Could you try asking again?"
+    )
+
+
+def _normalize_faq_response(response: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Normalize FAQ output so required keys are always present.
+
+    Inputs:
+        response: Parsed FAQ response dictionary.
+
+    Outputs:
+        FAQ-shaped response dictionary with safe defaults.
+    """
+    summary = response.get("session_summary")
+    if not isinstance(summary, dict):
+        summary = {}
+    return {
+        "message_to_student": response.get("message_to_student") or "",
+        "end_activity": bool(response.get("end_activity", False)),
+        "silent_end": bool(response.get("silent_end", False)),
+        "needs_topic_confirmation": bool(
+            response.get("needs_topic_confirmation", False)
+        ),
+        "session_summary": {
+            "topics_addressed": list(summary.get("topics_addressed") or []),
+            "questions_answered": list(summary.get("questions_answered") or []),
+            "switch_topic_request": summary.get("switch_topic_request"),
+            "notes": summary.get("notes", ""),
+        },
+    }
+
+
+def _fallback_tutor_response(message: str) -> Dict[str, Any]:
+    """
+    Build a safe tutor response when the LLM fails to return valid JSON.
+
+    Inputs:
+        message: Fallback text shown to the student.
+
+    Outputs:
+        Tutor-shaped response dictionary that keeps the bot session alive.
+    """
+    return {
+        "message_to_student": message,
+        "end_activity": False,
+        "silent_end": False,
+        "needs_mode_confirmation": False,
+        "needs_topic_confirmation": False,
+        "requested_mode": None,
+        "session_summary": {
+            "topics_covered": [],
+            "student_understanding": "needs_practice",
+            "suggested_next_topic": None,
+            "switch_topic_request": None,
+            "switch_mode_request": None,
+            "notes": "Fallback response due to invalid tutor JSON.",
+        },
+    }
+
+
+def _fallback_faq_response(message: str) -> Dict[str, Any]:
+    """
+    Build a safe FAQ response when the LLM fails to return valid JSON.
+
+    Inputs:
+        message: Fallback text shown to the student.
+
+    Outputs:
+        FAQ-shaped response dictionary that keeps the bot session alive.
+    """
+    return {
+        "message_to_student": message,
+        "end_activity": False,
+        "silent_end": False,
+        "needs_topic_confirmation": False,
+        "session_summary": {
+            "topics_addressed": [],
+            "questions_answered": [],
+            "switch_topic_request": None,
+            "notes": "Fallback response due to invalid FAQ JSON.",
+        },
+    }
 

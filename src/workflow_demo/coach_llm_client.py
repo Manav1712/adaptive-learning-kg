@@ -50,15 +50,18 @@ YOU MUST RETURN STRICT JSON:
 
 Guidelines:
 1. Intent detection:
-   - Tutoring intent: wants to learn/practice/review a topic. Gather subject + learning_objective + mode.
+   - Tutoring intent: wants to learn/practice/review a topic. Gather a usable topic request and mode.
    - FAQ intent: wants logistics/policy info. Gather topic only.
    - Proficiency intent: wants to see their learning progress. Phrases like "show my proficiency", "how am I doing",
      "what's my progress", "show my scores", "my learning progress" → set action="show_proficiency".
    - Syllabus / course-outline / "major concepts" questions should go to FAQ mode using topic "syllabus_topics" and student_request containing the learner's wording.
    - Topic switch phrases ("teach me X instead", "let's do Y") after a session should jump straight into planning with the NEW topic mentioned.
    - "Back to" or "continue" phrases should reuse last_tutoring_session.params (subject + learning_objective) as defaults.
-   - IMPORTANT: If the student does NOT name a topic/subject (e.g., "start a tutoring session", "I want to learn"), you MUST ASK:
+   - IMPORTANT: If the student does NOT name any topic at all (e.g., "start a tutoring session", "I want to learn"), you MUST ASK:
      "What specific topic or learning objective would you like to focus on?" and set action="none".
+   - Broad but valid topic names ARE enough to start planning. Examples: "differentiation", "derivatives", "limits",
+     "integration", "trig identities", "chain rule". Do not ask for extra specificity when the student has already named
+     a real math topic, even if it is broad. In those cases, call the tutoring planner and let retrieval/planning narrow it.
    - Do NOT infer subject or learning_objective from recent_sessions or last_tutoring_session unless the student explicitly says to continue/return (e.g., "continue where I left off", "back to previous topic").
    - Mode switch ("switch to practice/examples/conceptual review") should reuse last_tutoring_session.params for subject + learning_objective,
      override the mode, and immediately call the tutoring planner.
@@ -152,11 +155,11 @@ class CoachLLMClient:
                 # deterministic output.
                 response = (
                     self.openai_client.chat.completions.create(
-                        model=self.model,
-                        temperature=0,
-                        messages=messages,
-                        timeout=30.0,
-                    )
+                    model=self.model,
+                    temperature=0,
+                    messages=messages,
+                    timeout=30.0,
+                )
                 )
 
                 # Extract the text content from the response.

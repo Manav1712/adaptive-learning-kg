@@ -158,6 +158,146 @@ def test_coach_calls_faq_planner_for_syllabus(
 
 
 @pytest.mark.unit
+def test_coach_fast_tracks_topic_after_clarification(
+    monkeypatch, coach_agent: CoachAgent
+):
+    """A short topic reply after the topic prompt should go straight to planning."""
+    captured = {}
+
+    def _fake_plan(params):
+        captured["params"] = params
+        return {
+            "status": "complete",
+            "plan": {
+                "subject": "calculus",
+                "mode": "conceptual_review",
+                "current_plan": [
+                    {
+                        "lo_id": 42,
+                        "title": "Derivatives",
+                        "proficiency": 0.0,
+                        "how_to_teach": "",
+                        "why_to_teach": "",
+                        "notes": "",
+                        "is_primary": True,
+                    }
+                ],
+                "future_plan": [],
+                "book": "Calculus Volume 1",
+                "unit": "Limits",
+                "chapter": "A Preview of Calculus",
+            },
+            "message": None,
+        }
+
+    def _fake_tutor_bot(**kwargs):
+        return {
+            "message_to_student": "Starting derivatives tutoring.",
+            "end_activity": False,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": None,
+        }
+
+    monkeypatch.setattr(coach_agent, "_call_tutoring_planner", _fake_plan)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _fake_tutor_bot)
+
+    coach_agent._record_message(
+        "assistant",
+        "What specific topic or learning objective would you like to focus on?",
+    )
+
+    reply = coach_agent.process_turn("differentiation")
+
+    assert captured["params"]["student_request"] == "differentiation"
+    assert captured["params"]["mode"] == "conceptual_review"
+    assert reply == "Starting derivatives tutoring."
+
+
+@pytest.mark.unit
+def test_start_tutor_does_not_replan_on_subject_mismatch(
+    monkeypatch, coach_agent: CoachAgent
+):
+    """Coach should start tutoring even when planner-owned subject differs from coach tool params."""
+    plan_calls = {"count": 0}
+
+    def _fake_plan(_params):
+        plan_calls["count"] += 1
+        return {
+            "status": "complete",
+            "plan": {
+                "subject": "calculus",
+                "mode": "conceptual_review",
+                "current_plan": [
+                    {
+                        "lo_id": 1881,
+                        "title": "Trigonometric Identities",
+                        "proficiency": 0.0,
+                        "how_to_teach": "",
+                        "why_to_teach": "",
+                        "notes": "",
+                        "is_primary": True,
+                    }
+                ],
+                "future_plan": [],
+                "book": "Calculus Volume 1",
+                "unit": "Trigonometric Functions",
+                "chapter": "Functions and Graphs",
+            },
+            "message": None,
+        }
+
+    def _fake_tutor_bot(**kwargs):
+        return {
+            "message_to_student": f"Starting {kwargs['handoff_context']['session_params']['subject']}.",
+            "end_activity": False,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": None,
+        }
+
+    monkeypatch.setattr(coach_agent, "_call_tutoring_planner", _fake_plan)
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _fake_tutor_bot)
+
+    coach_agent.llm_client._queued.clear()
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "",
+            "action": "call_tutoring_planner",
+            "tool_params": {
+                "subject": "trigonometry",
+                "learning_objective": "Trigonometry",
+                "mode": "conceptual_review",
+                "student_request": "Trigonometry",
+            },
+            "conversation_summary": "",
+        }
+    )
+    coach_agent.llm_client.queue_response(
+        {
+            "message_to_student": "",
+            "action": "start_tutor",
+            "tool_params": {
+                "subject": "trigonometry",
+                "learning_objective": "Trigonometry",
+                "mode": "conceptual_review",
+            },
+            "conversation_summary": "Starting tutoring session.",
+        }
+    )
+
+    reply = coach_agent.process_turn("Trigonometry")
+
+    assert reply == "Starting calculus."
+    assert plan_calls["count"] == 1
+    assert coach_agent.bot_session_manager.is_active is True
+
+
+@pytest.mark.unit
 def test_coach_forces_syllabus_plan_after_clarifications(
     monkeypatch, coach_agent: CoachAgent, sample_syllabus_faq_plan
 ):

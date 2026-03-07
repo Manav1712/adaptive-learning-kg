@@ -24,13 +24,11 @@ if __name__ == "__main__":
 
 try:
     from src.workflow_demo.coach_agent import CoachAgent
-    from src.workflow_demo.retriever import TeachingPackRetriever
-    from src.workflow_demo.demo_profiles import get_active_profile, get_profile_name
+    from src.workflow_demo.runtime_factory import build_coach_runtime
 except ImportError:
     # Fallback to relative imports when run as module
     from .coach_agent import CoachAgent
-    from .retriever import TeachingPackRetriever
-    from .demo_profiles import get_active_profile, get_profile_name
+    from .runtime_factory import build_coach_runtime
 
 
 def build_demo_coach() -> CoachAgent:
@@ -44,31 +42,11 @@ def build_demo_coach() -> CoachAgent:
         CoachAgent instance ready for conversation.
     """
 
-    print("Initializing retriever (this may take a moment on first run)...")
     try:
-        retriever = TeachingPackRetriever()
-        print("Retriever initialized successfully!")
-    except Exception as e:
-        print(f"Error initializing retriever: {e}")
-        import traceback
-        traceback.print_exc()
-        raise
-    
-    print("Initializing coach...")
-    try:
-        coach = CoachAgent(retriever=retriever, session_memory_path=SESSION_MEMORY_FILE)
-        
-        # Load the active demo profile
-        profile = get_active_profile()
-        profile_name = get_profile_name()
-        coach.student_profile.update(profile)
-        coach.session_memory.student_profile.update(profile)
-        coach.session_memory.save()
-        
-        print(f"Coach initialized successfully!")
-        print(f"  Session memory: {SESSION_MEMORY_FILE}")
-        print(f"  Active profile: {profile_name}")
-        print(f"  (To switch profiles, edit ACTIVE_PROFILE in demo_profiles.py)\n")
+        print("Initializing demo runtime (this may take a moment on first run)...")
+        coach = build_coach_runtime(session_memory_path=SESSION_MEMORY_FILE)
+        print("Coach initialized successfully!")
+        print(f"  Session memory: {SESSION_MEMORY_FILE}\n")
         return coach
     except Exception as e:
         print(f"Error initializing coach: {e}")

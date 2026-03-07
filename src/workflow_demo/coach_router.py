@@ -36,7 +36,9 @@ COACH_GREETING = (
 
 # If the LLM disagrees with the planner on any of these keys,
 # force a re-plan instead of starting the session.
-REPLANNABLE_KEYS = frozenset({"mode", "subject", "topic"})
+# `subject` is intentionally excluded because the tutoring planner now derives
+# it from retrieved content rather than honoring coach-provided subject text.
+REPLANNABLE_KEYS = frozenset({"mode", "topic"})
 
 _MAX_LOOP_ITERATIONS = 5
 
@@ -60,6 +62,11 @@ _FAQ_KEYWORD_MAP = {
     "office hours": "office hours",
     "faq": "exam schedule",
 }
+
+_TOPIC_CLARIFICATION_PROMPTS = (
+    "what specific topic or learning objective would you like to focus on?",
+    "what specific topic or learning objective would you like to focus on regarding",
+)
 
 _SESSION_HISTORY_RE = re.compile(
     r"\bwhat\s+did\s+we\s+cover\b"
@@ -123,6 +130,13 @@ class CoachRouter:
             ).strip()
             tool_params = directive.get("tool_params") or {}
             attempted_actions.append(action)
+            self.agent.emit_event(
+                "coach_directive_received",
+                "Coach selected the next action.",
+                phase="routing",
+                action=action,
+                has_message=bool(message),
+            )
 
             # Ensure student_request is always present.
             tool_params["student_request"] = (
@@ -353,23 +367,82 @@ class CoachRouter:
                 "student_request"
             ] = user_input
 
+        # If the coach just asked for a topic and the student supplied one,
+        # skip another LLM clarification round and go straight to planning.
+        fast_track = self._maybe_fast_track_tutoring_topic(user_input, normalized)
+        if fast_track is not None:
+            return fast_track
+
         # Intercept "what did we do last time?" questions.
         if self._is_session_history_question(normalized):
             return self._handle_session_history_question()
 
         return None
 
+    def _maybe_fast_track_tutoring_topic(
+        self,
+        user_input: str,
+        normalized_input: str,
+    ) -> Optional[str]:
+        """Route short topic replies directly to tutoring after a clarification prompt."""
+        if not normalized_input or self._detect_faq_topic(normalized_input):
+            return None
+        if self._looks_like_question(normalized_input):
+            return None
+
+        last_assistant = self._last_assistant_message()
+        if not last_assistant:
+            return None
+        last_assistant_normalized = last_assistant.strip().lower()
+        if not any(
+            last_assistant_normalized.startswith(prompt)
+            for prompt in _TOPIC_CLARIFICATION_PROMPTS
+        ):
+            return None
+
+        planner_params = {
+            "student_request": user_input.strip(),
+            "mode": self.agent.collected_params.get("mode") or "conceptual_review",
+        }
+        self.agent.collected_params["student_request"] = planner_params["student_request"]
+        self.agent.planner_result = self.agent._call_tutoring_planner(planner_params)
+        status = (self.agent.planner_result or {}).get("status")
+        if status == "need_info":
+            message = (
+                self.agent.planner_result.get("message")
+                or "Could you clarify that a bit more?"
+            )
+            return self._coach_reply(message)
+        if status != "complete":
+            return self._coach_reply(
+                "I'm having trouble processing that request. Could you try rephrasing?"
+            )
+
+        return self.agent.bot_session_manager.begin(
+            bot_type="tutor",
+            tool_params=planner_params,
+            conversation_summary="Student provided a topic after clarification.",
+        )
+
     def _coach_reply(self, message: str) -> str:
         """Record a message and return it."""
         self.agent._record_message("assistant", message)
         return message
 
+    def _last_assistant_message(self) -> str:
+        """Return the most recent assistant message in the coach conversation history."""
+        for message in reversed(self.agent.conversation_history):
+            if message["speaker"] == "assistant":
+                return message["text"]
+        return ""
+
     def _detect_plan_conflicts(self, tool_params: Dict[str, Any]) -> Dict[str, Any]:
         """Return tool_params entries that conflict with existing planner decisions.
 
-        Only checks REPLANNABLE_KEYS -- keys the planner directly honors from
-        its input. Derived fields (learning_objective, teaching_pack, etc.)
-        are ignored because re-planning with a different value wouldn't help.
+        Only checks REPLANNABLE_KEYS -- keys the active planner still honors
+        directly from coach input. Derived fields (subject, learning_objective,
+        teaching pack, etc.) are ignored because re-planning would just
+        reproduce the same planner-owned values.
 
         Args:
             tool_params: Parameters from the coach directive.
@@ -412,6 +485,29 @@ class CoachRouter:
         return bool(
             _SESSION_HISTORY_RE.search(normalized_input)
         )
+
+    @staticmethod
+    def _looks_like_question(normalized_input: str) -> bool:
+        """Detect question-like replies that should still go through the coach LLM."""
+        if "?" in normalized_input:
+            return True
+        starters = (
+            "what ",
+            "how ",
+            "why ",
+            "when ",
+            "where ",
+            "which ",
+            "can ",
+            "could ",
+            "would ",
+            "should ",
+            "do ",
+            "does ",
+            "is ",
+            "are ",
+        )
+        return normalized_input.startswith(starters)
 
     def _handle_session_history_question(self) -> str:
         """Handle questions about session history.
@@ -541,7 +637,7 @@ class CoachRouter:
             "topic": SYLLABUS_FAQ_TOPIC,
             "student_request": (
                 latest_request
-                or self.agent._last_student_message()
+            or self.agent._last_student_message()
                 or "Student asked about the syllabus "
                 "topics."
             ),

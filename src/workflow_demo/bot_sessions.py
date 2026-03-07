@@ -92,6 +92,25 @@ class BotSessionManager:
         self.handoff_context = context
         # Restore image for the duration of this bot session.
         self.agent.current_image = session_image
+        self.agent.emit_event(
+            "bot_session_started",
+            f"Started {bot_type} session.",
+            phase="session",
+            bot_type=bot_type,
+            subject=session_params.get("subject"),
+            mode=session_params.get("mode"),
+            topic=session_params.get("topic"),
+            current_plan_titles=[
+                item.get("title")
+                for item in session_params.get("current_plan", [])
+                if item.get("title")
+            ],
+            future_plan_titles=[
+                item.get("title")
+                for item in session_params.get("future_plan", [])
+                if item.get("title")
+            ],
+        )
 
         return self._invoke_bot(initial=True)
 
@@ -211,6 +230,15 @@ class BotSessionManager:
 
         # Persist the completed session record.
         self.agent.session_memory.add_session(session_type, params, summary, exchanges)
+        self.agent.emit_event(
+            "session_saved",
+            "Saved completed session.",
+            phase="session",
+            session_type=session_type,
+            topic=params.get("topic"),
+            subject=params.get("subject"),
+            mode=params.get("mode"),
+        )
 
         # Update mastery score and flush to disk (tutor sessions only).
         if session_type == "tutor":
@@ -316,7 +344,7 @@ class BotSessionManager:
 
     def _build_return_greeting(self, params: Dict[str, Any], session_type: str) -> str:
         """Build a greeting after a completed session.
-        
+
         Args:
             params: Session parameters.
             session_type: "tutor" or "faq".
