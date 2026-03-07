@@ -85,6 +85,72 @@ pip install -r requirements.txt
 export OPENAI_API_KEY=your_key_here
 ```
 
+## Demo UI
+
+The repo now includes a local demo web UI that wraps the existing `workflow_demo`
+runtime with a thin FastAPI bridge and a React frontend.
+
+### What It Includes
+
+- A local FastAPI backend in `src/workflow_demo/web_api.py`
+- A React + Vite frontend in `frontend/`
+- Streaming status updates for planning/session steps
+- Reset, loading, and error states for demo use
+
+### Run The Backend
+
+```bash
+source venv/bin/activate
+python -m src.workflow_demo.web_api
+```
+
+The backend runs at `http://127.0.0.1:8001`.
+
+Helpful endpoints:
+
+- `GET /api/health`
+- `POST /api/session`
+- `POST /api/chat`
+- `POST /api/chat/stream`
+- `POST /api/reset`
+
+### Run The Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend runs at `http://127.0.0.1:5173`.
+
+### Optional Frontend Env
+
+If the backend is not running on the default local port, set:
+
+```bash
+export VITE_API_BASE_URL=http://127.0.0.1:8001
+```
+
+### Demo UI Tests
+
+```bash
+# Backend bridge tests
+source venv/bin/activate
+pytest tests/workflow_demo/test_web_session_manager.py tests/workflow_demo/test_web_api.py
+
+# Frontend tests
+cd frontend
+npm test
+```
+
+### Notes
+
+- The web UI reuses the existing `CoachAgent` runtime rather than screen-scraping the CLI.
+- The backend keeps one `CoachAgent` per browser session and reuses a shared retriever to make resets cheaper.
+- The first real session may take a while because the retriever initializes embeddings.
+- If your OpenAI embedding quota is exhausted, `POST /api/session` will fail and the UI will show the startup error instead of hanging.
+
 ### 2. Run Complete Pipeline
 ```bash
 # Discover content→LO relationships
