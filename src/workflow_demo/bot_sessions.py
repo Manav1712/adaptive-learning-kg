@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from .pedagogy import PedagogyRuntimeEvent
 from .session_memory import create_handoff_context
 from .tutor import tutor_bot, faq_bot
 
@@ -38,6 +39,7 @@ class BotSessionManager:
         self.bot_type: Optional[str] = None
         self.handoff_context: Optional[Dict[str, Any]] = None
         self.conversation_history: List[Dict[str, str]] = []
+        self.active_learner_session_id: Optional[str] = None
 
     def handle_turn(self, user_input: str) -> str:
         """Process a turn while in a bot session.
@@ -51,7 +53,7 @@ class BotSessionManager:
             The bot's response message.
         """
         self.conversation_history.append({"speaker": "student", "text": user_input})
-        return self._invoke_bot()
+        return self._invoke_bot(student_input=user_input)
 
     def begin(
         self,
@@ -85,11 +87,19 @@ class BotSessionManager:
             student_state=self.agent.student_profile,
             image=session_image,
         )
+        active_learner_session_id: Optional[str] = None
+        if bot_type == "tutor":
+            active_learner_session_id = self._build_tutor_state_session_id(context)
+            context["pedagogy_context"] = self.agent.ensure_tutor_learner_context(
+                session_id=active_learner_session_id,
+                session_params=session_params,
+            )
 
         self._reset()
         self.is_active = True
         self.bot_type = bot_type
         self.handoff_context = context
+        self.active_learner_session_id = active_learner_session_id
         # Restore image for the duration of this bot session.
         self.agent.current_image = session_image
         self.agent.emit_event(
@@ -158,13 +168,14 @@ class BotSessionManager:
         self.bot_type = None
         self.handoff_context = None
         self.conversation_history = []
+        self.active_learner_session_id = None
         self.agent.collected_params = {}
         self.agent.planner_result = None
         self.agent._reset_syllabus_escalation()
         self.agent.current_image = None
         self.agent.current_image_query = None
 
-    def _invoke_bot(self, initial: bool = False) -> str:
+    def _invoke_bot(self, initial: bool = False, student_input: str = "") -> str:
         """Invoke the bot (tutor or FAQ) with the current conversation history.
 
         Args:
@@ -187,6 +198,8 @@ class BotSessionManager:
 
         # Dispatch to the appropriate bot.
         if self.bot_type == "tutor":
+            if student_input and self.active_learner_session_id:
+                self._run_misconception_diagnosis(student_input, history)
             bot_response = tutor_bot(
                 llm_client=self.agent.llm_client,
                 llm_model=self.agent.llm_model,
@@ -206,6 +219,9 @@ class BotSessionManager:
         message = (bot_response.get("message_to_student") or "").strip()
         if message:
             self.conversation_history.append({"speaker": "assistant", "text": message})
+
+        if self.bot_type == "tutor" and student_input and self.active_learner_session_id:
+            self._record_learner_turn(student_input)
 
         # If the bot ended the session, finalize (save memory, update mastery).
         if bot_response.get("end_activity"):
@@ -283,6 +299,92 @@ class BotSessionManager:
         understanding = summary.get("student_understanding") or ""
         score = UNDERSTANDING_TO_MASTERY.get(understanding.lower(), 0.4)
         self.agent.student_profile.setdefault("lo_mastery", {})[lo_key] = score
+
+    def _record_learner_turn(self, student_input: str) -> None:
+        """Record one learner attempt in the centralized learner state store."""
+        if not self.active_learner_session_id:
+            return
+        student_turns = [
+            item for item in self.conversation_history
+            if item.get("speaker") == "student"
+        ]
+        session_params = (self.handoff_context or {}).get("session_params", {})
+        lo_value = session_params.get("lo_id")
+        if lo_value is None:
+            current_plan = session_params.get("current_plan") or []
+            if current_plan and isinstance(current_plan[0], dict):
+                lo_value = current_plan[0].get("lo_id")
+        lo_id = lo_value if isinstance(lo_value, int) else None
+        self.agent.learner_state_engine.record_turn(
+            session_id=self.active_learner_session_id,
+            turn_index=max(len(student_turns) - 1, 0),
+            student_text=student_input,
+            lo_id=lo_id,
+        )
+
+    def _run_misconception_diagnosis(
+        self,
+        student_input: str,
+        history: List[Dict[str, str]],
+    ) -> None:
+        """Diagnose misconceptions for tutor turns and attach into pedagogy_context."""
+        if not self.active_learner_session_id or not self.handoff_context:
+            return
+        session_params = self.handoff_context.get("session_params", {})
+        pedagogy_context = self.handoff_context.get("pedagogy_context") or {}
+        learner_payload = pedagogy_context.get("learner_state") or {}
+        learner_state = self.agent.learner_state_store.ensure(self.active_learner_session_id)
+        if learner_payload:
+            # Keep store state aligned with latest context payload if present.
+            learner_state = self.agent.learner_state_store.update(
+                self.active_learner_session_id,
+                **learner_payload,
+            )
+        focus_lo = (
+            session_params.get("learning_objective")
+            or next(
+                (
+                    str(item.get("title"))
+                    for item in session_params.get("current_plan", [])
+                    if item.get("title")
+                ),
+                None,
+            )
+            or learner_state.current_focus_lo
+        )
+        diagnosis = self.agent.misconception_diagnoser.diagnose_turn(
+            session_id=self.active_learner_session_id,
+            user_input=student_input,
+            current_focus_lo=focus_lo,
+            learner_state=learner_state,
+            recent_messages=history[-6:],
+        )
+        updated_state = self.agent.learner_state_engine.record_misconception(
+            session_id=self.active_learner_session_id,
+            diagnosis=diagnosis,
+        )
+        pedagogy_context["diagnosis"] = diagnosis.model_dump(mode="json")
+        pedagogy_context["learner_state"] = updated_state.model_dump(mode="json")
+        self.handoff_context["pedagogy_context"] = pedagogy_context
+        self.agent.emit_event(
+            PedagogyRuntimeEvent.MISCONCEPTION_DIAGNOSED.value,
+            "Diagnosed misconception signal for tutor turn.",
+            phase="pedagogy",
+            session_id=self.active_learner_session_id,
+            target_lo=diagnosis.target_lo,
+            suspected_misconception=diagnosis.suspected_misconception,
+            confidence=round(diagnosis.confidence, 3),
+            prerequisite_gap_los=diagnosis.prerequisite_gap_los,
+        )
+
+    @staticmethod
+    def _build_tutor_state_session_id(context: Dict[str, Any]) -> str:
+        """Build a learner-state session id for one tutor handoff."""
+        metadata = context.get("handoff_metadata", {})
+        timestamp = str(metadata.get("timestamp") or "")
+        if timestamp:
+            return f"tutor:{timestamp}"
+        return "tutor:unknown"
 
     def format_proficiency_report(self) -> str:
         """Format lo_mastery scores into a readable summary for the student.

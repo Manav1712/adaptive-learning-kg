@@ -14,6 +14,12 @@ from .coach_router import COACH_GREETING, CoachRouter
 from .image_preprocessor import ImagePreprocessor
 from .coach_llm_client import CoachLLMClient
 from .planner import FAQPlanner, TutoringPlanner
+from .pedagogy import (
+    LearnerStateEngine,
+    LearnerStateStore,
+    MisconceptionDiagnoser,
+    PedagogicalContext,
+)
 from .retriever import TeachingPackRetriever
 from .runtime_events import RuntimeEventCallback, emit_runtime_event
 from .session_memory import SessionMemory
@@ -40,6 +46,11 @@ class CoachAgent:
         self.retriever = retriever or TeachingPackRetriever()
         self.session_memory = SessionMemory(persistence_path=session_memory_path)
         self.event_callback = event_callback
+        self.learner_state_store = LearnerStateStore()
+        self.learner_state_engine = LearnerStateEngine(
+            store=self.learner_state_store,
+            event_emitter=self._emit_pedagogy_event,
+        )
 
         # Coach-level state
         self.conversation_history: List[Dict[str, str]] = []
@@ -62,6 +73,10 @@ class CoachAgent:
         self.llm_client: Optional[OpenAI] = None
         self.llm_model: Optional[str] = None
         self._init_llm(llm_model)
+        self.misconception_diagnoser = MisconceptionDiagnoser(
+            llm_client=self.llm_client,
+            llm_model=self.llm_model,
+        )
 
         # Planners
         self.tutoring_planner = TutoringPlanner(self.retriever)
@@ -112,6 +127,66 @@ class CoachAgent:
             phase=phase,
             **metadata,
         )
+
+    def _emit_pedagogy_event(
+        self,
+        event_type: str,
+        message: str,
+        metadata: Dict[str, Any],
+    ) -> None:
+        """Bridge pedagogy-engine events to the existing runtime event sink."""
+        self.emit_event(
+            event_type,
+            message,
+            phase="pedagogy",
+            **metadata,
+        )
+
+    def initialize_learner_state_from_profile(
+        self,
+        session_id: str = "runtime",
+        current_focus_lo: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Initialize centralized learner state from the current student profile.
+
+        Returns:
+            JSON-serializable learner-state payload.
+        """
+        state = self.learner_state_engine.initialize_from_profile(
+            session_id=session_id,
+            student_profile=self.student_profile,
+            current_focus_lo=current_focus_lo,
+        )
+        return state.model_dump(mode="json")
+
+    def ensure_tutor_learner_context(
+        self,
+        session_id: str,
+        session_params: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """
+        Ensure learner state exists for one tutor session and build context payload.
+        """
+        current_focus_lo = (
+            session_params.get("learning_objective")
+            or session_params.get("title")
+            or next(
+                (
+                    str(item.get("title"))
+                    for item in session_params.get("current_plan", [])
+                    if item.get("title")
+                ),
+                None,
+            )
+        )
+        learner_state = self.learner_state_engine.initialize_from_profile(
+            session_id=session_id,
+            student_profile=self.student_profile,
+            current_focus_lo=current_focus_lo,
+        )
+        pedagogy_context = PedagogicalContext(learner_state=learner_state)
+        return pedagogy_context.model_dump(mode="json")
 
     def process_turn(self, user_input: str) -> str:
         """Handle a text-only turn.

@@ -120,6 +120,9 @@ def build_coach_runtime(
     coach.student_profile.update(profile)
     coach.session_memory.student_profile.update(profile)
     coach.session_memory.save()
+    coach.initialize_learner_state_from_profile(
+        session_id="runtime",
+    )
 
     emit_runtime_event(
         event_callback,

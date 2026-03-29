@@ -5,6 +5,7 @@ CLI entrypoint that runs the Coach → Retriever → Tutor workflow end-to-end.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -12,15 +13,20 @@ from pathlib import Path
 from typing import Optional
 
 # Default session memory file (in project root by default)
-SESSION_MEMORY_FILE = os.path.join(
-    Path(__file__).resolve().parents[2], "session_memory.json"
-)
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+SESSION_MEMORY_FILE = os.path.join(_REPO_ROOT, "session_memory.json")
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv(_REPO_ROOT / ".env")
+except ImportError:
+    pass
 
 # Add parent directory to path for imports when running directly
 if __name__ == "__main__":
-    repo_root = Path(__file__).resolve().parents[2]
-    if str(repo_root) not in sys.path:
-        sys.path.insert(0, str(repo_root))
+    if str(_REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(_REPO_ROOT))
 
 try:
     from src.workflow_demo.coach_agent import CoachAgent
@@ -82,6 +88,18 @@ def _looks_like_image_path(text: str) -> bool:
     return False
 
 
+def _print_pedagogy_cli_debug(coach: CoachAgent) -> None:
+    """Print learner-state store + active tutor session id (Phase 1 CLI helper)."""
+    mgr = coach.bot_session_manager
+    active = getattr(mgr, "active_learner_session_id", None) if mgr else None
+    print("\n--- Pedagogy / learner state (CLI) ---")
+    print(f"active_learner_session_id: {active!r}")
+    print(f"bot_session active: {getattr(mgr, 'is_active', None)!r} bot_type={getattr(mgr, 'bot_type', None)!r}")
+    payload = coach.learner_state_store.dump_all_json()
+    print(json.dumps(payload, indent=2))
+    print("---\n")
+
+
 def detect_image_input(user_input: str) -> tuple[Optional[str], str]:
     """
     Detect if the user's message references an image (file path or URL).
@@ -136,7 +154,11 @@ def interactive_loop(coach: CoachAgent) -> None:
 
     import sys
 
-    print("Adaptive Learning Coach Demo\nType 'quit' to exit.\n")
+    print(
+        "Adaptive Learning Coach Demo\n"
+        "Type 'quit' to exit.\n"
+        "Type '!state' to print learner-state / pedagogy debug (Phase 1).\n"
+    )
     sys.stdout.flush()
 
     greeting = coach.initial_greeting()
@@ -158,6 +180,10 @@ def interactive_loop(coach: CoachAgent) -> None:
         if user_text.lower() in {"quit", "exit"}:
             print("Goodbye!")
             break
+
+        if user_text.lower() in {"!state", "!pedagogy"}:
+            _print_pedagogy_cli_debug(coach)
+            continue
 
         try:
             image_ref, text_only = detect_image_input(user_text)

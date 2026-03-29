@@ -189,3 +189,14 @@ def test_continuity_greeting_after_tutor_session(monkeypatch, coach_agent, sampl
 
     # The greeting should be the tutor's final message followed by the return greeting
     assert "Nice work on Derivatives" in greeting or "Great work" in greeting
+
+
+@pytest.mark.integration
+def test_pedagogy_phase0_package_import_surface():
+    """Phase 0 pedagogy subpackage is reachable and JSON-stable without wiring."""
+    import src.workflow_demo.pedagogy as pedagogy
+
+    assert pedagogy.TeachingMoveType.WORKED_EXAMPLE.value == "worked_example"
+    assert pedagogy.RetrievalIntent.PRACTICE_ITEM.value == "practice_item"
+    assert pedagogy.PedagogyRuntimeEvent.POLICY_SCORED.value == "pedagogy_policy_scored"
+    assert "PedagogicalContext" in pedagogy.__all__
