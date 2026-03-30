@@ -1,0 +1,41 @@
+:root {
+  --bg: #f4f0e8;
+  --surface: #fffcf7;
+  --ink: #1a1c18;
+  --muted: #5c5f57;
+  --accent: #2d5a4a;
+  --accent-soft: #c5ddd2;
+  --user-bubble: #e8f0eb;
+  --assistant-bubble: #fff;
+  --border: #d8d3c8;
+  --danger: #8b3a3a;
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: var(--ink);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
