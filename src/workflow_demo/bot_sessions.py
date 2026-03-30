@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from .pedagogy import PedagogyRuntimeEvent
+from .pedagogy import PedagogyRuntimeEvent, PolicyScorer, TeachingMoveGenerator
 from .session_memory import create_handoff_context
 from .tutor import tutor_bot, faq_bot
 
@@ -40,6 +40,8 @@ class BotSessionManager:
         self.handoff_context: Optional[Dict[str, Any]] = None
         self.conversation_history: List[Dict[str, str]] = []
         self.active_learner_session_id: Optional[str] = None
+        self.teaching_move_generator = TeachingMoveGenerator()
+        self.policy_scorer = PolicyScorer()
 
     def handle_turn(self, user_input: str) -> str:
         """Process a turn while in a bot session.
@@ -363,8 +365,26 @@ class BotSessionManager:
             session_id=self.active_learner_session_id,
             diagnosis=diagnosis,
         )
+        teaching_moves = self.teaching_move_generator.generate_candidates(
+            diagnosis=diagnosis,
+            learner_state=updated_state,
+            current_focus_lo=focus_lo or "unknown",
+            user_input=student_input,
+        )
         pedagogy_context["diagnosis"] = diagnosis.model_dump(mode="json")
         pedagogy_context["learner_state"] = updated_state.model_dump(mode="json")
+        pedagogy_context["teaching_moves"] = [
+            candidate.model_dump(mode="json")
+            for candidate in teaching_moves
+        ]
+        policy_decision = self.policy_scorer.select_best_move(
+            diagnosis=diagnosis,
+            learner_state=updated_state,
+            teaching_moves=teaching_moves,
+            current_focus_lo=focus_lo or "unknown",
+            user_input=student_input,
+        )
+        pedagogy_context["policy_decision"] = policy_decision.model_dump(mode="json")
         self.handoff_context["pedagogy_context"] = pedagogy_context
         self.agent.emit_event(
             PedagogyRuntimeEvent.MISCONCEPTION_DIAGNOSED.value,
@@ -375,6 +395,25 @@ class BotSessionManager:
             suspected_misconception=diagnosis.suspected_misconception,
             confidence=round(diagnosis.confidence, 3),
             prerequisite_gap_los=diagnosis.prerequisite_gap_los,
+        )
+        self.agent.emit_event(
+            PedagogyRuntimeEvent.TEACHING_MOVES_GENERATED.value,
+            "Generated candidate teaching moves.",
+            phase="pedagogy",
+            session_id=self.active_learner_session_id,
+            target_lo=focus_lo,
+            move_count=len(teaching_moves),
+            move_types=[move.move_type.value for move in teaching_moves],
+        )
+        self.agent.emit_event(
+            PedagogyRuntimeEvent.POLICY_DECISION_MADE.value,
+            "Scored candidate moves and selected policy decision.",
+            phase="pedagogy",
+            session_id=self.active_learner_session_id,
+            target_lo=focus_lo,
+            selected_move_type=policy_decision.selected_move.move_type.value,
+            selected_move_id=policy_decision.selected_move.move_id,
+            candidate_count=len(teaching_moves),
         )
 
     @staticmethod

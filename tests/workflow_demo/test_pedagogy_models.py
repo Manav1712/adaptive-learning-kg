@@ -134,10 +134,11 @@ def test_pedagogical_context_nested_round_trip():
         priority_score=0.4,
     )
     policy = PolicyDecision(
-        chosen=chosen,
-        alternatives=[alt],
+        selected_move=chosen,
+        rejected_moves=[alt],
+        decision_reason="chosen for test",
+        scores={chosen.move_id: 0.88, alt.move_id: 0.4},
         policy_version="0",
-        trace_notes="test-trace",
     )
     critic = CriticVerdict(
         approved=True,
@@ -150,7 +151,7 @@ def test_pedagogical_context_nested_round_trip():
         layer_version="0",
         learner_state=learner,
         diagnosis=diagnosis,
-        policy=policy,
+        policy_decision=policy,
         last_critic=critic,
         active_move=chosen,
         extensions={"note": "integration test payload"},
@@ -159,6 +160,9 @@ def test_pedagogical_context_nested_round_trip():
     raw_json = json.dumps(ctx.model_dump(mode="json"))
     loaded = PedagogicalContext.model_validate_json(raw_json)
     assert loaded == ctx
+    assert loaded.policy_decision is not None
+    assert loaded.policy_decision.selected_move.move_id == chosen.move_id
+    assert alt.move_id in {m.move_id for m in loaded.policy_decision.rejected_moves}
 
 
 @pytest.mark.unit

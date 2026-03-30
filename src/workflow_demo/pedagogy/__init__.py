@@ -10,6 +10,8 @@ from .constants import RetrievalIntent, TeachingMoveType
 from .diagnosis import MisconceptionDiagnoser
 from .events import PedagogyRuntimeEvent
 from .learner_state import LearnerStateEngine
+from .policy import PolicyScorer
+from .teaching_moves import TeachingMoveGenerator
 from .models import (
     AttemptRecord,
     CriticVerdict,
@@ -31,8 +33,10 @@ __all__ = [
     "MisconceptionDiagnosis",
     "PedagogicalContext",
     "PedagogyRuntimeEvent",
+    "PolicyScorer",
     "PolicyDecision",
     "RetrievalIntent",
+    "TeachingMoveGenerator",
     "TeachingMoveCandidate",
     "TeachingMoveType",
 ]

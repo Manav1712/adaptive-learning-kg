@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from src.workflow_demo.pedagogy import LearnerState, MisconceptionDiagnoser
@@ -47,7 +49,7 @@ def test_prerequisite_gap_diagnosis():
         learner_state=state,
     )
     assert diagnosis.suspected_misconception == "prerequisite_gap"
-    assert diagnosis.prerequisite_gap_los
+    assert diagnosis.prerequisite_gap_los == []
 
 
 @pytest.mark.unit
@@ -62,6 +64,125 @@ def test_diagnosis_validity_with_minimal_input():
     assert diagnosis.target_lo
     assert diagnosis.suspected_misconception
     assert 0.0 <= diagnosis.confidence <= 1.0
+
+
+class _FakeLLMClient:
+    def __init__(self, payload: object = None, error: Exception = None) -> None:
+        self._payload = payload
+        self._error = error
+        self.calls = 0
+        self.chat = SimpleNamespace(
+            completions=SimpleNamespace(create=self._create),
+        )
+
+    def _create(self, **_kwargs):
+        self.calls += 1
+        if self._error is not None:
+            raise self._error
+        return SimpleNamespace(
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(content=self._payload),
+                )
+            ]
+        )
+
+
+@pytest.mark.unit
+def test_llm_disabled_path_does_not_call_llm(monkeypatch):
+    monkeypatch.delenv("WORKFLOW_DEMO_ENABLE_DIAGNOSIS_LLM", raising=False)
+    llm = _FakeLLMClient(payload='{"target_lo":"Derivatives","suspected_misconception":"x","confidence":0.9}')
+    diagnoser = MisconceptionDiagnoser(llm_client=llm, llm_model="mock")
+    state = LearnerState(active_session_id="s1", current_focus_lo="Derivatives")
+    diagnosis = diagnoser.diagnose_turn(
+        session_id="s1",
+        user_input="maybe?",
+        current_focus_lo="Derivatives",
+        learner_state=state,
+    )
+    assert diagnosis.suspected_misconception == "uncertain_reasoning"
+    assert llm.calls == 0
+
+
+@pytest.mark.unit
+def test_threshold_high_confidence_skips_llm(monkeypatch):
+    monkeypatch.setenv("WORKFLOW_DEMO_ENABLE_DIAGNOSIS_LLM", "1")
+    llm = _FakeLLMClient(payload='{"target_lo":"Integrals","suspected_misconception":"prerequisite_gap","confidence":0.9}')
+    diagnoser = MisconceptionDiagnoser(llm_client=llm, llm_model="mock")
+    state = LearnerState(active_session_id="s1", current_focus_lo="Integrals")
+    diagnosis = diagnoser.diagnose_turn(
+        session_id="s1",
+        user_input="I'm confused and I don't understand this step.",
+        current_focus_lo="Integrals",
+        learner_state=state,
+    )
+    assert diagnosis.suspected_misconception == "conceptual_confusion"
+    assert llm.calls == 0
+
+
+@pytest.mark.unit
+def test_low_confidence_can_use_llm_override(monkeypatch):
+    monkeypatch.setenv("WORKFLOW_DEMO_ENABLE_DIAGNOSIS_LLM", "1")
+    llm_payload = (
+        '{"target_lo":"Derivatives","suspected_misconception":"prerequisite_gap",'
+        '"confidence":0.82,"rationale":"LLM refinement","prerequisite_gap_los":["Functions"]}'
+    )
+    llm = _FakeLLMClient(payload=llm_payload)
+    diagnoser = MisconceptionDiagnoser(llm_client=llm, llm_model="mock")
+    state = LearnerState(active_session_id="s1", current_focus_lo="Derivatives")
+    diagnosis = diagnoser.diagnose_turn(
+        session_id="s1",
+        user_input="maybe?",
+        current_focus_lo="Derivatives",
+        learner_state=state,
+    )
+    assert diagnosis.suspected_misconception == "prerequisite_gap"
+    assert llm.calls == 1
+
+
+@pytest.mark.unit
+def test_llm_malformed_response_fails_safely(monkeypatch):
+    monkeypatch.setenv("WORKFLOW_DEMO_ENABLE_DIAGNOSIS_LLM", "1")
+    llm = _FakeLLMClient(payload="not valid json")
+    diagnoser = MisconceptionDiagnoser(llm_client=llm, llm_model="mock")
+    state = LearnerState(active_session_id="s1", current_focus_lo="Derivatives")
+    diagnosis = diagnoser.diagnose_turn(
+        session_id="s1",
+        user_input="maybe?",
+        current_focus_lo="Derivatives",
+        learner_state=state,
+    )
+    assert diagnosis.suspected_misconception == "uncertain_reasoning"
+    assert llm.calls == 1
+
+
+@pytest.mark.unit
+def test_llm_exception_fails_safely(monkeypatch):
+    monkeypatch.setenv("WORKFLOW_DEMO_ENABLE_DIAGNOSIS_LLM", "1")
+    llm = _FakeLLMClient(error=RuntimeError("boom"))
+    diagnoser = MisconceptionDiagnoser(llm_client=llm, llm_model="mock")
+    state = LearnerState(active_session_id="s1", current_focus_lo="Derivatives")
+    diagnosis = diagnoser.diagnose_turn(
+        session_id="s1",
+        user_input="maybe?",
+        current_focus_lo="Derivatives",
+        learner_state=state,
+    )
+    assert diagnosis.suspected_misconception == "uncertain_reasoning"
+    assert llm.calls == 1
+
+
+@pytest.mark.unit
+def test_rule_ordering_prefers_power_rule_over_other_matches():
+    diagnoser = MisconceptionDiagnoser()
+    state = LearnerState(active_session_id="s1", current_focus_lo="Derivatives")
+    diagnosis = diagnoser.diagnose_turn(
+        session_id="s1",
+        user_input="I'm confused and forgot basics; derivative of x^2 is x",
+        current_focus_lo="Derivatives",
+        learner_state=state,
+    )
+    assert diagnosis.suspected_misconception == "power_rule_exponent_misapplied"
 
 
 @pytest.mark.unit

@@ -12,8 +12,14 @@ from enum import Enum
 class TeachingMoveType(str, Enum):
     """High-level categories of tutor/coach pedagogical actions."""
 
+    # Canonical Phase 3 generator move types
+    DIAGNOSTIC_QUESTION = "diagnostic_question"
+    GRADUATED_HINT = "graduated_hint"
     EXPLAIN_CONCEPT = "explain_concept"
     WORKED_EXAMPLE = "worked_example"
+    PREREQ_REMEDIATION = "prereq_remediation"
+
+    # Legacy/general move types retained for backward compatibility
     SCAFFOLDED_QUESTION = "scaffolded_question"
     PROBING_QUESTION = "probing_question"
     CORRECTIVE_FEEDBACK = "corrective_feedback"

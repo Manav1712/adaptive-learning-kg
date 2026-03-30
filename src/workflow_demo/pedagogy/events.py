@@ -16,6 +16,8 @@ class PedagogyRuntimeEvent(str, Enum):
     LEARNER_STATE_INITIALIZED = "pedagogy_learner_state_initialized"
     LEARNER_STATE_UPDATED = "pedagogy_learner_state_updated"
     MISCONCEPTION_DIAGNOSED = "pedagogy_misconception_diagnosed"
+    TEACHING_MOVES_GENERATED = "pedagogy_teaching_moves_generated"
+    POLICY_DECISION_MADE = "pedagogy_policy_decision_made"
     DIAGNOSIS_COMPLETED = "pedagogy_diagnosis_completed"
     MOVES_GENERATED = "pedagogy_moves_generated"
     POLICY_SCORED = "pedagogy_policy_scored"

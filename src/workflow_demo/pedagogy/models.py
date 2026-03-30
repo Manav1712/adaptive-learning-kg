@@ -161,22 +161,63 @@ class TeachingMoveCandidate(BaseModel):
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
+    move_id: str = Field(default="", max_length=128)
     move_type: TeachingMoveType
-    priority_score: float = Field(ge=0.0, le=1.0)
+    target_lo: Optional[str] = Field(default=None, max_length=256)
+    reason: str = Field(default="", max_length=4000)
+    retrieval_intent: Optional[RetrievalIntent] = None
+    priority_score: float = Field(default=0.5, ge=0.0, le=1.0)
+    expected_learning_gain: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    leakage_risk: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+
+    # Legacy compatibility fields
     rationale: str = Field(default="", max_length=4000)
     retrieval_intents: list[RetrievalIntent] = Field(default_factory=list, max_length=16)
     metadata: dict[str, str] = Field(default_factory=dict, max_length=32)
+
+    @model_validator(mode="after")
+    def _sync_compatibility_fields(self) -> "TeachingMoveCandidate":
+        if not self.reason and self.rationale:
+            self.reason = self.rationale
+        if not self.rationale and self.reason:
+            self.rationale = self.reason
+        if self.retrieval_intent is None and self.retrieval_intents:
+            self.retrieval_intent = self.retrieval_intents[0]
+        if self.retrieval_intent is not None and not self.retrieval_intents:
+            self.retrieval_intents = [self.retrieval_intent]
+        if self.target_lo is None and self.metadata.get("target_lo"):
+            self.target_lo = self.metadata["target_lo"]
+        return self
 
 
 class PolicyDecision(BaseModel):
     """Result of policy scoring over candidate moves."""
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        extra="forbid",
+        str_strip_whitespace=True,
+        populate_by_name=True,
+    )
 
-    chosen: TeachingMoveCandidate
-    alternatives: list[TeachingMoveCandidate] = Field(default_factory=list, max_length=16)
+    selected_move: TeachingMoveCandidate = Field(
+        validation_alias=AliasChoices("selected_move", "chosen"),
+    )
+    rejected_moves: list[TeachingMoveCandidate] = Field(
+        default_factory=list,
+        max_length=16,
+        validation_alias=AliasChoices("rejected_moves", "alternatives"),
+    )
+    decision_reason: str = Field(default="", max_length=4000)
+    scores: dict[str, float] = Field(default_factory=dict)
     policy_version: str = Field(default="0", max_length=64)
-    trace_notes: str = Field(default="", max_length=4000)
+    trace_notes: str = Field(default="", max_length=4000, exclude=True)
+
+    @model_validator(mode="after")
+    def _sync_compatibility_fields(self) -> "PolicyDecision":
+        # Keep legacy trace_notes meaningful for older debugging paths.
+        if not self.trace_notes and self.decision_reason:
+            self.trace_notes = self.decision_reason
+        return self
 
 
 class CriticVerdict(BaseModel):
@@ -199,7 +240,11 @@ class PedagogicalContext(BaseModel):
     layer_version: str = Field(default="0", max_length=32)
     learner_state: LearnerState
     diagnosis: Optional[MisconceptionDiagnosis] = None
-    policy: Optional[PolicyDecision] = None
+    teaching_moves: list[TeachingMoveCandidate] = Field(default_factory=list, max_length=8)
+    policy_decision: Optional[PolicyDecision] = Field(
+        default=None,
+        validation_alias=AliasChoices("policy_decision", "policy"),
+    )
     last_critic: Optional[CriticVerdict] = None
     active_move: Optional[TeachingMoveCandidate] = None
     extensions: dict[str, Any] = Field(default_factory=dict, max_length=16)

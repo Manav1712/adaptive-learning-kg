@@ -80,7 +80,7 @@ Primary runtime directory: `src/workflow_demo`
 | `coach_router.py` | Policy loop, intent preclassification, planner/session dispatch |
 | `coach_llm_client.py` | Coach LLM call wrapper, retries, directive parsing |
 | `planner.py` | Tutoring plan generation + FAQ topic planning |
-| `retriever.py` | Hybrid retrieval pipeline + caches + optional CLIP/rerank |
+| `retriever.py` | Hybrid retrieval pipeline + caches|
 | `tutor.py` | Tutor and FAQ bot prompts + JSON contract + fallbacks |
 | `bot_sessions.py` | Session lifecycle, handoff, persistence, mastery updates |
 | `session_memory.py` | Bounded session store + JSON persistence |
@@ -89,7 +89,7 @@ Primary runtime directory: `src/workflow_demo`
 | `data_loader.py` | CSV loading and graph lookup maps |
 | `models.py` | Shared dataclasses (`Retrieval*`, legacy `SessionPlan`/`PlanStep`) |
 | `runtime_events.py` | Structured runtime event primitives |
-| `demo_profiles.py` | Strong/weak demo mastery seeds |
+| `demo_profiles.py` | Demo profiles of students |
 | `json_utils.py` | Robust JSON coercion from LLM responses |
 
 Related validation suite: `tests/workflow_demo`
