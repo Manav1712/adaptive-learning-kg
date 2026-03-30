@@ -69,3 +69,8 @@ example_notebooks/**/*.hdf5
 # Frontend
 node_modules/
 frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Local demo runtime (do not commit)
+/session_memory.json
