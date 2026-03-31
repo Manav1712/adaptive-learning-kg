@@ -200,3 +200,102 @@ def test_pedagogy_phase0_package_import_surface():
     assert pedagogy.RetrievalIntent.PRACTICE_ITEM.value == "practice_item"
     assert pedagogy.PedagogyRuntimeEvent.POLICY_SCORED.value == "pedagogy_policy_scored"
     assert "PedagogicalContext" in pedagogy.__all__
+
+
+@pytest.mark.integration
+def test_tutor_retrieval_debug_command_skips_tutor_llm_and_pedagogy_pipeline(
+    monkeypatch, coach_agent
+):
+    """!retrieval must not invoke tutor_bot or run diagnosis / retrieval refresh."""
+
+    def _tutor_should_not_run(**kwargs):
+        raise AssertionError("tutor_bot must not run for !retrieval")
+
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _tutor_should_not_run)
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-1"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "Derivatives",
+            "mode": "practice",
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-1"},
+            "layer_version": "1",
+            "target_lo": "Derivatives",
+            "instruction_lo": "Slope",
+            "retrieval_intent": "teach_current_concept",
+            "retrieval_action": "reuse_pack",
+            "retrieval_execution_mode": "no_io",
+            "retrieval_session": {
+                "pack_focus_lo": "Derivatives",
+                "pack_revision": 2,
+                "last_diagnosis_fingerprint": "a|b|c",
+                "last_selected_move_type": "worked_example",
+            },
+            "policy_decision": {"decision_reason": "picked best"},
+            "tutor_instruction_directives": {"policy_reason": "picked best"},
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    out = coach_agent.process_turn("!retrieval")
+    assert "[DEBUG]" in out
+    assert "tutor_instruction_directives.policy_reason" in out
+    assert "Tutor retrieval / pedagogy state" in out
+    assert "Derivatives" in out
+    assert "reuse_pack" in out
+    assert "pack_revision" in out
+
+
+@pytest.mark.integration
+def test_tutor_normal_turn_after_retrieval_debug(monkeypatch, coach_agent):
+    """After !retrieval, ordinary student text still reaches the tutor path once."""
+
+    calls = []
+
+    def _tutor(**kwargs):
+        calls.append("tutor")
+        return {
+            "message_to_student": "ok",
+            "end_activity": False,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": {
+                "topics_covered": [],
+                "student_understanding": "good",
+                "suggested_next_topic": None,
+                "switch_topic_request": None,
+                "switch_mode_request": None,
+                "notes": "",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _tutor)
+    monkeypatch.setattr(
+        "src.workflow_demo.bot_sessions.BotSessionManager._run_misconception_diagnosis",
+        lambda *a, **k: None,
+    )
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-1"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "Derivatives",
+            "mode": "practice",
+        },
+        "pedagogy_context": {"learner_state": {"active_session_id": "sess-1"}},
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("!retrieval")
+    assert calls == []
+    coach_agent.process_turn("hello")
+    assert calls == ["tutor"]

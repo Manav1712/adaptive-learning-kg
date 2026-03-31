@@ -1,22 +1,85 @@
-"""
-Learner-state engine for tutor-session scoped updates.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Mapping, Optional, TypeVar
+
+from pydantic import BaseModel, Field
 
 from .events import PedagogyRuntimeEvent
-from .models import AttemptRecord, LearnerState, MisconceptionDiagnosis
+from .models import AttemptRecord, HintEvent, LearnerState, MisconceptionDiagnosis
 from .state_store import LearnerStateStore
 
 
 PedagogyEventEmitter = Callable[[str, str, Dict[str, Any]], None]
 
+MAX_RECENT_ATTEMPTS = 32
+MAX_HINT_EVENTS = 64
+MAX_RESPONSE_EXCERPT_CHARS = 1000
+DEFAULT_CONFIDENCE = 0.5
+
+_T = TypeVar("_T")
+
+
+class LearnerStateSnapshot(BaseModel):
+    current_focus_lo: Optional[str] = None
+    recent_attempt_count: int = 0
+    hint_count: int = 0
+    top_mastery: list[tuple[str, float]] = Field(default_factory=list)
+    recent_misconceptions: dict[str, list[str]] = Field(default_factory=dict)
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _normalize_lo_ref(value: Optional[object]) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _coerce_bounded_float_map(raw: object) -> dict[str, float]:
+    if not isinstance(raw, Mapping):
+        return {}
+    out: dict[str, float] = {}
+    for raw_key, raw_value in raw.items():
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if 0.0 <= value <= 1.0:
+            key = _normalize_lo_ref(raw_key)
+            if key:
+                out[key] = value
+    return out
+
+
+def _clip_text(text: Optional[str], limit: int) -> str:
+    return (text or "").strip()[:limit]
+
+
+def _append_bounded(items: list[_T], item: _T, limit: int) -> list[_T]:
+    return [*items, item][-limit:]
+
 
 class LearnerStateEngine:
-    """Initializes and updates learner state during tutoring sessions."""
+    """
+    Phase-4 learner-state service.
+
+    Responsibilities:
+    - seed session state from durable student_profile
+    - persist turn observations
+    - persist misconception evidence
+    - persist structured hint events
+    - expose a structured snapshot for downstream prompt/policy code
+
+    Non-responsibilities:
+    - prompt string formatting
+    - KT/BKT updates
+    - policy scoring
+    - retrieval routing
+    """
 
     def __init__(
         self,
@@ -29,36 +92,49 @@ class LearnerStateEngine:
     def initialize_from_profile(
         self,
         session_id: str,
-        student_profile: Optional[Dict[str, Any]],
+        student_profile: Optional[Mapping[str, Any]],
         current_focus_lo: Optional[str] = None,
     ) -> LearnerState:
         """
-        Initialize or refresh learner state from a profile payload.
+        Seed learner state from a durable profile.
 
-        The profile is expected to optionally include `lo_mastery`.
+        Important:
+        - Creates fresh state if missing.
+        - If state already exists, preserves live session evidence and only fills
+          missing seeded fields.
         """
+        existing = self.store.get(session_id)
         profile = student_profile or {}
-        lo_mastery = profile.get("lo_mastery") if isinstance(profile, dict) else {}
-        mastery: Dict[str, float] = {}
-        if isinstance(lo_mastery, dict):
-            for raw_key, raw_value in lo_mastery.items():
-                try:
-                    value = float(raw_value)
-                except (TypeError, ValueError):
-                    continue
-                if 0.0 <= value <= 1.0:
-                    mastery[str(raw_key)] = value
 
-        current = self.store.get(session_id)
-        state = LearnerState(
-            active_session_id=session_id,
-            current_focus_lo=current_focus_lo or (current.current_focus_lo if current else None),
-            mastery=mastery,
-            misconceptions=dict((current.misconceptions if current else {})),
-            recent_attempts=list((current.recent_attempts if current else [])),
-            hint_history=list((current.hint_history if current else [])),
-        )
-        stored = self.store.set(session_id, state)
+        seed_mastery = _coerce_bounded_float_map(profile.get("lo_mastery"))
+        seed_confidence = _coerce_bounded_float_map(profile.get("confidence_seed"))
+
+        if existing is None:
+            state = LearnerState(
+                active_session_id=session_id,
+                current_focus_lo=_normalize_lo_ref(current_focus_lo),
+                mastery=seed_mastery,
+                confidence=seed_confidence,
+                misconceptions={},
+                recent_attempts=[],
+                hint_events=[],
+            )
+            stored = self.store.set(session_id, state)
+        else:
+            merged_mastery = {**seed_mastery, **existing.mastery}
+            merged_confidence = {
+                **{key: DEFAULT_CONFIDENCE for key in merged_mastery},
+                **seed_confidence,
+                **existing.confidence,
+            }
+            stored = self.store.update(
+                session_id,
+                active_session_id=session_id,
+                current_focus_lo=_normalize_lo_ref(current_focus_lo) or existing.current_focus_lo,
+                mastery=merged_mastery,
+                confidence=merged_confidence,
+            )
+
         self._emit(
             PedagogyRuntimeEvent.LEARNER_STATE_INITIALIZED.value,
             "Initialized learner state.",
@@ -79,23 +155,25 @@ class LearnerStateEngine:
         is_correct: Optional[bool] = None,
         latency_ms: Optional[int] = None,
     ) -> LearnerState:
-        """Append one attempt record and persist the updated learner state."""
         state = self.store.ensure(session_id)
+
         attempt = AttemptRecord(
             attempt_id=f"{session_id}:turn:{turn_index}:attempt:{len(state.recent_attempts) + 1}",
             turn_index=turn_index,
             lo_id=lo_id,
             is_correct=is_correct,
-            student_response_excerpt=(student_text or "")[:4000],
+            student_response_excerpt=_clip_text(student_text, MAX_RESPONSE_EXCERPT_CHARS),
             latency_ms=latency_ms,
-            created_at_iso=datetime.now(timezone.utc).isoformat(),
+            created_at_iso=_utc_now_iso(),
         )
-        attempts = [*state.recent_attempts, attempt][-32:]
+
         updated = self.store.update(
             session_id,
-            recent_attempts=attempts,
-            current_focus_lo=state.current_focus_lo or (str(lo_id) if lo_id is not None else None),
+            recent_attempts=_append_bounded(state.recent_attempts, attempt, MAX_RECENT_ATTEMPTS),
+            current_focus_lo=state.current_focus_lo
+            or (str(lo_id) if lo_id is not None else None),
         )
+
         self._emit(
             PedagogyRuntimeEvent.LEARNER_STATE_UPDATED.value,
             "Recorded learner attempt.",
@@ -104,6 +182,7 @@ class LearnerStateEngine:
                 "turn_index": turn_index,
                 "attempt_count": len(updated.recent_attempts),
                 "current_focus_lo": updated.current_focus_lo,
+                "update_kind": "attempt",
             },
         )
         return updated
@@ -113,24 +192,25 @@ class LearnerStateEngine:
         session_id: str,
         diagnosis: MisconceptionDiagnosis,
     ) -> LearnerState:
-        """
-        Persist one misconception evidence label under state.misconceptions[target_lo].
-
-        Repeated misconception labels for the same target LO are deduplicated.
-        """
         state = self.store.ensure(session_id)
-        target_lo = (diagnosis.target_lo or state.current_focus_lo or "unknown").strip() or "unknown"
+
+        target_lo = _normalize_lo_ref(diagnosis.target_lo) or state.current_focus_lo or "unknown"
+        label = (diagnosis.suspected_misconception or "").strip()
+        if not label:
+            return state
+
         misconceptions = dict(state.misconceptions)
         existing = list(misconceptions.get(target_lo, []))
-        entry = diagnosis.suspected_misconception.strip()
-        if entry and entry not in existing:
-            existing.append(entry)
+        if label not in existing:
+            existing.append(label)
         misconceptions[target_lo] = existing
+
         updated = self.store.update(
             session_id,
             misconceptions=misconceptions,
             current_focus_lo=state.current_focus_lo or target_lo,
         )
+
         self._emit(
             PedagogyRuntimeEvent.LEARNER_STATE_UPDATED.value,
             "Persisted misconception evidence.",
@@ -138,6 +218,7 @@ class LearnerStateEngine:
                 "session_id": session_id,
                 "target_lo": target_lo,
                 "misconception_count_for_lo": len(updated.misconceptions.get(target_lo, [])),
+                "update_kind": "misconception",
             },
         )
         return updated
@@ -146,36 +227,63 @@ class LearnerStateEngine:
         self,
         session_id: str,
         hint_text: str,
+        *,
+        hint_type: str = "other",
+        target_lo: Optional[str] = None,
+        turn_index: Optional[int] = None,
     ) -> LearnerState:
-        """Append one hint event to learner state history."""
         state = self.store.ensure(session_id)
-        hint = (hint_text or "").strip()
-        if not hint:
+        excerpt = _clip_text(hint_text, 500)
+        if not excerpt:
             return state
-        hint_history = [*state.hint_history, hint][-64:]
-        updated = self.store.update(session_id, hint_history=hint_history)
+
+        event = HintEvent(
+            hint_type=hint_type,
+            target_lo=_normalize_lo_ref(target_lo) or state.current_focus_lo,
+            text_excerpt=excerpt,
+            turn_index=turn_index,
+            created_at_iso=_utc_now_iso(),
+        )
+
+        updated = self.store.update(
+            session_id,
+            hint_events=_append_bounded(state.hint_events, event, MAX_HINT_EVENTS),
+        )
+
         self._emit(
             PedagogyRuntimeEvent.LEARNER_STATE_UPDATED.value,
             "Attached hint event.",
             {
                 "session_id": session_id,
-                "hint_history_count": len(updated.hint_history),
+                "hint_events_count": len(updated.hint_events),
+                "update_kind": "hint",
             },
         )
         return updated
 
-    def summarize_for_prompt(self, session_id: str) -> str:
-        """Return a compact learner-state summary string for optional prompts."""
+    def build_snapshot(self, session_id: str) -> LearnerStateSnapshot:
         state = self.store.get(session_id)
-        if not state:
-            return "Learner state unavailable."
-        focus = state.current_focus_lo or "none"
-        attempts = len(state.recent_attempts)
-        mastery_items = sorted(state.mastery.items(), key=lambda kv: -kv[1])[:3]
-        mastery_text = ", ".join(f"{key}:{value:.2f}" for key, value in mastery_items) or "none"
-        return (
-            f"focus={focus}; attempts={attempts}; "
-            f"mastery_top={mastery_text}; hints={len(state.hint_history)}"
+        if state is None:
+            return LearnerStateSnapshot()
+
+        top_mastery = sorted(
+            state.mastery.items(),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )[:3]
+
+        recent_misconceptions = {
+            lo: labels[-2:]
+            for lo, labels in state.misconceptions.items()
+            if labels
+        }
+
+        return LearnerStateSnapshot(
+            current_focus_lo=state.current_focus_lo,
+            recent_attempt_count=len(state.recent_attempts),
+            hint_count=len(state.hint_events),
+            top_mastery=top_mastery,
+            recent_misconceptions=recent_misconceptions,
         )
 
     def _emit(self, event_type: str, message: str, metadata: Dict[str, Any]) -> None:

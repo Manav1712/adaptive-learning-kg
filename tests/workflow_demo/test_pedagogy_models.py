@@ -11,6 +11,7 @@ from src.workflow_demo.pedagogy.constants import RetrievalIntent, TeachingMoveTy
 from src.workflow_demo.pedagogy.models import (
     AttemptRecord,
     CriticVerdict,
+    HintEvent,
     LearnerState,
     MisconceptionDiagnosis,
     PedagogicalContext,
@@ -56,6 +57,33 @@ def test_learner_state_mastery_bounds():
         LearnerState(lo_mastery_proxy={"Bad": 1.01})
     with pytest.raises(ValidationError):
         LearnerState(lo_mastery_proxy={"Bad": -0.01})
+
+
+@pytest.mark.unit
+def test_hint_event_json_round_trip():
+    ev = HintEvent(
+        hint_type="graduated_hint",
+        target_lo="Derivatives",
+        text_excerpt="Remember the power rule.",
+        turn_index=2,
+        created_at_iso="2026-03-29T12:00:00+00:00",
+    )
+    restored = HintEvent.model_validate(ev.model_dump(mode="json"))
+    assert restored == ev
+
+
+@pytest.mark.unit
+def test_learner_state_migrates_legacy_hint_history_strings():
+    state = LearnerState.model_validate(
+        {
+            "active_session_id": "s1",
+            "hint_history": ["first hint", "second"],
+        }
+    )
+    assert len(state.hint_events) == 2
+    assert state.hint_events[0].hint_type == "legacy_string"
+    assert state.hint_events[0].text_excerpt == "first hint"
+    assert state.hint_events[1].text_excerpt == "second"
 
 
 @pytest.mark.unit

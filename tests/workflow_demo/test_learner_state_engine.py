@@ -41,7 +41,7 @@ def test_initialize_from_profile():
     assert state.current_focus_lo == "Derivatives"
     assert state.mastery == {"Derivatives": 0.8, "Limits": 0.4}
     assert state.recent_attempts == []
-    assert state.hint_history == []
+    assert state.hint_events == []
     assert events[-1]["event_type"] == "pedagogy_learner_state_initialized"
 
 
@@ -53,7 +53,7 @@ def test_initialize_with_missing_profile():
     assert state.mastery == {}
     assert state.misconceptions == {}
     assert state.recent_attempts == []
-    assert state.hint_history == []
+    assert state.hint_events == []
 
 
 @pytest.mark.unit
@@ -76,11 +76,14 @@ def test_record_turn_appends_attempt():
 
 
 @pytest.mark.unit
-def test_attach_hint_event_updates_hint_history():
+def test_attach_hint_event_appends_typed_hint():
     engine = LearnerStateEngine(store=LearnerStateStore())
     engine.initialize_from_profile("s1", {"lo_mastery": {}})
     state = engine.attach_hint_event("s1", "Try applying the power rule.")
-    assert state.hint_history[-1] == "Try applying the power rule."
+    assert len(state.hint_events) == 1
+    assert state.hint_events[-1].text_excerpt == "Try applying the power rule."
+    assert state.hint_events[-1].hint_type == "other"
+    assert state.hint_events[-1].created_at_iso
 
 
 @pytest.mark.integration

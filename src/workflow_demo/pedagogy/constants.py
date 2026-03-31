@@ -3,11 +3,7 @@ Canonical teaching-move and retrieval-intent labels for the pedagogy layer.
 
 These values are stable API surface for planners, policy, and telemetry.
 """
-
-from __future__ import annotations
-
 from enum import Enum
-
 
 class TeachingMoveType(str, Enum):
     """High-level categories of tutor/coach pedagogical actions."""
@@ -38,3 +34,20 @@ class RetrievalIntent(str, Enum):
     PRACTICE_ITEM = "practice_item"
     VISUAL_OR_DIAGRAM = "visual_or_diagram"
     MISCONCEPTION_REPAIR = "misconception_repair"
+
+
+class PedagogicalRetrievalIntent(str, Enum):
+    """Step-1 pedagogical intent for tutor-turn retrieval policy (not retriever bias)."""
+
+    TEACH_CURRENT_CONCEPT = "teach_current_concept"
+    REPAIR_PREREQUISITE = "repair_prerequisite"
+    RETRIEVE_WORKED_EXAMPLE = "retrieve_worked_example"
+    RETRIEVE_MISCONCEPTION_SUPPORT = "retrieve_misconception_support"
+
+
+class RetrievalExecutionMode(str, Enum):
+    """Physical executor behavior for one tutor turn (v1 mapping from logical action)."""
+
+    NO_IO = "no_io"
+    CONSTRAINED_REFRESH = "constrained_refresh"
+    FULL_REFRESH = "full_refresh"

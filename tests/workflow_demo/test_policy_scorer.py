@@ -297,6 +297,15 @@ def test_tutor_flow_populates_policy_decision_and_faq_untouched(monkeypatch, coa
     assert policy.get("rejected_moves") is not None
     assert policy.get("scores")
 
+    tid = pedagogy_context.get("tutor_instruction_directives") or {}
+    assert tid.get("session_target_lo")
+    assert tid.get("instruction_lo") is not None
+    assert tid.get("selected_move_type")
+    assert "retrieval_intent" in tid
+    assert "retrieval_action" in tid
+    assert "policy_reason" in tid
+    assert "retrieval_execution_mode" not in tid
+
     # FAQ path should not create pedagogy_context.
     coach_agent.planner_result = {
         "status": "complete",

@@ -19,6 +19,7 @@ from .pedagogy import (
     LearnerStateStore,
     MisconceptionDiagnoser,
     PedagogicalContext,
+    RetrievalSessionSnapshot,
 )
 from .retriever import TeachingPackRetriever
 from .runtime_events import RuntimeEventCallback, emit_runtime_event
@@ -185,7 +186,15 @@ class CoachAgent:
             student_profile=self.student_profile,
             current_focus_lo=current_focus_lo,
         )
-        pedagogy_context = PedagogicalContext(learner_state=learner_state)
+        seed_lo = (current_focus_lo or "").strip() or None
+        pedagogy_context = PedagogicalContext(
+            learner_state=learner_state,
+            target_lo=seed_lo,
+            instruction_lo=seed_lo,
+            retrieval_session=RetrievalSessionSnapshot(
+                pack_focus_lo=(seed_lo or ""),
+            ),
+        )
         return pedagogy_context.model_dump(mode="json")
 
     def process_turn(self, user_input: str) -> str:

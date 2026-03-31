@@ -153,3 +153,61 @@ def test_tutor_bot_recovers_after_retry(
     )
     assert result["message_to_student"] == sample_tutor_response["message_to_student"]
     assert len(mock_openai_client.calls) == 2
+
+
+@pytest.mark.unit
+def test_tutor_bot_payload_includes_tutor_instruction_directives(
+    mock_openai_client, sample_tutor_response, sample_handoff_context
+):
+    """Canonical tutor_instruction_directives and legacy tutor_directives keys share six fields."""
+    handoff = dict(sample_handoff_context)
+    handoff["pedagogy_context"] = {
+        "tutor_instruction_directives": {
+            "session_target_lo": "FTC",
+            "instruction_lo": "Integrals",
+            "selected_move_type": "prereq_remediation",
+            "retrieval_intent": "repair_prerequisite",
+            "retrieval_action": "reuse_pack",
+            "policy_reason": "test",
+        }
+    }
+    mock_openai_client.queue_response(sample_tutor_response)
+    tutor_bot(
+        llm_client=mock_openai_client,
+        llm_model="mock-model",
+        handoff_context=handoff,
+        conversation_history=[],
+    )
+    payload = json.loads(mock_openai_client.calls[0]["messages"][1]["content"])
+    assert payload["tutor_instruction_directives"]["session_target_lo"] == "FTC"
+    assert payload["tutor_instruction_directives"]["retrieval_action"] == "reuse_pack"
+    assert payload["tutor_directives"] == payload["tutor_instruction_directives"]
+    assert "retrieval_execution_mode" not in payload["tutor_instruction_directives"]
+
+
+@pytest.mark.unit
+def test_tutor_bot_payload_falls_back_to_legacy_tutor_directives(
+    mock_openai_client, sample_tutor_response, sample_handoff_context
+):
+    """Legacy pedagogy_context.tutor_directives (six fields) fills tutor_instruction_directives in payload."""
+    handoff = dict(sample_handoff_context)
+    handoff["pedagogy_context"] = {
+        "tutor_directives": {
+            "session_target_lo": "A",
+            "instruction_lo": "B",
+            "selected_move_type": "diagnostic_question",
+            "retrieval_intent": "teach_current_concept",
+            "retrieval_action": "reuse_pack",
+            "policy_reason": "legacy",
+        }
+    }
+    mock_openai_client.queue_response(sample_tutor_response)
+    tutor_bot(
+        llm_client=mock_openai_client,
+        llm_model="mock-model",
+        handoff_context=handoff,
+        conversation_history=[],
+    )
+    payload = json.loads(mock_openai_client.calls[0]["messages"][1]["content"])
+    assert payload["tutor_instruction_directives"]["selected_move_type"] == "diagnostic_question"
+    assert payload["tutor_instruction_directives"]["policy_reason"] == "legacy"

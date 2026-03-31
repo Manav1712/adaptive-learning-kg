@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import base64
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from json import JSONDecodeError
@@ -13,6 +14,32 @@ from json import JSONDecodeError
 from openai import OpenAI
 
 from .json_utils import coerce_json
+from .pedagogy.math_example_guard import maybe_apply_math_example_guard
+
+# Canonical Phase 6 conditioning object (also dual-written as tutor_directives on pedagogy_context).
+TUTOR_INSTRUCTION_DIRECTIVE_KEYS: tuple[str, ...] = (
+    "session_target_lo",
+    "instruction_lo",
+    "selected_move_type",
+    "retrieval_intent",
+    "retrieval_action",
+    "policy_reason",
+)
+
+
+def extract_tutor_instruction_directives(
+    pedagogy_context: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Build the six-field conditioning dict for the tutor payload; prefer canonical key, else legacy."""
+    if not isinstance(pedagogy_context, dict):
+        return {}
+    raw = pedagogy_context.get("tutor_instruction_directives")
+    if isinstance(raw, dict) and raw:
+        return {k: raw.get(k) for k in TUTOR_INSTRUCTION_DIRECTIVE_KEYS}
+    legacy = pedagogy_context.get("tutor_directives")
+    if isinstance(legacy, dict) and legacy:
+        return {k: legacy.get(k) for k in TUTOR_INSTRUCTION_DIRECTIVE_KEYS}
+    return {}
 
 
 TUTOR_SYSTEM_PROMPT = """You are the learning tutor. The student thinks they are talking to the same assistant,
@@ -34,8 +61,41 @@ You receive:
   - future_plan: 1 LO for next session
   - mode: conceptual_review | examples | practice
   - subject, book, unit, chapter
+  - teaching_pack: key_points, examples, practice, etc. (when present)
+- tutor_instruction_directives (top-level JSON; may be {}): exactly when non-empty:
+  - session_target_lo: stable session learning goal for this tutoring session
+  - instruction_lo: immediate instructional focus for THIS turn (may differ from session_target_lo)
+  - selected_move_type: pedagogical move the system chose
+  - retrieval_intent, retrieval_action: how materials were chosen this turn (hint only)
+  - policy_reason: short rationale for the move (hint only; do not quote as if the student said it)
 - conversation_history: messages inside THIS tutoring session only
 - image: If provided, you can see it directly
+
+Move conditioning (mandatory when tutor_instruction_directives is non-empty):
+- Precedence: If this section conflicts with "Teaching Flow" below on how much to say, or whether to ask vs explain, or what to lead with, the rules HERE win for this turn. Still respect out-of-plan detection and JSON output schema.
+- Always anchor the visible teaching move to instruction_lo. Use session_target_lo when stating what the learner is ultimately working toward (especially for prerequisite work).
+- Use policy_reason only as a private hint for why this move was chosen; never present it as student wording.
+
+When selected_move_type is diagnostic_question:
+- Lead with one focused question (or at most one short setup sentence, then the question). Do not give a full explanation or worked solution before the student answers.
+- Avoid solution leakage: no final answers, no "the answer is" before the student responds.
+- The question must clearly target instruction_lo (or a concrete instance of it).
+
+When selected_move_type is graduated_hint:
+- Give one step or nudge toward the next student action; do not present a complete solution path.
+- Prefer progressive language ("try this next", "notice that") over closing the problem.
+
+When selected_move_type is worked_example:
+- Use an example-shaped response (setup, steps, brief takeaway). When retrieval_action is reuse_pack and teaching_pack has examples or key_points, ground the example primarily in that pack text; avoid inventing unsupported numeric or symbolic details. If the pack is thin, say so briefly and stay conservative.
+
+When selected_move_type is prereq_remediation:
+- Explicitly frame instruction_lo as a prerequisite needed for session_target_lo (in student-facing language).
+- Teach the prerequisite in the body of the message.
+- End with one or two sentences reconnecting how this prerequisite supports or enables session_target_lo.
+- Do not behave as if the session goal permanently changed to instruction_lo; session_target_lo remains the long-term lesson goal.
+
+For any other selected_move_type:
+- Follow instruction_lo and policy_reason with a short response appropriate to the label (e.g. explain_concept: concise conceptual explanation without a full exam solution unless mode clearly requires it).
 
 Teaching Flow:
 1. Start with the PRIMARY LO (is_primary=true) - dive straight into teaching
@@ -152,8 +212,20 @@ def tutor_bot(
     )
     retrieved_images = teaching_pack.get("images") if isinstance(teaching_pack, dict) else None
 
+    pedagogy_ctx = (
+        handoff_context.get("pedagogy_context")
+        if isinstance(handoff_context, dict)
+        else None
+    )
+    tutor_instruction_directives = extract_tutor_instruction_directives(
+        pedagogy_ctx if isinstance(pedagogy_ctx, dict) else None
+    )
+
     payload = {
         "handoff_context": handoff_context,
+        "tutor_instruction_directives": tutor_instruction_directives,
+        # Legacy payload key: same six fields as tutor_instruction_directives for log/API compatibility.
+        "tutor_directives": tutor_instruction_directives,
         "conversation_history": conversation_history[-12:],
         "retrieved_images": retrieved_images or [],  # Includes 'path' field for student viewing
     }
@@ -182,7 +254,10 @@ def tutor_bot(
         warning_label="Tutor",
     )
     if content is not None:
-        return _normalize_tutor_response(coerce_json(content))
+        normalized = _normalize_tutor_response(coerce_json(content))
+        if os.getenv("WORKFLOW_DEMO_TUTOR_MATH_GUARD", "").lower() in ("1", "true", "yes"):
+            normalized = maybe_apply_math_example_guard(normalized, handoff_context)
+        return normalized
 
     print("[Tutor] Warning: invalid tutor JSON response after retry. Using fallback.")
     return _fallback_tutor_response(

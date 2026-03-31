@@ -1,12 +1,15 @@
 """
-Optional pedagogical decision layer (Phase 0: types and constants only).
+Pedagogical decision layer (Phase 0: types and constants only).
 
 Not wired into coach, planner, retriever, or tutor until later phases.
 """
 
-from __future__ import annotations
-
-from .constants import RetrievalIntent, TeachingMoveType
+from .constants import (
+    PedagogicalRetrievalIntent,
+    RetrievalExecutionMode,
+    RetrievalIntent,
+    TeachingMoveType,
+)
 from .diagnosis import MisconceptionDiagnoser
 from .events import PedagogyRuntimeEvent
 from .learner_state import LearnerStateEngine
@@ -15,28 +18,56 @@ from .teaching_moves import TeachingMoveGenerator
 from .models import (
     AttemptRecord,
     CriticVerdict,
+    HintEvent,
     LearnerState,
     MisconceptionDiagnosis,
     PedagogicalContext,
     PolicyDecision,
+    RetrievalSessionSnapshot,
     TeachingMoveCandidate,
 )
 from .state_store import LearnerStateStore
+from .retrieval_policy import (
+    PedagogicalRetrievalPolicy,
+    PedagogicalRetrievalOutput,
+    RetrievalPolicyAction,
+    decide_pedagogical_retrieval_intent,
+    decide_retrieval_action,
+    diagnosis_fingerprint,
+    map_action_to_execution_mode,
+    parse_prior_snapshot,
+    parse_prior_state,
+)
+from .instruction_lo import derive_instruction_lo
 
 __all__ = [
     "AttemptRecord",
     "CriticVerdict",
+    "HintEvent",
     "LearnerState",
     "LearnerStateEngine",
     "LearnerStateStore",
     "MisconceptionDiagnoser",
     "MisconceptionDiagnosis",
     "PedagogicalContext",
+    "PedagogicalRetrievalIntent",
     "PedagogyRuntimeEvent",
     "PolicyScorer",
     "PolicyDecision",
+    "RetrievalExecutionMode",
     "RetrievalIntent",
+    "RetrievalPolicyAction",
+    "RetrievalSessionSnapshot",
     "TeachingMoveGenerator",
     "TeachingMoveCandidate",
     "TeachingMoveType",
+    "PedagogicalRetrievalPolicy",
+    "PedagogicalRetrievalOutput",
+    "decide_pedagogical_retrieval_intent",
+    "decide_retrieval_action",
+    "derive_instruction_lo",
+    "diagnosis_fingerprint",
+    "map_action_to_execution_mode",
+    "parse_prior_snapshot",
+    "parse_prior_state",
 ]

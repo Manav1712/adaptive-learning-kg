@@ -1,17 +1,31 @@
 """
-Pydantic models for the optional pedagogical decision layer (Phase 0).
+Pydantic models for the  pedagogical decision layer (Phase 0).
 
 These types are not yet consumed by coach, planner, or tutor; they define
 the contract for later phases.
 """
 
-from __future__ import annotations
-
 from typing import Any, Optional
-
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .constants import RetrievalIntent, TeachingMoveType
+from .constants import (
+    PedagogicalRetrievalIntent,
+    RetrievalExecutionMode,
+    RetrievalIntent,
+    TeachingMoveType,
+)
+
+
+class HintEvent(BaseModel):
+    """One hint shown to the learner within a tutor session (typed history, Phase 1)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    hint_type: str = Field(default="other", min_length=1, max_length=64)
+    target_lo: Optional[str] = Field(default=None, max_length=256)
+    text_excerpt: str = Field(default="", max_length=500)
+    turn_index: Optional[int] = Field(default=None, ge=0)
+    created_at_iso: str = Field(default="", max_length=64)
 
 
 class AttemptRecord(BaseModel):
@@ -52,9 +66,10 @@ class LearnerState(BaseModel):
         default_factory=dict,
         validation_alias=AliasChoices("mastery", "lo_mastery_proxy"),
     )
+    confidence: dict[str, float] = Field(default_factory=dict)
     misconceptions: dict[str, list[str]] = Field(default_factory=dict)
     recent_attempts: list[AttemptRecord] = Field(default_factory=list, max_length=32)
-    hint_history: list[str] = Field(default_factory=list, max_length=64)
+    hint_events: list[HintEvent] = Field(default_factory=list, max_length=64)
 
     @model_validator(mode="before")
     @classmethod
@@ -67,6 +82,38 @@ class LearnerState(BaseModel):
             data["misconceptions"] = {"__legacy__": [str(item) for item in misconceptions]}
         return data
 
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_hint_history_strings(cls, data: Any) -> Any:
+        """Coerce legacy hint_history: list[str] into hint_events: list[HintEvent]."""
+        if not isinstance(data, dict):
+            return data
+        out = dict(data)
+        legacy_events = out.get("hint_events")
+        has_nonempty_events = isinstance(legacy_events, list) and len(legacy_events) > 0
+        legacy = out.get("hint_history")
+        if isinstance(legacy, list) and legacy:
+            if not has_nonempty_events:
+                migrated: list[dict[str, Any]] = []
+                for item in legacy:
+                    if isinstance(item, str):
+                        text = item.strip()
+                        if text:
+                            migrated.append(
+                                {
+                                    "hint_type": "legacy_string",
+                                    "text_excerpt": text[:500],
+                                    "created_at_iso": "",
+                                }
+                            )
+                    elif isinstance(item, dict):
+                        migrated.append(item)
+                out["hint_events"] = migrated
+            out.pop("hint_history", None)
+        elif "hint_history" in out:
+            out.pop("hint_history", None)
+        return out
+
     @field_validator("current_focus_lo", mode="before")
     @classmethod
     def _coerce_focus_to_string(cls, value: Any) -> Optional[str]:
@@ -75,14 +122,12 @@ class LearnerState(BaseModel):
         text = str(value).strip()
         return text or None
 
-    @field_validator("mastery")
+    @field_validator("mastery", "confidence")
     @classmethod
-    def _mastery_in_unit_interval(cls, v: dict[str, float]) -> dict[str, float]:
+    def _bounded_unit_interval_maps(cls, v: dict[str, float]) -> dict[str, float]:
         for key, val in v.items():
             if not 0.0 <= val <= 1.0:
-                raise ValueError(
-                    f"mastery[{key!r}] must be in [0.0, 1.0], got {val!r}"
-                )
+                raise ValueError(f"{key!r} must map to [0.0, 1.0], got {val!r}")
         return v
 
     @field_validator("misconceptions")
@@ -232,12 +277,23 @@ class CriticVerdict(BaseModel):
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
+class RetrievalSessionSnapshot(BaseModel):
+    """Cross-turn retrieval policy state (optional nested field on PedagogicalContext)."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    pack_focus_lo: str = Field(default="", max_length=512)
+    pack_revision: int = Field(default=0, ge=0)
+    last_diagnosis_fingerprint: str = Field(default="", max_length=1024)
+    last_selected_move_type: Optional[str] = Field(default=None, max_length=64)
+
+
 class PedagogicalContext(BaseModel):
     """Bundle carried alongside tutoring handoffs when the layer is active."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    layer_version: str = Field(default="0", max_length=32)
+    layer_version: str = Field(default="1", max_length=32)
     learner_state: LearnerState
     diagnosis: Optional[MisconceptionDiagnosis] = None
     teaching_moves: list[TeachingMoveCandidate] = Field(default_factory=list, max_length=8)
@@ -248,3 +304,10 @@ class PedagogicalContext(BaseModel):
     last_critic: Optional[CriticVerdict] = None
     active_move: Optional[TeachingMoveCandidate] = None
     extensions: dict[str, Any] = Field(default_factory=dict, max_length=16)
+    # Session vs turn instructional focus (Phase 5). diagnosis.target_lo follows single-pass diagnoser input.
+    target_lo: Optional[str] = Field(default=None, max_length=512)
+    instruction_lo: Optional[str] = Field(default=None, max_length=512)
+    retrieval_intent: Optional[PedagogicalRetrievalIntent] = None
+    retrieval_action: Optional[str] = Field(default=None, max_length=32)
+    retrieval_execution_mode: Optional[RetrievalExecutionMode] = None
+    retrieval_session: Optional[RetrievalSessionSnapshot] = None
