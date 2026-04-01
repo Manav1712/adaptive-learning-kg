@@ -4,10 +4,17 @@ Deterministic policy scorer that selects one teaching move candidate.
 
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
 from .constants import TeachingMoveType
 from .models import LearnerState, MisconceptionDiagnosis, PolicyDecision, TeachingMoveCandidate
+
+if TYPE_CHECKING:
+    from .turn_progression import TurnProgressionSignals
+
+# Strong penalty so diagnostic_question loses to other moves when repeat gate fires (see turn_progression).
+_REPEAT_DIAGNOSTIC_SCORE_PENALTY = 2.5
+_EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE = 0.35
 
 # Lower rank wins when total scores tie (see PolicyScorer.select_best_move sort key).
 MOVE_TYPE_TIEBREAK_PRIORITY: Dict[TeachingMoveType, int] = {
@@ -29,6 +36,7 @@ class PolicyScorer:
         teaching_moves: List[TeachingMoveCandidate],
         current_focus_lo: str,
         user_input: str,
+        progression_signals: Optional["TurnProgressionSignals"] = None,
     ) -> PolicyDecision:
         if not teaching_moves:
             raise ValueError("teaching_moves must not be empty")
@@ -43,6 +51,7 @@ class PolicyScorer:
                     learner_state=learner_state,
                     focus_lo=focus_lo,
                     user_input=user_input or "",
+                    progression_signals=progression_signals,
                 ),
                 6,
             )
@@ -78,6 +87,7 @@ class PolicyScorer:
         learner_state: LearnerState,
         focus_lo: str,
         user_input: str,
+        progression_signals: Optional["TurnProgressionSignals"] = None,
     ) -> float:
         score = 0.0
 
@@ -120,6 +130,19 @@ class PolicyScorer:
             score -= 0.15
         if prereq_gap and move.move_type == TeachingMoveType.WORKED_EXAMPLE:
             score -= 0.10
+
+        if progression_signals is not None:
+            if (
+                progression_signals.suppress_repeat_diagnostic
+                and move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION
+            ):
+                score -= _REPEAT_DIAGNOSTIC_SCORE_PENALTY
+            elif (
+                progression_signals.explicit_advance_intent
+                and not progression_signals.suppress_repeat_diagnostic
+                and move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION
+            ):
+                score -= _EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE
 
         return score
 

@@ -357,3 +357,63 @@ def test_tutor_policy_diagnosis_state_debug_commands_skip_tutor_llm(
 
     out_state = coach_agent.process_turn("!state")
     assert "[DEBUG] Learner snapshot" in out_state
+
+
+@pytest.mark.integration
+def test_repeat_diagnostic_suppressed_after_advance_and_paraphrase(monkeypatch, coach_agent):
+    """Prior turn was diagnostic_question; student advances + paraphrases — next move is not diagnostic."""
+    calls = []
+
+    def _tutor(**kwargs):
+        calls.append("tutor")
+        return {
+            "message_to_student": "ok",
+            "end_activity": False,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": {
+                "topics_covered": [],
+                "student_understanding": "good",
+                "suggested_next_topic": None,
+                "switch_topic_request": None,
+                "switch_mode_request": None,
+                "notes": "",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _tutor)
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-loop"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "integration",
+            "mode": "practice",
+            "current_plan": [{"title": "integration", "lo_id": 1}],
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-loop"},
+            "target_lo": "integration",
+            "retrieval_session": {
+                "pack_focus_lo": "integration",
+                "pack_revision": 2,
+                "last_selected_move_type": "diagnostic_question",
+            },
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn(
+        "assume I know this, let's continue with integration. "
+        "The height is vertical and the base is horizontal on the graph, like we said for triangles."
+    )
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    pd = pc.get("policy_decision") or {}
+    selected = pd.get("selected_move") or {}
+    assert selected.get("move_type") != "diagnostic_question"
+    assert pc.get("turn_progression_signals", {}).get("suppress_repeat_diagnostic") is True
+    assert calls == ["tutor"]

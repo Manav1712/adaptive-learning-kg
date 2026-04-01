@@ -40,7 +40,7 @@ class CoachAgent:
 
         Args:
             retriever: Optional custom retriever (defaults to TeachingPackRetriever).
-            llm_model: Optional LLM model name (defaults to gpt-4o-mini).
+            llm_model: Optional LLM model name (defaults to gpt-5.4-mini).
             session_memory_path: Optional path to persist session memory.
             event_callback: Optional runtime event sink used by the web UI.
         """
@@ -107,7 +107,7 @@ class CoachAgent:
         """
         api_key = os.getenv("OPENAI_API_KEY")
         self.llm_client = OpenAI(api_key=api_key)
-        self.llm_model = llm_model or os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
+        self.llm_model = llm_model or os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-5.4-mini")
 
     def initial_greeting(self) -> str:
         """Return the initial greeting."""

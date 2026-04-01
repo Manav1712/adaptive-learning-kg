@@ -14,6 +14,7 @@ from .pedagogy import (
     parse_prior_snapshot,
 )
 from .pedagogy.tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
+from .pedagogy.turn_progression import compute_turn_progression_signals
 from .session_memory import create_handoff_context
 from .tutor import tutor_bot, faq_bot
 
@@ -511,6 +512,16 @@ class BotSessionManager:
         )
         diagnoser_focus = prior_instruction_str or session_target_lo
 
+        prior_rs = pedagogy_context.get("retrieval_session")
+        previous_last_selected_move_type = None
+        if isinstance(prior_rs, dict):
+            previous_last_selected_move_type = prior_rs.get("last_selected_move_type")
+
+        progression_signals = compute_turn_progression_signals(
+            user_input=student_input,
+            previous_last_selected_move_type=previous_last_selected_move_type,
+        )
+
         diagnosis = self.agent.misconception_diagnoser.diagnose_turn(
             session_id=self.active_learner_session_id,
             user_input=student_input,
@@ -540,8 +551,10 @@ class BotSessionManager:
             teaching_moves=teaching_moves,
             current_focus_lo=diagnoser_focus or "unknown",
             user_input=student_input,
+            progression_signals=progression_signals,
         )
         pedagogy_context["policy_decision"] = policy_decision.model_dump(mode="json")
+        pedagogy_context["turn_progression_signals"] = progression_signals.to_json_dict()
 
         instruction_lo = derive_instruction_lo(
             session_target_lo=session_target_lo,

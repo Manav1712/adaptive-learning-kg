@@ -360,7 +360,7 @@ class TeachingPackRetriever:
     
     Implements a multi-stage pipeline:
     - Stage A: Hybrid search (semantic + BM25 with RRF fusion)
-    - Stage B: LLM reranking (optional, uses GPT-4o-mini)
+    - Stage B: LLM reranking (optional, uses gpt-5.4-mini)
     - Stage C: Graph expansion (prereqs + related content)
     """
 
@@ -368,7 +368,7 @@ class TeachingPackRetriever:
         self,
         data_dir: Optional[Path] = None,
         embedding_model: str = "text-embedding-3-large",
-        rerank_model: str = "gpt-4o-mini",
+        rerank_model: str = "gpt-5.4-mini",
         force_refresh: bool = False,
     ) -> None:
         """
@@ -377,7 +377,7 @@ class TeachingPackRetriever:
         Inputs:
             data_dir: Directory containing the demo CSV artifacts. Defaults to <repo>/demo.
             embedding_model: OpenAI model name (default: text-embedding-3-large) or SentenceTransformer.
-            rerank_model: LLM model for reranking (default: gpt-4o-mini).
+            rerank_model: LLM model for reranking (default: gpt-5.4-mini).
             force_refresh: If True, bypass cache and recompute embeddings.
 
         Outputs:

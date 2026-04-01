@@ -7,7 +7,7 @@ signals that the text-first retrieval pipeline can use.
 
 What it does:
 1. Takes an image and optional student text.
-2. Sends both to GPT-4o Vision.
+2. Sends both to the configured vision-capable chat model.
 3. Gets back a clean retrieval query plus image metadata.
 4. Returns a safe default result if model output is malformed.
 
@@ -82,7 +82,7 @@ class ImagePreprocessor:
         # result.query can now be passed to the retriever
     """
 
-    VISION_MODEL = "gpt-4o"
+    VISION_MODEL = "gpt-5.4-mini"
 
     # System prompt optimized for retrieval-oriented educational image analysis.
     SYSTEM_PROMPT = """You are an educational image-to-query converter for a math tutoring retrieval system.
@@ -129,7 +129,7 @@ OUTPUT JSON:
     "confidence": 0.0
 }"""
 
-    def __init__(self, model: str = "gpt-4o") -> None:
+    def __init__(self, model: str = "gpt-5.4-mini") -> None:
         """Initialize model + OpenAI client."""
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
@@ -339,7 +339,7 @@ OUTPUT JSON:
 def process_image_query(
     image: str | bytes | Path,
     user_prompt: str | None = None,
-    model: str = "gpt-4o",
+    model: str = "gpt-5.4-mini",
 ) -> str:
     """
     Convenience function to process an image and return just the query string.

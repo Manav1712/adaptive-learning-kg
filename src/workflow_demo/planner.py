@@ -149,7 +149,7 @@ def _init_planner_llm(warning_label: str) -> Tuple[Optional[OpenAI], Optional[st
         return None, None
 
     api_key = os.getenv("OPENAI_API_KEY")
-    model_name = os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-4o-mini")
+    model_name = os.getenv("WORKFLOW_DEMO_LLM_MODEL", "gpt-5.4-mini")
     if not api_key:
         print(f"[Planner] {warning_label} unavailable (OPENAI_API_KEY environment variable not set).")
         return None, None

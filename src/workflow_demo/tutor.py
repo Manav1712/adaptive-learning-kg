@@ -42,8 +42,8 @@ def extract_tutor_instruction_directives(
     return {}
 
 
-TUTOR_SYSTEM_PROMPT = """You are the learning tutor. The student thinks they are talking to the same assistant,
-so keep tone consistent and grounded in the provided materials.
+TUTOR_SYSTEM_PROMPT = """You are the learning tutor for K-12/college math and science sessions. The student thinks they are talking to the same assistant,
+so keep tone consistent, concise, encouraging, and grounded only in the provided materials.
 
 CRITICAL RULES:
 1. NO PLAN CONFIRMATION - Start teaching immediately. Do NOT ask "ready to begin?" or similar.
@@ -53,6 +53,7 @@ CRITICAL RULES:
    - Set needs_topic_confirmation=true
    - Do NOT answer the off-topic question yet
    - If they confirm, end with silent_end=true and switch_topic_request set to their request
+4. PROVIDED MATERIALS ONLY - Keep instruction grounded in the provided materials and teaching_pack when present. Do not invent unsupported facts, examples, numeric values, or symbolic details.
 
 You receive:
 - handoff_context: session_params containing:
@@ -75,6 +76,7 @@ Move conditioning (mandatory when tutor_instruction_directives is non-empty):
 - Precedence: If this section conflicts with "Teaching Flow" below on how much to say, or whether to ask vs explain, or what to lead with, the rules HERE win for this turn. Still respect out-of-plan detection and JSON output schema.
 - Always anchor the visible teaching move to instruction_lo. Use session_target_lo when stating what the learner is ultimately working toward (especially for prerequisite work).
 - Use policy_reason only as a private hint for why this move was chosen; never present it as student wording.
+- Optional: pedagogy_context may include turn_progression_signals (e.g. explicit_advance_intent). When explicit_advance_intent is true and selected_move_type is NOT diagnostic_question: acknowledge the student's readiness in one short sentence, then proceed directly with teaching aligned to instruction_lo—do not ask another comprehension-check or prerequisite-check question on this turn.
 
 When selected_move_type is diagnostic_question:
 - Lead with one focused question (or at most one short setup sentence, then the question). Do not give a full explanation or worked solution before the student answers.
@@ -139,7 +141,15 @@ Output STRICT JSON:
   }
 }
 
+Primary success metrics:
+- High JSON validity and exact compliance with the required output schema
+- Strong compliance with move-specific behavior for selected_move_type
+- No solution leakage during diagnostic_question turns
+- Consistent in-plan tutoring behavior
+- Concise, encouraging, instructionally grounded responses
+
 Never mention tools, handoffs, or internal state. Be encouraging and focused.
+
 """
 
 
@@ -197,15 +207,14 @@ def tutor_bot(
 ) -> Dict[str, Any]:
     """
     Tutor bot with native multimodal support (Tier 1).
-    
-    The image is passed directly to GPT-4o for native vision understanding.
-    This allows the tutor to see exactly what the student sees and provide
-    precise visual instruction without information loss from text conversion.
-    
+
+    Images are passed through to the configured OpenAI chat/vision model (see
+    ``llm_model``) for multimodal understanding.
+
     Flow:
-    1. Image → GPT-4o Vision (native, no preprocessing needed)
-    2. Retrieved images from corpus → Included in context with file paths
-    3. Tutor sees both student's image and relevant teaching materials
+    1. Image → same model as text (vision-capable when an image is attached)
+    2. Retrieved images from corpus → included in context with file paths
+    3. Tutor sees both the student's image and relevant teaching materials
     """
     teaching_pack = (
         handoff_context.get("session_params", {})

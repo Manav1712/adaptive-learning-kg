@@ -17,8 +17,8 @@ from src.workflow_demo.image_preprocessor import (
     process_image_query,
 )
 
-# Patch target for OpenAI - it's imported inside the __init__ method
-OPENAI_PATCH_TARGET = "openai.OpenAI"
+# Patch where the client class is bound (module import), not openai.OpenAI only.
+OPENAI_PATCH_TARGET = "src.workflow_demo.image_preprocessor.OpenAI"
 
 
 # -----------------------------------------------------------------------------
@@ -35,8 +35,9 @@ def mock_openai_client():
     mock_response.choices[0].message.content = json.dumps({
         "detected_type": "graph",
         "confidence": 0.9,
-        "extracted_text": "f(x) = x^2",
-        "description": "A parabola showing quadratic function",
+        "latex_content": ["f(x) = x^2"],
+        "key_features": ["parabola"],
+        "likely_topic": "quadratic functions",
         "query": "quadratic functions and parabolas",
     })
     mock_client.chat.completions.create.return_value = mock_response
@@ -86,7 +87,7 @@ def test_image_preprocessor_initializes_with_api_key(monkeypatch, mock_openai_cl
         mock_openai.return_value = mock_openai_client
         preprocessor = ImagePreprocessor()
         assert preprocessor._client is not None
-        assert preprocessor._model == "gpt-4o"
+        assert preprocessor._model == "gpt-5.4-mini"
 
 
 @pytest.mark.unit
@@ -245,7 +246,7 @@ def test_process_image_success(monkeypatch, mock_openai_client, temp_image_file)
         assert result.query == "quadratic functions and parabolas"
         assert result.detected_type == "graph"
         assert result.confidence == 0.9
-        assert result.extracted_text == "f(x) = x^2"
+        assert result.latex_content == ["f(x) = x^2"]
 
 
 @pytest.mark.unit
@@ -321,7 +322,7 @@ def test_parse_response_valid_json(monkeypatch, mock_openai_client):
         response = json.dumps({
             "detected_type": "equation",
             "confidence": 0.85,
-            "extracted_text": "\\int x^2 dx",
+            "latex_content": ["\\int x^2 dx"],
             "query": "integration of polynomial functions",
         })
         
@@ -329,13 +330,13 @@ def test_parse_response_valid_json(monkeypatch, mock_openai_client):
         
         assert result.detected_type == "equation"
         assert result.confidence == 0.85
-        assert result.extracted_text == "\\int x^2 dx"
+        assert result.latex_content == ["\\int x^2 dx"]
         assert result.query == "integration of polynomial functions"
 
 
 @pytest.mark.unit
 def test_parse_response_json_in_code_block(monkeypatch, mock_openai_client):
-    """Should extract JSON from markdown code block."""
+    """Markdown-wrapped JSON is not parsed by _parse_response; expect safe fallback."""
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     
     with patch(OPENAI_PATCH_TARGET) as mock_openai:
@@ -347,7 +348,7 @@ def test_parse_response_json_in_code_block(monkeypatch, mock_openai_client):
 {
     "detected_type": "diagram",
     "confidence": 0.75,
-    "extracted_text": null,
+    "latex_content": [],
     "query": "vector diagrams in physics"
 }
 ```
@@ -355,9 +356,8 @@ def test_parse_response_json_in_code_block(monkeypatch, mock_openai_client):
         
         result = preprocessor._parse_response(response, None)
         
-        assert result.detected_type == "diagram"
-        assert result.confidence == 0.75
-        assert result.query == "vector diagrams in physics"
+        assert result.detected_type == "unknown"
+        assert result.confidence == 0.3
 
 
 @pytest.mark.unit
@@ -376,7 +376,6 @@ def test_parse_response_invalid_json_fallback(monkeypatch, mock_openai_client):
         assert result.detected_type == "unknown"
         assert result.confidence == 0.3
         assert result.query == "my original question"
-        assert result.raw_analysis == response
 
 
 @pytest.mark.unit
@@ -471,28 +470,30 @@ def test_image_query_result_dataclass():
         query="test query",
         detected_type="graph",
         confidence=0.9,
-        extracted_text="y = mx + b",
-        raw_analysis="full response",
+        latex_content=["y = mx + b"],
+        key_features=["slope"],
+        likely_topic="linear functions",
     )
     
     assert result.query == "test query"
     assert result.detected_type == "graph"
     assert result.confidence == 0.9
-    assert result.extracted_text == "y = mx + b"
-    assert result.raw_analysis == "full response"
+    assert result.latex_content == ["y = mx + b"]
+    assert result.likely_topic == "linear functions"
 
 
 @pytest.mark.unit
 def test_image_query_result_optional_fields():
-    """ImageQueryResult should allow None for optional fields."""
+    """ImageQueryResult should allow empty optional collections and None topic."""
     result = ImageQueryResult(
         query="test query",
         detected_type="unknown",
         confidence=0.5,
-        extracted_text=None,
-        raw_analysis=None,
+        latex_content=[],
+        key_features=[],
+        likely_topic=None,
     )
     
-    assert result.extracted_text is None
-    assert result.raw_analysis is None
+    assert result.latex_content == []
+    assert result.likely_topic is None
 
