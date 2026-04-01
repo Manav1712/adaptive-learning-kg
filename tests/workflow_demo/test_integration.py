@@ -244,7 +244,7 @@ def test_tutor_retrieval_debug_command_skips_tutor_llm_and_pedagogy_pipeline(
 
     out = coach_agent.process_turn("!retrieval")
     assert "[DEBUG]" in out
-    assert "tutor_instruction_directives.policy_reason" in out
+    assert "policy_reason:" in out and "picked best" in out
     assert "Tutor retrieval / pedagogy state" in out
     assert "Derivatives" in out
     assert "reuse_pack" in out
@@ -299,3 +299,61 @@ def test_tutor_normal_turn_after_retrieval_debug(monkeypatch, coach_agent):
     assert calls == []
     coach_agent.process_turn("hello")
     assert calls == ["tutor"]
+
+
+@pytest.mark.integration
+def test_tutor_policy_diagnosis_state_debug_commands_skip_tutor_llm(
+    monkeypatch, coach_agent
+):
+    """!policy, !diagnosis, !state must not invoke tutor_bot."""
+
+    def _tutor_should_not_run(**kwargs):
+        raise AssertionError("tutor_bot must not run for debug commands")
+
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _tutor_should_not_run)
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-1"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "Derivatives",
+            "mode": "practice",
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-1"},
+            "target_lo": "Derivatives",
+            "instruction_lo": "Slope",
+            "retrieval_intent": "teach_current_concept",
+            "retrieval_action": "reuse_pack",
+            "retrieval_execution_mode": "no_io",
+            "retrieval_session": {
+                "pack_focus_lo": "Derivatives",
+                "pack_revision": 1,
+                "last_diagnosis_fingerprint": "fp",
+                "last_selected_move_type": "worked_example",
+            },
+            "policy_decision": {"decision_reason": "test reason"},
+            "tutor_instruction_directives": {"policy_reason": "test reason"},
+            "teaching_moves": [{"move_type": "worked_example"}],
+            "diagnosis": {
+                "target_lo": "Derivatives",
+                "suspected_misconception": "confusion",
+                "confidence": 0.7,
+                "prerequisite_gap_los": ["limits"],
+            },
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    out_policy = coach_agent.process_turn("!policy")
+    assert "[DEBUG] Tutor policy" in out_policy
+    assert "test reason" in out_policy
+
+    out_diag = coach_agent.process_turn("!diagnosis")
+    assert "[DEBUG] Tutor diagnosis" in out_diag
+    assert "confusion" in out_diag
+
+    out_state = coach_agent.process_turn("!state")
+    assert "[DEBUG] Learner snapshot" in out_state
