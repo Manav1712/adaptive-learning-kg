@@ -113,6 +113,18 @@ class CoachAgent:
         """Return the initial greeting."""
         return COACH_GREETING
 
+    def get_pedagogy_snapshot_for_api(self) -> Optional[Dict[str, Any]]:
+        """Latest tutor pedagogy snapshot for web UI (None if no active tutor session)."""
+        mgr = self.bot_session_manager
+        if not mgr or not mgr.is_active:
+            return None
+        return mgr.last_pedagogy_snapshot
+
+    def tutor_session_active_for_api(self) -> bool:
+        """True when a tutor bot session is active (for UI panel visibility)."""
+        mgr = self.bot_session_manager
+        return bool(mgr and mgr.is_active and mgr.bot_type == "tutor")
+
     def emit_event(
         self,
         event_type: str,

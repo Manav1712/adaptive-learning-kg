@@ -1,7 +1,6 @@
 """
 Misconception diagnoser used on tutor turns.
 """
-from __future__ import annotations
 
 from typing import Dict, List, Optional
 

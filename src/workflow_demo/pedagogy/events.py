@@ -18,6 +18,11 @@ class PedagogyRuntimeEvent(str, Enum):
     MISCONCEPTION_DIAGNOSED = "pedagogy_misconception_diagnosed"
     TEACHING_MOVES_GENERATED = "pedagogy_teaching_moves_generated"
     POLICY_DECISION_MADE = "pedagogy_policy_decision_made"
+    RETRIEVAL_POLICY_DECIDED = "pedagogy_retrieval_policy_decided"
+    RETRIEVAL_EXECUTED = "pedagogy_retrieval_executed"
+    MATH_GUARD_CHECKED = "pedagogy_math_guard_checked"
+    MATH_GUARD_REPAIRED = "pedagogy_math_guard_repaired"
+    # Legacy / reserved (not emitted by current runtime paths)
     DIAGNOSIS_COMPLETED = "pedagogy_diagnosis_completed"
     MOVES_GENERATED = "pedagogy_moves_generated"
     POLICY_SCORED = "pedagogy_policy_scored"

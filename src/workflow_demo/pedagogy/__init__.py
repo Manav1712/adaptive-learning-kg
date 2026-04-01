@@ -39,6 +39,7 @@ from .retrieval_policy import (
     parse_prior_state,
 )
 from .instruction_lo import derive_instruction_lo
+from .tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
 
 __all__ = [
     "AttemptRecord",
@@ -70,4 +71,5 @@ __all__ = [
     "map_action_to_execution_mode",
     "parse_prior_snapshot",
     "parse_prior_state",
+    "build_tutor_pedagogy_snapshot",
 ]

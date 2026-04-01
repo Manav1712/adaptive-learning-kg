@@ -8,7 +8,7 @@ import json
 import base64
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 from json import JSONDecodeError
 
 from openai import OpenAI
@@ -193,6 +193,7 @@ def tutor_bot(
     handoff_context: Dict[str, Any],
     conversation_history: List[Dict[str, str]],
     image: Optional[str] = None,
+    on_math_guard_outcome: Optional[Callable[[Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """
     Tutor bot with native multimodal support (Tier 1).
@@ -256,7 +257,26 @@ def tutor_bot(
     if content is not None:
         normalized = _normalize_tutor_response(coerce_json(content))
         if os.getenv("WORKFLOW_DEMO_TUTOR_MATH_GUARD", "").lower() in ("1", "true", "yes"):
-            normalized = maybe_apply_math_example_guard(normalized, handoff_context)
+
+            def _guard_outcome(oc: Dict[str, Any]) -> None:
+                pc = handoff_context.get("pedagogy_context")
+                if isinstance(pc, dict):
+                    pc["last_guard_result"] = {
+                        "candidate_type": oc.get("candidate_type"),
+                        "verified": oc.get("verified"),
+                        "repaired": oc.get("repaired"),
+                        "reason": oc.get("reason"),
+                    }
+                if on_math_guard_outcome is not None:
+                    on_math_guard_outcome(oc)
+
+            normalized = maybe_apply_math_example_guard(
+                normalized,
+                handoff_context,
+                on_outcome=_guard_outcome,
+            )
+        elif isinstance(handoff_context.get("pedagogy_context"), dict):
+            handoff_context["pedagogy_context"].pop("last_guard_result", None)
         return normalized
 
     print("[Tutor] Warning: invalid tutor JSON response after retry. Using fallback.")

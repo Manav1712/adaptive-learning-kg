@@ -152,6 +152,8 @@ class SessionResponse(BaseModel):
     greeting: str = ""
     error: Optional[str] = None
     events: List[Dict[str, Any]] = Field(default_factory=list)
+    pedagogy_snapshot: Optional[Dict[str, Any]] = None
+    tutor_session_active: bool = False
 
 
 class ChatRequest(BaseModel):
@@ -162,6 +164,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     events: List[Dict[str, Any]] = Field(default_factory=list)
+    pedagogy_snapshot: Optional[Dict[str, Any]] = None
+    tutor_session_active: bool = False
 
 
 class ResetRequest(BaseModel):
@@ -172,6 +176,8 @@ class ResetResponse(BaseModel):
     ok: bool = True
     greeting: str = ""
     events: List[Dict[str, Any]] = Field(default_factory=list)
+    pedagogy_snapshot: Optional[Dict[str, Any]] = None
+    tutor_session_active: bool = False
 
 
 @app.get("/api/health")
@@ -231,6 +237,8 @@ def create_session(request: Request) -> SessionResponse:
         session_id=session_id,
         greeting=greeting or "",
         events=events,
+        pedagogy_snapshot=sess.coach.get_pedagogy_snapshot_for_api(),
+        tutor_session_active=sess.coach.tutor_session_active_for_api(),
     )
 
 
@@ -250,7 +258,12 @@ async def chat(body: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     events = sess.sink.drain()
-    return ChatResponse(response=text or "", events=events)
+    return ChatResponse(
+        response=text or "",
+        events=events,
+        pedagogy_snapshot=sess.coach.get_pedagogy_snapshot_for_api(),
+        tutor_session_active=sess.coach.tutor_session_active_for_api(),
+    )
 
 
 def _sse_format(data: Dict[str, Any]) -> str:
@@ -293,7 +306,12 @@ async def chat_stream(body: ChatRequest) -> StreamingResponse:
             yield _sse_format({"kind": "error", "message": error_holder["err"]})
         else:
             yield _sse_format(
-                {"kind": "done", "response": result_holder.get("text", "")}
+                {
+                    "kind": "done",
+                    "response": result_holder.get("text", ""),
+                    "pedagogy_snapshot": sess.coach.get_pedagogy_snapshot_for_api(),
+                    "tutor_session_active": sess.coach.tutor_session_active_for_api(),
+                }
             )
 
     return StreamingResponse(
@@ -315,7 +333,13 @@ def reset_session(body: ResetRequest) -> ResetResponse:
         sess.reset()
         greeting = sess.coach.initial_greeting()
         events = sess.sink.drain()
-    return ResetResponse(ok=True, greeting=greeting or "", events=events)
+    return ResetResponse(
+        ok=True,
+        greeting=greeting or "",
+        events=events,
+        pedagogy_snapshot=sess.coach.get_pedagogy_snapshot_for_api(),
+        tutor_session_active=sess.coach.tutor_session_active_for_api(),
+    )
 
 
 def main() -> None:

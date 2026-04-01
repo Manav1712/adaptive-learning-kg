@@ -2,8 +2,6 @@
 LLM adapter for optional misconception diagnosis refinement.
 """
 
-from __future__ import annotations
-
 import json
 import logging
 from typing import Dict, List, Optional, Protocol

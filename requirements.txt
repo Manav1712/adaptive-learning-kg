@@ -26,6 +26,9 @@ webdriver-manager>=4.0.0
 jsonschema>=4.19.0
 click>=8.1.0
 
+# Math verification (workflow_demo tutor math guard; lazy-imported)
+sympy>=1.12
+
 # Development and testing
 pytest>=7.4.0
 pytest-mock>=3.10.0

@@ -1,10 +1,9 @@
 """Bot session lifecycle management for coach agent."""
 
-import json
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 # Tutor-only REPL-style debug (must not reach the tutor LLM or pedagogy pipeline).
-_TUTOR_DEBUG_RETRIEVAL_COMMAND = "!retrieval"
+_TUTOR_DEBUG_COMMANDS = frozenset({"!retrieval", "!policy", "!diagnosis", "!state"})
 
 from .pedagogy import (
     PedagogyRuntimeEvent,
@@ -14,6 +13,7 @@ from .pedagogy import (
     derive_instruction_lo,
     parse_prior_snapshot,
 )
+from .pedagogy.tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
 from .session_memory import create_handoff_context
 from .tutor import tutor_bot, faq_bot
 
@@ -53,6 +53,7 @@ class BotSessionManager:
         self.active_learner_session_id: Optional[str] = None
         self.teaching_move_generator = TeachingMoveGenerator()
         self.policy_scorer = PolicyScorer()
+        self._last_pedagogy_snapshot: Optional[Dict[str, Any]] = None
 
     def handle_turn(self, user_input: str) -> str:
         """Process a turn while in a bot session.
@@ -187,6 +188,42 @@ class BotSessionManager:
         self.agent._reset_syllabus_escalation()
         self.agent.current_image = None
         self.agent.current_image_query = None
+        self._last_pedagogy_snapshot = None
+
+    def _refresh_pedagogy_snapshot(self) -> None:
+        """Update cached API/UI snapshot from current handoff (tutor only)."""
+        if self.bot_type != "tutor":
+            self._last_pedagogy_snapshot = None
+            return
+        self._last_pedagogy_snapshot = build_tutor_pedagogy_snapshot(
+            handoff_context=self.handoff_context,
+            bot_type=self.bot_type,
+            active_learner_session_id=self.active_learner_session_id,
+            learner_state_engine=self.agent.learner_state_engine,
+        )
+
+    def _emit_math_guard_runtime_events(self, oc: Dict[str, Any]) -> None:
+        """Emit Phase 8 math guard events from guard outcome dict."""
+        sid = self.active_learner_session_id
+        self.agent.emit_event(
+            PedagogyRuntimeEvent.MATH_GUARD_CHECKED.value,
+            "Math example guard evaluated.",
+            phase="pedagogy",
+            session_id=sid,
+            candidate_type=oc.get("candidate_type"),
+            verified=oc.get("verified"),
+            repaired=oc.get("repaired"),
+            reason=str(oc.get("reason") or ""),
+        )
+        if oc.get("repaired") is True:
+            self.agent.emit_event(
+                PedagogyRuntimeEvent.MATH_GUARD_REPAIRED.value,
+                "Math example guard repaired claim.",
+                phase="pedagogy",
+                session_id=sid,
+                candidate_type=oc.get("candidate_type"),
+                reason=str(oc.get("reason") or ""),
+            )
 
     def _invoke_bot(self, initial: bool = False, student_input: str = "") -> str:
         """Invoke the bot (tutor or FAQ) with the current conversation history.
@@ -211,10 +248,12 @@ class BotSessionManager:
 
         # Dispatch to the appropriate bot.
         if self.bot_type == "tutor":
-            if student_input and self._is_tutor_retrieval_debug_command(student_input):
-                dbg = self._format_tutor_retrieval_debug()
+            dbg_cmd = self._parse_tutor_debug_command(student_input)
+            if student_input and dbg_cmd:
+                dbg = self._format_tutor_debug_command(dbg_cmd)
                 if dbg:
                     self.conversation_history.append({"speaker": "assistant", "text": dbg})
+                self._refresh_pedagogy_snapshot()
                 return dbg or ""
             if student_input and self.active_learner_session_id:
                 self._run_misconception_diagnosis(student_input, history)
@@ -224,6 +263,7 @@ class BotSessionManager:
                 handoff_context=self.handoff_context,
                 conversation_history=history,
                 image=self.agent.current_image,
+                on_math_guard_outcome=self._emit_math_guard_runtime_events,
             )
         else:
             bot_response = faq_bot(
@@ -239,8 +279,10 @@ class BotSessionManager:
             self.conversation_history.append({"speaker": "assistant", "text": message})
 
         if self.bot_type == "tutor" and student_input and self.active_learner_session_id:
-            if not self._is_tutor_retrieval_debug_command(student_input):
+            if not self._parse_tutor_debug_command(student_input):
                 self._record_learner_turn(student_input)
+
+        self._refresh_pedagogy_snapshot()
 
         # If the bot ended the session, finalize (save memory, update mastery).
         if bot_response.get("end_activity"):
@@ -249,134 +291,92 @@ class BotSessionManager:
         return message or ""
 
     @staticmethod
-    def _is_tutor_retrieval_debug_command(student_input: str) -> bool:
-        """True when the tutor turn should return retrieval debug only (no LLM, no pedagogy IO)."""
-        return (student_input or "").strip() == _TUTOR_DEBUG_RETRIEVAL_COMMAND
+    def _parse_tutor_debug_command(student_input: str) -> Optional[str]:
+        """Return debug command token (e.g. '!policy') or None."""
+        s = (student_input or "").strip()
+        if s in _TUTOR_DEBUG_COMMANDS:
+            return s
+        return None
 
-    def _build_retrieval_debug_payload(self) -> Dict[str, Any]:
-        """Structured snapshot from handoff `pedagogy_context` (no fabrication)."""
-        hc = self.handoff_context or {}
-        pc = hc.get("pedagogy_context")
-        if not isinstance(pc, dict):
-            pc = {}
-        rs = pc.get("retrieval_session")
-        if not isinstance(rs, dict):
-            rs = {}
-        tid = pc.get("tutor_instruction_directives")
-        if not isinstance(tid, dict):
-            tid = {}
-        td = pc.get("tutor_directives")
-        if not isinstance(td, dict):
-            td = {}
-        pol = pc.get("policy_decision")
-        if not isinstance(pol, dict):
-            pol = {}
+    def _format_tutor_debug_command(self, cmd: str) -> str:
+        """Format one tutor-only debug reply from the canonical snapshot."""
+        snap = build_tutor_pedagogy_snapshot(
+            handoff_context=self.handoff_context,
+            bot_type=self.bot_type,
+            active_learner_session_id=self.active_learner_session_id,
+            learner_state_engine=self.agent.learner_state_engine,
+        ) or {}
+        if cmd == "!retrieval":
+            return self._format_tutor_retrieval_debug_from_snapshot(snap)
+        if cmd == "!policy":
+            return self._format_tutor_policy_debug_from_snapshot(snap)
+        if cmd == "!diagnosis":
+            return self._format_tutor_diagnosis_debug_from_snapshot(snap)
+        if cmd == "!state":
+            return self._format_tutor_state_debug_from_snapshot(snap)
+        return ""
 
-        missing: List[str] = []
-
-        def _mark(key: str, val: Any) -> Any:
-            if val is None:
-                missing.append(key)
-                return None
-            if isinstance(val, str) and not val.strip():
-                missing.append(key)
-                return None
-            return val
-
-        flat_keys = (
-            "target_lo",
-            "instruction_lo",
-            "retrieval_intent",
-            "retrieval_action",
-            "retrieval_execution_mode",
-        )
-        flat: Dict[str, Any] = {}
-        for k in flat_keys:
-            flat[k] = _mark(k, pc.get(k))
-
-        rs_out: Dict[str, Any] = {}
-        for k in ("pack_focus_lo", "last_diagnosis_fingerprint"):
-            rs_out[k] = _mark(f"retrieval_session.{k}", rs.get(k))
-        if "pack_revision" not in rs:
-            missing.append("retrieval_session.pack_revision")
-            rs_out["pack_revision"] = None
-        else:
-            rs_out["pack_revision"] = rs.get("pack_revision")
-        # Optional: may be null on first tutor turns — still surface, do not treat as error.
-        rs_out["last_selected_move_type"] = rs.get("last_selected_move_type")
-
-        pd_reason = pol.get("decision_reason")
-        if not (isinstance(pd_reason, str) and pd_reason.strip()):
-            missing.append("policy_decision.decision_reason")
-            pd_reason_out: Optional[str] = None
-        else:
-            pd_reason_out = pd_reason.strip()
-
-        td_reason = tid.get("policy_reason") or td.get("policy_reason")
-        if not (isinstance(td_reason, str) and td_reason.strip()):
-            missing.append("tutor_instruction_directives.policy_reason")
-            td_reason_out: Optional[str] = None
-        else:
-            td_reason_out = td_reason.strip()
-
-        ext = pc.get("extensions")
-        ext_preview: Optional[str] = None
-        if isinstance(ext, dict) and ext:
-            try:
-                ext_preview = json.dumps(ext, sort_keys=True)[:2000]
-            except (TypeError, ValueError):
-                ext_preview = str(ext)[:2000]
-
-        return {
-            "layer_version": pc.get("layer_version"),
-            "flat": flat,
-            "retrieval_session": rs_out,
-            "policy_decision_reason": pd_reason_out,
-            "instruction_directives_policy_reason": td_reason_out,
-            "extensions_preview": ext_preview,
-            "fields_missing_or_empty": sorted(set(missing)),
-        }
-
-    def _format_tutor_retrieval_debug(self) -> str:
-        """Human-readable debug text for the tutor session (not model-generated prose)."""
-        payload = self._build_retrieval_debug_payload()
+    def _format_tutor_retrieval_debug_from_snapshot(self, snap: Dict[str, Any]) -> str:
         lines = [
             "[DEBUG] Tutor retrieval / pedagogy state",
             "(This is an internal debug dump, not a tutoring reply.)",
             "",
+            f"target_lo: {snap.get('target_lo')!r}",
+            f"instruction_lo: {snap.get('instruction_lo')!r}",
+            f"retrieval_intent: {snap.get('retrieval_intent')!r}",
+            f"retrieval_action: {snap.get('retrieval_action')!r}",
+            f"retrieval_execution_mode: {snap.get('retrieval_execution_mode')!r}",
+            f"pack_focus_lo: {snap.get('pack_focus_lo')!r}",
+            f"pack_revision: {snap.get('pack_revision')!r}",
+            f"last_diagnosis_fingerprint: {snap.get('last_diagnosis_fingerprint')!r}",
+            f"last_selected_move_type: {snap.get('last_selected_move_type')!r}",
+            f"policy_reason: {snap.get('policy_reason')!r}",
         ]
-        lv = payload.get("layer_version")
-        if lv is not None:
-            lines.append(f"pedagogy_context.layer_version: {lv}")
-        flat = payload.get("flat") or {}
-        for k in (
-            "target_lo",
-            "instruction_lo",
-            "retrieval_intent",
-            "retrieval_action",
-            "retrieval_execution_mode",
-        ):
-            lines.append(f"{k}: {flat.get(k)!r}")
-        rs = payload.get("retrieval_session") or {}
-        lines.append("retrieval_session:")
-        for k in (
-            "pack_focus_lo",
-            "pack_revision",
-            "last_diagnosis_fingerprint",
-            "last_selected_move_type",
-        ):
-            lines.append(f"  {k}: {rs.get(k)!r}")
-        lines.append(f"policy_decision.decision_reason: {payload.get('policy_decision_reason')!r}")
-        lines.append(
-            f"tutor_instruction_directives.policy_reason: {payload.get('instruction_directives_policy_reason')!r}"
-        )
-        miss = payload.get("fields_missing_or_empty") or []
-        if miss:
-            lines.append(f"fields_missing_or_empty: {', '.join(miss)}")
-        extp = payload.get("extensions_preview")
-        if extp:
-            lines.append(f"extensions (preview): {extp}")
         return "\n".join(lines).strip()
+
+    @staticmethod
+    def _format_tutor_policy_debug_from_snapshot(snap: Dict[str, Any]) -> str:
+        lines = [
+            "[DEBUG] Tutor policy",
+            "(Internal debug — not a tutoring reply.)",
+            "",
+            f"selected_move_type: {snap.get('selected_move_type')!r}",
+            f"policy_reason: {snap.get('policy_reason')!r}",
+            f"candidate_move_types: {snap.get('candidate_move_types')!r}",
+        ]
+        return "\n".join(lines).strip()
+
+    @staticmethod
+    def _format_tutor_diagnosis_debug_from_snapshot(snap: Dict[str, Any]) -> str:
+        lines = [
+            "[DEBUG] Tutor diagnosis",
+            "(Internal debug — not a tutoring reply.)",
+            "",
+            f"diagnosis_target_lo: {snap.get('diagnosis_target_lo')!r}",
+            f"suspected_misconception: {snap.get('suspected_misconception')!r}",
+            f"diagnosis_confidence: {snap.get('diagnosis_confidence')!r}",
+            f"prerequisite_gap_los: {snap.get('prerequisite_gap_los')!r}",
+        ]
+        return "\n".join(lines).strip()
+
+    @staticmethod
+    def _format_tutor_state_debug_from_snapshot(snap: Dict[str, Any]) -> str:
+        learner = snap.get("learner") or {}
+        lines = [
+            "[DEBUG] Learner snapshot",
+            "(Internal debug — not a tutoring reply.)",
+            "",
+            f"recent_attempt_count: {learner.get('recent_attempt_count')!r}",
+            f"hint_count: {learner.get('hint_count')!r}",
+            f"top_mastery: {learner.get('top_mastery')!r}",
+            f"recent_misconceptions: {learner.get('recent_misconceptions')!r}",
+        ]
+        return "\n".join(lines).strip()
+
+    @property
+    def last_pedagogy_snapshot(self) -> Optional[Dict[str, Any]]:
+        """Last built tutor pedagogy snapshot for API/UI (tutor sessions only)."""
+        return self._last_pedagogy_snapshot
 
     def _finalize_bot_session(self, bot_response: Dict[str, Any]) -> str:
         """Save session to memory, update proficiency, handle switches.
@@ -617,16 +617,25 @@ class BotSessionManager:
             selected_move_id=policy_decision.selected_move.move_id,
             candidate_count=len(teaching_moves),
         )
+        rs_dump = r_out.state.model_dump(mode="json")
         self.agent.emit_event(
-            "pedagogy_retrieval_policy_applied",
-            "Applied session retrieval policy for tutor turn.",
+            PedagogyRuntimeEvent.RETRIEVAL_POLICY_DECIDED.value,
+            "Retrieval policy decided for tutor turn.",
             phase="pedagogy",
             session_id=self.active_learner_session_id,
+            pedagogical_retrieval_intent=r_out.pedagogical_retrieval_intent.value,
             retrieval_action=r_out.action.value,
             retrieval_execution_mode=r_out.retrieval_execution_mode.value,
-            pedagogical_retrieval_intent=r_out.pedagogical_retrieval_intent.value,
-            material_triggers=r_out.material_triggers,
             reason_codes=r_out.reason_codes,
+        )
+        self.agent.emit_event(
+            PedagogyRuntimeEvent.RETRIEVAL_EXECUTED.value,
+            "Retrieval execution applied for tutor turn.",
+            phase="pedagogy",
+            session_id=self.active_learner_session_id,
+            pack_revision=rs_dump.get("pack_revision"),
+            teaching_pack_updated=r_out.teaching_pack is not None,
+            material_triggers=r_out.material_triggers,
         )
 
     @staticmethod
