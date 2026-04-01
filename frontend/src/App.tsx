@@ -5,11 +5,21 @@ import {
   createSession,
   defaultBase,
   resetSession,
+  type PedagogySnapshot,
   type RuntimeEvent,
 } from "./api";
 import "./App.css";
 
 type ChatRow = { role: "user" | "assistant"; text: string };
+
+function formatEventMeta(m: Record<string, unknown>): string {
+  const keys = Object.keys(m);
+  if (!keys.length) return "";
+  const parts = keys
+    .slice(0, 8)
+    .map((k) => `${k}=${String(m[k]).slice(0, 48)}`);
+  return `  ${parts.join(" · ")}`;
+}
 
 export default function App() {
   const baseUrl = defaultBase();
@@ -22,16 +32,38 @@ export default function App() {
   const [sendError, setSendError] = useState<string | null>(null);
   const [statusLines, setStatusLines] = useState<string[]>([]);
   const [useStream, setUseStream] = useState(true);
+  const [pedagogySnapshot, setPedagogySnapshot] = useState<PedagogySnapshot>(null);
+  const [tutorSessionActive, setTutorSessionActive] = useState(false);
+  const [pedagogyPanelOpen, setPedagogyPanelOpen] = useState(true);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const [pedagogyOnlyRuntime, setPedagogyOnlyRuntime] = useState(false);
+  const [pedagogyLines, setPedagogyLines] = useState<string[]>([]);
 
   const pushStatus = useCallback((events: RuntimeEvent[]) => {
     if (!events.length) return;
     setStatusLines((prev) => {
       const next = [...prev];
       for (const e of events) {
-        next.push(`[${e.phase}] ${e.type}: ${e.message}`);
+        const line = `[${e.phase}] ${e.type}: ${e.message}`;
+        next.push(line);
+        if (e.phase === "pedagogy" && e.metadata && Object.keys(e.metadata).length) {
+          next.push(formatEventMeta(e.metadata as Record<string, unknown>));
+        }
       }
       return next.slice(-40);
+    });
+    setPedagogyLines((prev) => {
+      const next = [...prev];
+      for (const e of events) {
+        if (e.phase !== "pedagogy") continue;
+        const line = `[pedagogy] ${e.type}: ${e.message}`;
+        next.push(line);
+        if (e.metadata && Object.keys(e.metadata).length) {
+          next.push(formatEventMeta(e.metadata as Record<string, unknown>));
+        }
+      }
+      return next.slice(-20);
     });
   }, []);
 
@@ -53,6 +85,8 @@ export default function App() {
         setBootError(null);
         setSessionId(data.session_id);
         pushStatus(data.events);
+        setPedagogySnapshot(data.pedagogy_snapshot ?? null);
+        setTutorSessionActive(Boolean(data.tutor_session_active));
         if (data.greeting) {
           setRows([{ role: "assistant", text: data.greeting }]);
         }
@@ -103,8 +137,14 @@ export default function App() {
         sessionId,
         msg,
         (ev) => pushStatus([ev]),
-        (response) => {
+        (response, meta) => {
           assistantText = response;
+          if (meta?.pedagogy_snapshot !== undefined) {
+            setPedagogySnapshot(meta.pedagogy_snapshot ?? null);
+          }
+          if (meta?.tutor_session_active !== undefined) {
+            setTutorSessionActive(Boolean(meta.tutor_session_active));
+          }
         },
         (err) => setSendError(err),
       );
@@ -114,8 +154,11 @@ export default function App() {
     }
 
     try {
-      const { response, events } = await chat(baseUrl, sessionId, msg);
+      const { response, events, pedagogy_snapshot, tutor_session_active } =
+        await chat(baseUrl, sessionId, msg);
       pushStatus(events);
+      if (pedagogy_snapshot !== undefined) setPedagogySnapshot(pedagogy_snapshot ?? null);
+      if (tutor_session_active !== undefined) setTutorSessionActive(Boolean(tutor_session_active));
       appendAssistant(response);
     } catch (e) {
       setSendError(e instanceof Error ? e.message : String(e));
@@ -129,8 +172,11 @@ export default function App() {
     setSendError(null);
     setLoading("send");
     try {
-      const { greeting, events } = await resetSession(baseUrl, sessionId);
+      const { greeting, events, pedagogy_snapshot, tutor_session_active } =
+        await resetSession(baseUrl, sessionId);
       pushStatus(events);
+      if (pedagogy_snapshot !== undefined) setPedagogySnapshot(pedagogy_snapshot ?? null);
+      if (tutor_session_active !== undefined) setTutorSessionActive(Boolean(tutor_session_active));
       setRows(greeting ? [{ role: "assistant", text: greeting }] : []);
     } catch (e) {
       setSendError(e instanceof Error ? e.message : String(e));
@@ -197,12 +243,59 @@ export default function App() {
         <>
           {statusLines.length > 0 && (
             <div className="status-bar" aria-live="polite">
-              <strong>Runtime</strong>
-              {statusLines.slice(-6).map((line, i) => (
-                <div key={`${line}-${i}`} className="status-line">
+              <div className="status-bar-head">
+                <strong>Runtime</strong>
+                <label className="status-filter">
+                  <input
+                    type="checkbox"
+                    checked={pedagogyOnlyRuntime}
+                    onChange={(e) => setPedagogyOnlyRuntime(e.target.checked)}
+                  />
+                  Pedagogy only
+                </label>
+              </div>
+              {(pedagogyOnlyRuntime
+                ? statusLines.filter((l) => l.includes("[pedagogy]"))
+                : statusLines
+              )
+                .slice(-12)
+                .map((line, i) => (
+                  <div key={`${line}-${i}`} className="status-line">
+                    {line}
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {pedagogyLines.length > 0 && (
+            <div className="status-bar status-bar-pedagogy" aria-live="polite">
+              <strong>Pedagogy events</strong>
+              {pedagogyLines.map((line, i) => (
+                <div key={`p-${line}-${i}`} className="status-line">
                   {line}
                 </div>
               ))}
+            </div>
+          )}
+
+          {(tutorSessionActive || pedagogySnapshot != null) && (
+            <div className="pedagogy-panel">
+              <button
+                type="button"
+                className="pedagogy-panel-toggle"
+                onClick={() => setPedagogyPanelOpen((o) => !o)}
+                aria-expanded={pedagogyPanelOpen}
+              >
+                Tutor pedagogy (backend snapshot) {pedagogyPanelOpen ? "▼" : "▶"}
+              </button>
+              {pedagogyPanelOpen &&
+                (pedagogySnapshot ? (
+                  <pre className="pedagogy-panel-pre">
+                    {JSON.stringify(pedagogySnapshot, null, 2)}
+                  </pre>
+                ) : (
+                  <p className="pedagogy-panel-empty">No snapshot yet (first turn may be sparse).</p>
+                ))}
             </div>
           )}
 

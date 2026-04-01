@@ -97,6 +97,72 @@
   margin: 0.15rem 0;
 }
 
+.status-bar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.status-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.status-bar-pedagogy {
+  border-left: 3px solid var(--accent);
+  max-height: 8rem;
+}
+
+.pedagogy-panel {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.pedagogy-panel-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.pedagogy-panel-toggle:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.pedagogy-panel-pre {
+  margin: 0;
+  padding: 0.5rem 0.65rem 0.65rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  max-height: 14rem;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.pedagogy-panel-empty {
+  margin: 0;
+  padding: 0.5rem 0.65rem 0.65rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
 .messages {
   flex: 1;
   display: flex;
