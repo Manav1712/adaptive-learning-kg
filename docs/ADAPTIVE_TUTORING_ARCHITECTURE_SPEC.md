@@ -365,7 +365,7 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 
 ### D. Product goals, non-goals, personas, and journeys
 
-*(Merged from the former `SYSTEM_DESIGN_DOCUMENT.md` and `USER_STORIES.md`.)*
+*(Merged from earlier standalone workflow_demo design notes and user-story docs.)*
 
 **Problem statement:** One conversational surface for guided **tutoring** or **FAQ/course-policy** answers, with continuity across sessions.
 
