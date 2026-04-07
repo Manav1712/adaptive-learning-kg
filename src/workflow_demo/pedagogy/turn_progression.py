@@ -50,11 +50,15 @@ _ADVANCE_PHRASES: tuple[str, ...] = (
     "can we continue",
     "can we move on",
     "can we move forward",
+    "move forward",
+    "lets move forward",
+    "let's move forward",
     "keep going",
     "keep moving",
     "okay let's keep",
     "okay, let's keep",
     "i get it",
+    "i already know this",
 )
 
 # Learner asks for a concrete example or practice (substring, case-insensitive).
@@ -62,13 +66,45 @@ _EXAMPLE_REQUEST_PHRASES: tuple[str, ...] = (
     "give me an example",
     "show me an example",
     "can you show me",
+    "through an example",
+    "walk me through an example",
     "example problem",
     "practice problem",
+    "practice problems",
+    "practice question",
     "worked example",
+    "worked problem",
+    "solved example",
+    "solved examples",
+    "some solved examples",
+    "do some solved examples",
     "can i try one",
     "let me try",
     "give me a problem",
     "show me how",
+)
+
+_UNDERSTANDING_CONFIDENCE_PHRASES: tuple[str, ...] = (
+    "this makes sense",
+    "that makes sense",
+    "it makes sense",
+    "makes sense now",
+    "i understand",
+    "i understand now",
+    "i understand what you mean",
+    "i understand that",
+    "i get it",
+    "i see",
+    "i see what you mean",
+    "that helps",
+    "its clear now",
+    "it's clear now",
+    "it clicks now",
+    "yeah i understand",
+    "okay i understand",
+    "yes i understand",
+    "oh i see",
+    "ah i see",
 )
 
 # Reasoning / substance cues for adequate_check_response (any one helps).
@@ -143,6 +179,13 @@ def matches_short_low_signal_ack(user_input: str) -> bool:
     text = (user_input or "").strip()
     if not text:
         return True
+    lower = text.lower()
+    if matches_explicit_advance_intent(text):
+        return False
+    if matches_learner_requested_example(text):
+        return False
+    if any(p in lower for p in _UNDERSTANDING_CONFIDENCE_PHRASES):
+        return False
     if len(text) < LOW_SIGNAL_MIN_CHARS:
         # Do not treat short math replies (e.g. "x = 7", "2x") as low-signal acks.
         if "=" in text:
@@ -194,23 +237,48 @@ def _looks_like_substantive_math_attempt(text: str) -> bool:
     return False
 
 
+_PRIOR_MOVES_SUBSTANTIVE_REPLY: frozenset[str] = frozenset(
+    {
+        TeachingMoveType.DIAGNOSTIC_QUESTION.value,
+        TeachingMoveType.WORKED_EXAMPLE.value,
+        TeachingMoveType.GRADUATED_HINT.value,
+        TeachingMoveType.EXPLAIN_CONCEPT.value,
+    }
+)
+
+
 def matches_substantive_answer_attempt(
     user_input: str,
     previous_last_selected_move_type: Optional[str],
 ) -> bool:
     """
-    True when prior move was diagnostic_question and the reply looks like a concrete math attempt.
-    Does not encode correctness (no correct_attempt / incorrect_attempt).
+    True when the prior tutor move was a teaching move and the reply shows real engagement.
+
+    After diagnostic_question: concrete math attempt (existing behavior).
+    After worked_example / graduated_hint / explain_concept: math attempt, substance tokens,
+    or a non-trivial text reply (so bridge turns still get anti-loop signals).
+    Does not encode correctness.
     """
-    if (previous_last_selected_move_type or "").strip() != TeachingMoveType.DIAGNOSTIC_QUESTION.value:
+    prior = (previous_last_selected_move_type or "").strip()
+    if prior not in _PRIOR_MOVES_SUBSTANTIVE_REPLY:
         return False
     text = (user_input or "").strip()
-    # Short equality answers (e.g. "x = 7") are substantive; other messages stay length-gated.
-    if len(text) < LOW_SIGNAL_MIN_CHARS and "=" not in text:
-        return False
     if matches_short_low_signal_ack(text):
         return False
-    return _looks_like_substantive_math_attempt(text)
+
+    if prior == TeachingMoveType.DIAGNOSTIC_QUESTION.value:
+        if len(text) < LOW_SIGNAL_MIN_CHARS and "=" not in text:
+            return False
+        return _looks_like_substantive_math_attempt(text)
+
+    if _looks_like_substantive_math_attempt(text):
+        return True
+    lower = text.lower()
+    if any(tok in lower for tok in _SUBSTANCE_TOKENS):
+        return True
+    if len(text) >= 12:
+        return True
+    return False
 
 
 def matches_adequate_check_response(user_input: str) -> bool:
@@ -223,11 +291,13 @@ def matches_adequate_check_response(user_input: str) -> bool:
         return False
     if matches_current_confusion_signal(text):
         return False
+    lower = text.lower()
+    if any(p in lower for p in _UNDERSTANDING_CONFIDENCE_PHRASES):
+        return True
     if len(text) < _ADEQUATE_MIN_CHARS and not any(
-        tok in text.lower() for tok in _SUBSTANCE_TOKENS
+        tok in lower for tok in _SUBSTANCE_TOKENS
     ):
         return False
-    lower = text.lower()
     if len(text) >= _ADEQUATE_MIN_CHARS:
         return True
     return any(tok in lower for tok in _SUBSTANCE_TOKENS)
@@ -241,12 +311,16 @@ def compute_turn_progression_signals(
     """
     Compute flags and the final suppress_repeat_diagnostic gate.
 
-    suppress_repeat_diagnostic is True iff:
-      previous_last_selected_move_type == diagnostic_question
-      and (explicit_advance_intent or adequate_check_response
-           or substantive_answer_attempt or learner_requested_example)
-      and not current_confusion_signal
-      and not short_low_signal_ack
+    suppress_repeat_diagnostic is True when:
+      - previous move was diagnostic_question and the reply is not confused and not a
+        pure short ack (any engaged reply ends the immediate re-check), or
+      - previous move was a bridge/teach move (worked_example, graduated_hint,
+        explain_concept) and the learner shows engagement (explicit, adequate,
+        substantive, example request, or a non-trivial message).
+
+    Rationale:
+      Bridge turns used to drop all anti-loop gates; this keeps the next turn from
+      snapping back to another broad check on the same LO subidea.
     """
     text = user_input or ""
     explicit = matches_explicit_advance_intent(text)
@@ -256,14 +330,25 @@ def compute_turn_progression_signals(
     example_req = matches_learner_requested_example(text)
     substantive = matches_substantive_answer_attempt(text, previous_last_selected_move_type)
 
-    prior_diag = (previous_last_selected_move_type or "").strip() == TeachingMoveType.DIAGNOSTIC_QUESTION.value
+    prior = (previous_last_selected_move_type or "").strip()
+    prior_diag = prior == TeachingMoveType.DIAGNOSTIC_QUESTION.value
+    prior_bridge = prior in {
+        TeachingMoveType.WORKED_EXAMPLE.value,
+        TeachingMoveType.GRADUATED_HINT.value,
+        TeachingMoveType.EXPLAIN_CONCEPT.value,
+    }
 
-    suppress = (
-        prior_diag
-        and (explicit or adequate or substantive or example_req)
-        and not confusion
-        and not short_ack
+    suppress_diag = prior_diag and not confusion and not short_ack
+    engaged_after_bridge = (
+        explicit
+        or adequate
+        or substantive
+        or example_req
+        or (prior_bridge and len(text.strip()) >= 12)
     )
+    suppress_bridge = prior_bridge and not confusion and not short_ack and engaged_after_bridge
+
+    suppress = suppress_diag or suppress_bridge
 
     return TurnProgressionSignals(
         explicit_advance_intent=explicit,

@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from .session_progression import get_active_progression_lo
+
 
 def _clip(s: Optional[str], max_len: int) -> Optional[str]:
     if s is None:
@@ -72,6 +74,19 @@ def build_tutor_pedagogy_snapshot(
         500,
     )
 
+    session_progression: Optional[Dict[str, Any]] = None
+    extensions = pc.get("extensions")
+    if isinstance(extensions, dict):
+        raw_prog = extensions.get("progression")
+        if isinstance(raw_prog, dict) and raw_prog.get("steps"):
+            steps = raw_prog.get("steps") or []
+            session_progression = {
+                "active_step_index": raw_prog.get("active_step_index"),
+                "current_step_passed": raw_prog.get("current_step_passed"),
+                "step_count": len(steps) if isinstance(steps, list) else 0,
+                "active_step_lo": _clip(get_active_progression_lo(raw_prog), 256),
+            }
+
     snap: Dict[str, Any] = {
         "session_id": active_learner_session_id,
         "bot_type": "tutor",
@@ -92,6 +107,7 @@ def build_tutor_pedagogy_snapshot(
         "last_diagnosis_fingerprint": _clip(rs.get("last_diagnosis_fingerprint"), 256),
         "last_selected_move_type": _clip(rs.get("last_selected_move_type"), 64),
         "last_guard_result": pc.get("last_guard_result"),
+        "session_progression": session_progression,
     }
 
     if active_learner_session_id and learner_state_engine is not None:

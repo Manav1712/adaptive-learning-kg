@@ -60,13 +60,24 @@ def test_gate_adequate_paraphrase_without_explicit_advance():
 
 
 @pytest.mark.unit
-def test_no_suppression_without_prior_diagnostic():
+def test_gate_suppresses_on_ordinary_non_ack_reply_after_diagnostic():
+    sig = compute_turn_progression_signals(
+        user_input="I think it is about adding many tiny pieces under the curve.",
+        previous_last_selected_move_type=TeachingMoveType.DIAGNOSTIC_QUESTION.value,
+    )
+    assert sig.current_confusion_signal is False
+    assert sig.short_low_signal_ack is False
+    assert sig.suppress_repeat_diagnostic is True
+
+
+@pytest.mark.unit
+def test_suppression_allowed_after_prior_bridge_move():
     sig = compute_turn_progression_signals(
         user_input="assume I know this, let's continue with integration",
         previous_last_selected_move_type=TeachingMoveType.GRADUATED_HINT.value,
     )
     assert sig.explicit_advance_intent is True
-    assert sig.suppress_repeat_diagnostic is False
+    assert sig.suppress_repeat_diagnostic is True
 
 
 @pytest.mark.unit
@@ -77,9 +88,72 @@ def test_explicit_advance_phrase_detection():
 
 
 @pytest.mark.unit
+def test_short_explicit_advance_is_not_treated_as_low_signal_ack():
+    sig = compute_turn_progression_signals(
+        user_input="yes. lets move forward",
+        previous_last_selected_move_type=None,
+    )
+    assert sig.explicit_advance_intent is True
+    assert sig.short_low_signal_ack is False
+
+
+@pytest.mark.unit
+def test_short_understanding_confirmation_counts_as_adequate():
+    for phrase in (
+        "this makes sense now",
+        "I understand",
+        "I get it",
+        "I see",
+        "I understand what you mean",
+        "okay I understand",
+    ):
+        sig = compute_turn_progression_signals(
+            user_input=phrase,
+            previous_last_selected_move_type=TeachingMoveType.DIAGNOSTIC_QUESTION.value,
+        )
+        assert sig.adequate_check_response is True
+        assert sig.short_low_signal_ack is False
+        assert sig.suppress_repeat_diagnostic is True
+
+
+@pytest.mark.unit
+def test_bare_acks_remain_low_signal():
+    for phrase in ("okay", "yes", "got it"):
+        sig = compute_turn_progression_signals(
+            user_input=phrase,
+            previous_last_selected_move_type=TeachingMoveType.DIAGNOSTIC_QUESTION.value,
+        )
+        assert sig.short_low_signal_ack is True
+        assert sig.adequate_check_response is False
+
+
+@pytest.mark.unit
+def test_understanding_phrase_blocked_by_confusion_language():
+    sig = compute_turn_progression_signals(
+        user_input="I understand, but I'm still confused",
+        previous_last_selected_move_type=TeachingMoveType.DIAGNOSTIC_QUESTION.value,
+    )
+    assert sig.current_confusion_signal is True
+    assert sig.adequate_check_response is False
+    assert sig.suppress_repeat_diagnostic is False
+
+
+@pytest.mark.unit
 def test_learner_requested_example_detected():
     assert matches_learner_requested_example("give me an example problem") is True
     assert matches_learner_requested_example("Can you show me an example?") is True
+    assert matches_learner_requested_example("can you explain this through an example?") is True
+    assert matches_learner_requested_example("lets do some solved examples") is True
+
+
+@pytest.mark.unit
+def test_short_example_request_is_not_treated_as_low_signal_ack():
+    sig = compute_turn_progression_signals(
+        user_input="solved examples please",
+        previous_last_selected_move_type=TeachingMoveType.WORKED_EXAMPLE.value,
+    )
+    assert sig.learner_requested_example is True
+    assert sig.short_low_signal_ack is False
 
 
 @pytest.mark.unit
@@ -110,9 +184,9 @@ def test_substantive_answer_attempt_with_equation_and_expr():
 
 
 @pytest.mark.unit
-def test_substantive_answer_attempt_blocked_without_prior_diagnostic():
+def test_substantive_answer_attempt_allowed_after_prior_bridge_move():
     prior = TeachingMoveType.GRADUATED_HINT.value
-    assert matches_substantive_answer_attempt("x = 5", prior) is False
+    assert matches_substantive_answer_attempt("x = 5", prior) is True
 
 
 @pytest.mark.unit

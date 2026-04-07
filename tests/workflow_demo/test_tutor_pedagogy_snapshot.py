@@ -44,6 +44,36 @@ def test_snapshot_sparse_first_turn_no_diagnosis():
     assert snap["target_lo"] == "LO1"
     assert snap.get("suspected_misconception") is None
     assert "extensions_preview" not in snap
+    assert snap.get("session_progression") is None
+
+
+def test_snapshot_includes_session_progression_from_extensions():
+    snap = build_tutor_pedagogy_snapshot(
+        handoff_context={
+            "pedagogy_context": {
+                "target_lo": "Goal",
+                "extensions": {
+                    "progression": {
+                        "steps": [
+                            {"lo": "Step A", "kind": "primary"},
+                            {"lo": "Step B", "kind": "primary"},
+                        ],
+                        "active_step_index": 1,
+                        "current_step_passed": False,
+                    }
+                },
+            },
+        },
+        bot_type="tutor",
+        active_learner_session_id="s-progress",
+        learner_state_engine=_FakeLearnerEngine(),
+    )
+    assert snap is not None
+    sp = snap.get("session_progression") or {}
+    assert sp.get("active_step_index") == 1
+    assert sp.get("step_count") == 2
+    assert sp.get("active_step_lo") == "Step B"
+    assert sp.get("current_step_passed") is False
 
 
 def test_snapshot_caps_candidate_move_types():

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Mapping, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple, TypeVar
 
 from pydantic import BaseModel, Field
 
@@ -24,8 +24,8 @@ class LearnerStateSnapshot(BaseModel):
     current_focus_lo: Optional[str] = None
     recent_attempt_count: int = 0
     hint_count: int = 0
-    top_mastery: list[tuple[str, float]] = Field(default_factory=list)
-    recent_misconceptions: dict[str, list[str]] = Field(default_factory=dict)
+    top_mastery: List[Tuple[str, float]] = Field(default_factory=list)
+    recent_misconceptions: Dict[str, List[str]] = Field(default_factory=dict)
 
 
 def _utc_now_iso() -> str:
@@ -39,10 +39,10 @@ def _normalize_lo_ref(value: Optional[object]) -> Optional[str]:
     return text or None
 
 
-def _coerce_bounded_float_map(raw: object) -> dict[str, float]:
+def _coerce_bounded_float_map(raw: object) -> Dict[str, float]:
     if not isinstance(raw, Mapping):
         return {}
-    out: dict[str, float] = {}
+    out: Dict[str, float] = {}
     for raw_key, raw_value in raw.items():
         try:
             value = float(raw_value)
@@ -59,7 +59,7 @@ def _clip_text(text: Optional[str], limit: int) -> str:
     return (text or "").strip()[:limit]
 
 
-def _append_bounded(items: list[_T], item: _T, limit: int) -> list[_T]:
+def _append_bounded(items: List[_T], item: _T, limit: int) -> List[_T]:
     return [*items, item][-limit:]
 
 

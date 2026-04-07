@@ -5,7 +5,9 @@ These types are not yet consumed by coach, planner, or tutor; they define
 the contract for later phases.
 """
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .constants import (
@@ -62,14 +64,14 @@ class LearnerState(BaseModel):
         max_length=256,
         validation_alias=AliasChoices("current_focus_lo", "active_lo_id"),
     )
-    mastery: dict[str, float] = Field(
+    mastery: Dict[str, float] = Field(
         default_factory=dict,
         validation_alias=AliasChoices("mastery", "lo_mastery_proxy"),
     )
-    confidence: dict[str, float] = Field(default_factory=dict)
-    misconceptions: dict[str, list[str]] = Field(default_factory=dict)
-    recent_attempts: list[AttemptRecord] = Field(default_factory=list, max_length=32)
-    hint_events: list[HintEvent] = Field(default_factory=list, max_length=64)
+    confidence: Dict[str, float] = Field(default_factory=dict)
+    misconceptions: Dict[str, List[str]] = Field(default_factory=dict)
+    recent_attempts: List[AttemptRecord] = Field(default_factory=list, max_length=32)
+    hint_events: List[HintEvent] = Field(default_factory=list, max_length=64)
 
     @model_validator(mode="before")
     @classmethod
@@ -94,7 +96,7 @@ class LearnerState(BaseModel):
         legacy = out.get("hint_history")
         if isinstance(legacy, list) and legacy:
             if not has_nonempty_events:
-                migrated: list[dict[str, Any]] = []
+                migrated: List[Dict[str, Any]] = []
                 for item in legacy:
                     if isinstance(item, str):
                         text = item.strip()
@@ -124,7 +126,7 @@ class LearnerState(BaseModel):
 
     @field_validator("mastery", "confidence")
     @classmethod
-    def _bounded_unit_interval_maps(cls, v: dict[str, float]) -> dict[str, float]:
+    def _bounded_unit_interval_maps(cls, v: Dict[str, float]) -> Dict[str, float]:
         for key, val in v.items():
             if not 0.0 <= val <= 1.0:
                 raise ValueError(f"{key!r} must map to [0.0, 1.0], got {val!r}")
@@ -134,12 +136,12 @@ class LearnerState(BaseModel):
     @classmethod
     def _normalize_misconceptions(
         cls,
-        value: dict[str, list[str]],
-    ) -> dict[str, list[str]]:
-        normalized: dict[str, list[str]] = {}
+        value: Dict[str, List[str]],
+    ) -> Dict[str, List[str]]:
+        normalized: Dict[str, List[str]] = {}
         for target_lo, entries in value.items():
             key = str(target_lo).strip() or "unknown"
-            deduped: list[str] = []
+            deduped: List[str] = []
             for item in entries:
                 text = str(item).strip()
                 if text and text not in deduped:
@@ -165,12 +167,12 @@ class MisconceptionDiagnosis(BaseModel):
     )
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str = Field(default="", max_length=4000)
-    prerequisite_gap_los: list[str] = Field(default_factory=list, max_length=32)
-    evidence_quotes: list[str] = Field(default_factory=list, max_length=16)
+    prerequisite_gap_los: List[str] = Field(default_factory=list, max_length=32)
+    evidence_quotes: List[str] = Field(default_factory=list, max_length=16)
     # Legacy compatibility inputs (excluded from serialization).
     code: Optional[str] = Field(default=None, exclude=True, max_length=128)
     label: Optional[str] = Field(default=None, exclude=True, max_length=512)
-    related_lo_ids: list[int] = Field(default_factory=list, exclude=True, max_length=32)
+    related_lo_ids: List[int] = Field(default_factory=list, exclude=True, max_length=32)
 
     @model_validator(mode="before")
     @classmethod
@@ -217,8 +219,8 @@ class TeachingMoveCandidate(BaseModel):
 
     # Legacy compatibility fields
     rationale: str = Field(default="", max_length=4000)
-    retrieval_intents: list[RetrievalIntent] = Field(default_factory=list, max_length=16)
-    metadata: dict[str, str] = Field(default_factory=dict, max_length=32)
+    retrieval_intents: List[RetrievalIntent] = Field(default_factory=list, max_length=16)
+    metadata: Dict[str, str] = Field(default_factory=dict, max_length=32)
 
     @model_validator(mode="after")
     def _sync_compatibility_fields(self) -> "TeachingMoveCandidate":
@@ -247,13 +249,13 @@ class PolicyDecision(BaseModel):
     selected_move: TeachingMoveCandidate = Field(
         validation_alias=AliasChoices("selected_move", "chosen"),
     )
-    rejected_moves: list[TeachingMoveCandidate] = Field(
+    rejected_moves: List[TeachingMoveCandidate] = Field(
         default_factory=list,
         max_length=16,
         validation_alias=AliasChoices("rejected_moves", "alternatives"),
     )
     decision_reason: str = Field(default="", max_length=4000)
-    scores: dict[str, float] = Field(default_factory=dict)
+    scores: Dict[str, float] = Field(default_factory=dict)
     policy_version: str = Field(default="0", max_length=64)
     trace_notes: str = Field(default="", max_length=4000, exclude=True)
 
@@ -272,7 +274,7 @@ class CriticVerdict(BaseModel):
 
     approved: bool
     severity: str = Field(default="none", max_length=32)
-    violations: list[str] = Field(default_factory=list, max_length=32)
+    violations: List[str] = Field(default_factory=list, max_length=32)
     revision_hint: Optional[str] = Field(default=None, max_length=2000)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
@@ -296,14 +298,14 @@ class PedagogicalContext(BaseModel):
     layer_version: str = Field(default="1", max_length=32)
     learner_state: LearnerState
     diagnosis: Optional[MisconceptionDiagnosis] = None
-    teaching_moves: list[TeachingMoveCandidate] = Field(default_factory=list, max_length=8)
+    teaching_moves: List[TeachingMoveCandidate] = Field(default_factory=list, max_length=8)
     policy_decision: Optional[PolicyDecision] = Field(
         default=None,
         validation_alias=AliasChoices("policy_decision", "policy"),
     )
     last_critic: Optional[CriticVerdict] = None
     active_move: Optional[TeachingMoveCandidate] = None
-    extensions: dict[str, Any] = Field(default_factory=dict, max_length=16)
+    extensions: Dict[str, Any] = Field(default_factory=dict, max_length=16)
     # Session vs turn instructional focus (Phase 5). diagnosis.target_lo follows single-pass diagnoser input.
     target_lo: Optional[str] = Field(default=None, max_length=512)
     instruction_lo: Optional[str] = Field(default=None, max_length=512)

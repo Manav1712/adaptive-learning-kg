@@ -417,3 +417,62 @@ def test_repeat_diagnostic_suppressed_after_advance_and_paraphrase(monkeypatch, 
     assert selected.get("move_type") != "diagnostic_question"
     assert pc.get("turn_progression_signals", {}).get("suppress_repeat_diagnostic") is True
     assert calls == ["tutor"]
+
+
+@pytest.mark.integration
+def test_session_progression_advances_active_step_on_adequate_response(monkeypatch, coach_agent):
+    """Two-step current_plan: adequate learner reply advances active_step_index and instruction_lo."""
+    calls = []
+
+    def _tutor(**kwargs):
+        calls.append("tutor")
+        return {
+            "message_to_student": "ok",
+            "end_activity": False,
+            "silent_end": False,
+            "needs_mode_confirmation": False,
+            "needs_topic_confirmation": False,
+            "requested_mode": None,
+            "session_summary": {
+                "topics_covered": [],
+                "student_understanding": "good",
+                "suggested_next_topic": None,
+                "switch_topic_request": None,
+                "switch_mode_request": None,
+                "notes": "",
+            },
+        }
+
+    monkeypatch.setattr("src.workflow_demo.bot_sessions.tutor_bot", _tutor)
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-prog-2"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "Session goal",
+            "mode": "practice",
+            "current_plan": [
+                {"title": "First Planned LO", "is_primary": True, "lo_id": 1},
+                {"title": "Second Planned LO", "is_primary": True, "lo_id": 2},
+            ],
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-prog-2"},
+            "target_lo": "Session goal",
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn(
+        "The height is vertical and the base is horizontal on the graph for the triangle area idea, "
+        "and that connects to how we set up riemann sums before taking the limit toward the integral."
+    )
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    ext = pc.get("extensions") or {}
+    prog = ext.get("progression") or {}
+    assert prog.get("active_step_index") == 1
+    assert pc.get("instruction_lo") == "Second Planned LO"
+    assert (pc.get("turn_progression_signals") or {}).get("adequate_check_response") is True
+    assert calls == ["tutor"]

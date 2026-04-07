@@ -46,13 +46,13 @@ class PedagogicalRetrievalOutput(BaseModel):
     pedagogical_retrieval_intent: PedagogicalRetrievalIntent
     retrieval_execution_mode: RetrievalExecutionMode
     legacy_retrieval_intent: Optional[RetrievalIntent] = None
-    reason_codes: list[str] = Field(default_factory=list, max_length=24)
-    material_triggers: list[str] = Field(default_factory=list, max_length=16)
+    reason_codes: List[str] = Field(default_factory=list, max_length=24)
+    material_triggers: List[str] = Field(default_factory=list, max_length=16)
     state: RetrievalSessionSnapshot
     teaching_pack: Optional[Dict[str, Any]] = None
     pack_delta: Optional[Dict[str, Any]] = None
     fallback_used: bool = False
-    errors: list[str] = Field(default_factory=list, max_length=8)
+    errors: List[str] = Field(default_factory=list, max_length=8)
 
 
 def diagnosis_fingerprint(diagnosis: MisconceptionDiagnosis) -> str:
@@ -61,6 +61,13 @@ def diagnosis_fingerprint(diagnosis: MisconceptionDiagnosis) -> str:
     label = (diagnosis.suspected_misconception or "").strip()
     prereqs = ",".join(sorted((p or "").strip().lower() for p in diagnosis.prerequisite_gap_los if p))
     return f"{target_norm}|{label}|{prereqs}"
+
+
+def diagnosis_fingerprint_coarse(diagnosis: MisconceptionDiagnosis) -> str:
+    """Stable across suspected_misconception label jitter; used for pack churn trigger t4."""
+    target_norm = (diagnosis.target_lo or "").strip().lower()
+    prereqs = ",".join(sorted((p or "").strip().lower() for p in diagnosis.prerequisite_gap_los if p))
+    return f"{target_norm}|{prereqs}"
 
 
 def map_action_to_execution_mode(action: RetrievalPolicyAction) -> RetrievalExecutionMode:
@@ -142,6 +149,17 @@ def _pack_covers_instruction_lo(
         if isinstance(ex, dict):
             parts.append(str(ex.get("lo_title") or "").lower())
             parts.append(str(ex.get("snippet") or "").lower())
+    for row in pack.get("practice") or []:
+        if isinstance(row, dict):
+            parts.append(str(row.get("lo_title") or "").lower())
+            parts.append(str(row.get("snippet") or "").lower())
+    for row in pack.get("prerequisites") or []:
+        if isinstance(row, dict):
+            parts.append(str(row.get("title") or "").lower())
+            parts.append(str(row.get("note") or "").lower())
+    for row in pack.get("citations") or []:
+        if isinstance(row, dict):
+            parts.append(str(row.get("lo_title") or "").lower())
     blob = " ".join(parts)
     return ins in blob
 

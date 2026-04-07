@@ -15,11 +15,26 @@ if TYPE_CHECKING:
 # Strong penalty so diagnostic_question loses to other moves when repeat gate fires (see turn_progression).
 _REPEAT_DIAGNOSTIC_SCORE_PENALTY = 2.5
 _EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE = 0.35
+# Session progression: step advanced or final step passed — avoid another broad check.
+_PROGRESSION_STRONG_DIAGNOSTIC_PENALTY = 2.0
+_PROGRESSION_CONCRETE_MOVE_BOOST = 0.55
+# Same-step substantive engagement: wrong/detailed attempt should change move, not advance step.
+_SAME_STEP_SUBSTANTIVE_DIAGNOSTIC_PENALTY = 1.2
+# Explicit move-on without prior-diagnostic suppress gate still must not default to another broad check.
+_EXPLICIT_ADVANCE_STRONG_DIAGNOSTIC_PENALTY = 1.5
+_EXPLICIT_ADVANCE_CONCRETE_MOVE_BOOST = 0.45
+_SAME_STEP_CONCRETE_MOVE_BOOST = 0.35
+# Clear understanding signal: force the next move away from another broad check.
+_ADEQUATE_UNDERSTANDING_DIAGNOSTIC_PENALTY = 3.0
+_ADEQUATE_UNDERSTANDING_CONCRETE_BOOST = 0.5
+# Same-step focus already covered or satisfied: avoid another broad diagnostic on this LO.
+_STEP_FOCUS_DIAGNOSTIC_PENALTY = 2.2
+_STEP_FOCUS_CONCRETE_BOOST = 0.4
 
 # Example request: boost worked_example; nudge diagnostic down; prefer graduated_hint if no worked_example candidate.
-_EXAMPLE_REQUEST_WORKED_BOOST = 1.20
-_EXAMPLE_REQUEST_DIAGNOSTIC_NUDGE = 0.60
-_EXAMPLE_REQUEST_GRADUATED_HINT_FALLBACK = 1.15
+_EXAMPLE_REQUEST_WORKED_BOOST = 1.45
+_EXAMPLE_REQUEST_DIAGNOSTIC_NUDGE = 0.95
+_EXAMPLE_REQUEST_GRADUATED_HINT_FALLBACK = 1.25
 
 # Lower rank wins when total scores tie (see PolicyScorer.select_best_move sort key).
 MOVE_TYPE_TIEBREAK_PRIORITY: Dict[TeachingMoveType, int] = {
@@ -42,6 +57,9 @@ class PolicyScorer:
         current_focus_lo: str,
         user_input: str,
         progression_signals: Optional["TurnProgressionSignals"] = None,
+        progression_just_advanced: bool = False,
+        progression_step_passed: bool = False,
+        step_focus_state: Optional[str] = None,
     ) -> PolicyDecision:
         if not teaching_moves:
             raise ValueError("teaching_moves must not be empty")
@@ -61,6 +79,9 @@ class PolicyScorer:
                     user_input=user_input or "",
                     progression_signals=progression_signals,
                     has_worked_example_candidate=has_worked_example_candidate,
+                    progression_just_advanced=progression_just_advanced,
+                    progression_step_passed=progression_step_passed,
+                    step_focus_state=step_focus_state,
                 ),
                 6,
             )
@@ -98,6 +119,9 @@ class PolicyScorer:
         user_input: str,
         progression_signals: Optional["TurnProgressionSignals"] = None,
         has_worked_example_candidate: bool = True,
+        progression_just_advanced: bool = False,
+        progression_step_passed: bool = False,
+        step_focus_state: Optional[str] = None,
     ) -> float:
         score = 0.0
 
@@ -154,6 +178,55 @@ class PolicyScorer:
             ):
                 score -= _EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE
 
+            if progression_just_advanced or progression_step_passed:
+                if move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION:
+                    score -= _PROGRESSION_STRONG_DIAGNOSTIC_PENALTY
+                if not prereq_gap and move.move_type == TeachingMoveType.WORKED_EXAMPLE:
+                    score += _PROGRESSION_CONCRETE_MOVE_BOOST
+                if not prereq_gap and move.move_type == TeachingMoveType.GRADUATED_HINT:
+                    score += _PROGRESSION_CONCRETE_MOVE_BOOST * 0.7
+
+            same_step_concrete = (
+                not progression_signals.current_confusion_signal
+                and not progression_signals.short_low_signal_ack
+                and (
+                    progression_signals.substantive_answer_attempt
+                    or progression_signals.learner_requested_example
+                )
+            )
+            if same_step_concrete:
+                if move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION:
+                    score -= _SAME_STEP_SUBSTANTIVE_DIAGNOSTIC_PENALTY
+                if move.move_type == TeachingMoveType.WORKED_EXAMPLE:
+                    score += _SAME_STEP_CONCRETE_MOVE_BOOST
+                if move.move_type == TeachingMoveType.GRADUATED_HINT:
+                    score += _SAME_STEP_CONCRETE_MOVE_BOOST * 0.7
+
+            if (
+                progression_signals.explicit_advance_intent
+                and not progression_signals.current_confusion_signal
+                and not progression_signals.short_low_signal_ack
+            ):
+                if move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION:
+                    score -= _EXPLICIT_ADVANCE_STRONG_DIAGNOSTIC_PENALTY
+                if not prereq_gap and move.move_type == TeachingMoveType.WORKED_EXAMPLE:
+                    score += _EXPLICIT_ADVANCE_CONCRETE_MOVE_BOOST
+                if not prereq_gap and move.move_type == TeachingMoveType.GRADUATED_HINT:
+                    score += _EXPLICIT_ADVANCE_CONCRETE_MOVE_BOOST * 0.7
+
+            if (
+                progression_signals.adequate_check_response
+                and not progression_signals.current_confusion_signal
+                and not progression_signals.short_low_signal_ack
+            ):
+                if move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION:
+                    score -= _ADEQUATE_UNDERSTANDING_DIAGNOSTIC_PENALTY
+                elif move.move_type in {
+                    TeachingMoveType.GRADUATED_HINT,
+                    TeachingMoveType.WORKED_EXAMPLE,
+                }:
+                    score += _ADEQUATE_UNDERSTANDING_CONCRETE_BOOST
+
             if progression_signals.learner_requested_example:
                 if move.move_type == TeachingMoveType.WORKED_EXAMPLE:
                     score += _EXAMPLE_REQUEST_WORKED_BOOST
@@ -164,6 +237,15 @@ class PolicyScorer:
                     and move.move_type == TeachingMoveType.GRADUATED_HINT
                 ):
                     score += _EXAMPLE_REQUEST_GRADUATED_HINT_FALLBACK
+
+        focus = (step_focus_state or "").strip().lower()
+        if focus in {"covered", "satisfied"} and not prereq_gap:
+            if move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION:
+                score -= _STEP_FOCUS_DIAGNOSTIC_PENALTY
+            if move.move_type == TeachingMoveType.WORKED_EXAMPLE:
+                score += _STEP_FOCUS_CONCRETE_BOOST
+            if move.move_type == TeachingMoveType.GRADUATED_HINT:
+                score += _STEP_FOCUS_CONCRETE_BOOST * 0.75
 
         return score
 

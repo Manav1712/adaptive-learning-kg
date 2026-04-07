@@ -192,6 +192,41 @@ def test_scenario_c_suppress_repeat_diagnostic_after_advance(monkeypatch, coach_
 
 @pytest.mark.acceptance
 @pytest.mark.integration
+def test_non_ack_reply_after_diagnostic_still_suppresses_repeat_check(monkeypatch, coach_agent):
+    """After one diagnostic, an ordinary non-confused reply should not trigger another broad check."""
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload(), _tutor_message_payload()])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-acc-c2"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "integration",
+            "mode": "practice",
+            "current_plan": [{"title": "integration", "lo_id": 1}],
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-acc-c2"},
+            "target_lo": "integration",
+            "retrieval_session": {
+                "pack_focus_lo": "integration",
+                "pack_revision": 2,
+                "last_selected_move_type": "diagnostic_question",
+            },
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("I think it means adding lots of little pieces under the curve.")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    assert pc.get("turn_progression_signals", {}).get("suppress_repeat_diagnostic") is True
+    pol = pc.get("policy_decision") or {}
+    assert pol.get("selected_move", {}).get("move_type") != "diagnostic_question"
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
 def test_scenario_d_substantive_wrong_answer_bounded_by_adequate_heuristic(monkeypatch, coach_agent):
     """
     Scenario D (bounded): long wrong-answer text triggers adequate_check_response heuristics,
@@ -230,6 +265,49 @@ def test_scenario_d_substantive_wrong_answer_bounded_by_adequate_heuristic(monke
     assert pc.get("turn_progression_signals", {}).get("suppress_repeat_diagnostic") is True
     pol = pc.get("policy_decision") or {}
     assert pol.get("selected_move", {}).get("move_type") != "diagnostic_question"
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_two_step_plan_advances_active_step_after_adequate_answer(monkeypatch, coach_agent):
+    """MVP progression: adequate check advances active_step_index when a second planned LO exists."""
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload("ok")])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-two-step"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "Overall goal",
+            "mode": "practice",
+            "current_plan": [
+                {"title": "LO One", "is_primary": True, "lo_id": 1},
+                {"title": "LO Two", "is_primary": True, "lo_id": 2},
+            ],
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-two-step"},
+            "target_lo": "Overall goal",
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn(
+        "The derivative measures the slope of the tangent line, and the integral accumulates area "
+        "under a curve; both connect through the limit definition and riemann sums."
+    )
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    prog = (pc.get("extensions") or {}).get("progression") or {}
+    assert prog.get("active_step_index") == 1
+    assert pc.get("instruction_lo") == "LO Two"
+    snap = build_tutor_pedagogy_snapshot(
+        handoff_context=coach_agent.bot_session_manager.handoff_context,
+        bot_type="tutor",
+        active_learner_session_id="sess-two-step",
+        learner_state_engine=coach_agent.learner_state_engine,
+    )
+    assert (snap or {}).get("session_progression", {}).get("active_step_lo") == "LO Two"
 
 
 def _handoff_with_prior_diagnostic() -> Dict[str, Any]:
@@ -310,6 +388,44 @@ def test_new_advance_phrases_suppress_repeat_diagnostic(monkeypatch, coach_agent
     coach_agent.process_turn("let's keep going, I get it")
     pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
     assert (pc.get("turn_progression_signals") or {}).get("suppress_repeat_diagnostic") is True
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_short_move_forward_marks_single_step_passed_without_reasking_check(monkeypatch, coach_agent):
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload("ok")])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-fast-forward"
+    coach_agent.bot_session_manager.handoff_context = {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "integration",
+            "mode": "practice",
+            "current_plan": [{"title": "integration", "is_primary": True, "lo_id": 1}],
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-fast-forward"},
+            "target_lo": "integration",
+            "instruction_lo": "integration",
+            "retrieval_session": {
+                "pack_focus_lo": "integration",
+                "pack_revision": 2,
+                "last_selected_move_type": "worked_example",
+            },
+        },
+    }
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("yes. lets move forward")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    tps = pc.get("turn_progression_signals") or {}
+    prog = (pc.get("extensions") or {}).get("progression") or {}
+    assert tps.get("explicit_advance_intent") is True
+    assert tps.get("short_low_signal_ack") is False
+    assert prog.get("current_step_passed") is True
+    assert (pc.get("policy_decision") or {}).get("selected_move", {}).get("move_type") != "diagnostic_question"
 
 
 @pytest.mark.acceptance
@@ -440,3 +556,47 @@ def test_pedagogy_snapshot_matches_builder_not_events(coach_agent, monkeypatch):
     )
     assert built is not None
     assert mgr.last_pedagogy_snapshot == built
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_plan_complete_flagged_when_last_step_passed(coach_agent, monkeypatch):
+    """plan_complete should be True in tutor_instruction_directives when the last LO is passed."""
+
+    def _fake_diagnose(self, session_id, user_input, current_focus_lo, learner_state, recent_messages=None):
+        return MisconceptionDiagnosis(
+            target_lo="Derivatives",
+            suspected_misconception="uncertain_or_low_signal",
+            confidence=0.15,
+            rationale="low signal",
+            prerequisite_gap_los=[],
+        )
+
+    monkeypatch.setattr(
+        "src.workflow_demo.pedagogy.diagnosis.MisconceptionDiagnoser.diagnose_turn",
+        _fake_diagnose,
+    )
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload()] * 4)
+
+    coach_agent.planner_result = _standard_planner_plan()
+    coach_agent.bot_session_manager.begin(
+        bot_type="tutor",
+        tool_params={"student_request": "help"},
+        conversation_summary="plan_complete test",
+    )
+
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    ext = pc.get("extensions") or {}
+    prog = ext.get("progression") or {}
+    assert prog.get("active_step_index") == 0
+    assert prog.get("current_step_passed") is False
+
+    coach_agent.process_turn("this makes sense")
+
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    tid = pc.get("tutor_instruction_directives") or {}
+    ext = pc.get("extensions") or {}
+    prog = ext.get("progression") or {}
+
+    assert prog.get("current_step_passed") is True
+    assert tid.get("plan_complete") is True

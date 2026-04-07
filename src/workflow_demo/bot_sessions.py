@@ -13,6 +13,12 @@ from .pedagogy import (
     derive_instruction_lo,
     parse_prior_snapshot,
 )
+from .pedagogy.session_progression import (
+    apply_session_progression_update,
+    build_initial_session_progression,
+    get_active_progression_lo,
+    update_same_step_focus_state,
+)
 from .pedagogy.tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
 from .pedagogy.turn_progression import compute_turn_progression_signals
 from .session_memory import create_handoff_context
@@ -285,6 +291,14 @@ class BotSessionManager:
 
         self._refresh_pedagogy_snapshot()
 
+        # Tutor may follow legacy prompt wording (silent_end + switch_* without end_activity).
+        # Finalization only runs on end_activity; coerce so handoffs are not dropped.
+        if self.bot_type == "tutor":
+            summary = bot_response.get("session_summary") or {}
+            if isinstance(summary, dict) and bot_response.get("silent_end"):
+                if summary.get("switch_topic_request") or summary.get("switch_mode_request"):
+                    bot_response = {**bot_response, "end_activity": True}
+
         # If the bot ended the session, finalize (save memory, update mastery).
         if bot_response.get("end_activity"):
             return self._finalize_bot_session(bot_response)
@@ -510,7 +524,13 @@ class BotSessionManager:
             if isinstance(prior_instruction_lo, str) and prior_instruction_lo.strip()
             else None
         )
-        diagnoser_focus = prior_instruction_str or session_target_lo
+
+        ext = pedagogy_context.get("extensions")
+        if not isinstance(ext, dict):
+            ext = {}
+        progression = ext.get("progression")
+        if not isinstance(progression, dict) or not progression.get("steps"):
+            progression = build_initial_session_progression(session_params)
 
         prior_rs = pedagogy_context.get("retrieval_session")
         previous_last_selected_move_type = None
@@ -521,6 +541,34 @@ class BotSessionManager:
             user_input=student_input,
             previous_last_selected_move_type=previous_last_selected_move_type,
         )
+
+        old_step_index = int(progression.get("active_step_index", 0) or 0)
+        progression, progression_event = apply_session_progression_update(
+            progression, progression_signals
+        )
+        new_step_index = int(progression.get("active_step_index", 0) or 0)
+        step_index_changed = old_step_index != new_step_index
+        progression = update_same_step_focus_state(
+            progression,
+            progression_signals,
+            step_index_changed=step_index_changed,
+        )
+        ext = {**ext, "progression": progression}
+        pedagogy_context["extensions"] = ext
+
+        active_progression_lo = get_active_progression_lo(progression)
+        has_progression_steps = bool(progression.get("steps"))
+        if has_progression_steps:
+            diagnoser_focus = (
+                active_progression_lo
+                or plan_focus
+                or session_target_lo
+                or "unknown"
+            ).strip()
+        else:
+            diagnoser_focus = (
+                prior_instruction_str or session_target_lo or plan_focus or "unknown"
+            ).strip()
 
         diagnosis = self.agent.misconception_diagnoser.diagnose_turn(
             session_id=self.active_learner_session_id,
@@ -545,6 +593,14 @@ class BotSessionManager:
             candidate.model_dump(mode="json")
             for candidate in teaching_moves
         ]
+        progression_step_passed = bool(progression.get("current_step_passed"))
+        steps = progression.get("steps") or []
+        plan_complete = (
+            progression_step_passed
+            and int(progression.get("active_step_index", 0) or 0) >= len(steps) - 1
+            and len(steps) > 0
+        )
+        step_focus_state = str(progression.get("active_step_focus_state") or "fresh")
         policy_decision = self.policy_scorer.select_best_move(
             diagnosis=diagnosis,
             learner_state=updated_state,
@@ -552,6 +608,9 @@ class BotSessionManager:
             current_focus_lo=diagnoser_focus or "unknown",
             user_input=student_input,
             progression_signals=progression_signals,
+            progression_just_advanced=progression_event,
+            progression_step_passed=progression_step_passed,
+            step_focus_state=step_focus_state,
         )
         pedagogy_context["policy_decision"] = policy_decision.model_dump(mode="json")
         pedagogy_context["turn_progression_signals"] = progression_signals.to_json_dict()
@@ -560,6 +619,7 @@ class BotSessionManager:
             session_target_lo=session_target_lo,
             diagnosis=diagnosis,
             selected_move_type=policy_decision.selected_move.move_type,
+            active_progression_lo=active_progression_lo if has_progression_steps else None,
         )
         prior_snapshot = parse_prior_snapshot(pedagogy_context.get("retrieval_session"))
 
@@ -595,6 +655,7 @@ class BotSessionManager:
             "retrieval_intent": r_out.pedagogical_retrieval_intent.value,
             "retrieval_action": r_out.action.value,
             "policy_reason": (policy_decision.decision_reason or "")[:500],
+            "plan_complete": plan_complete,
         }
         pedagogy_context["tutor_instruction_directives"] = tutor_instruction_directives
         # Legacy alias: same six fields (retrieval_execution_mode lives on pedagogy_context only).

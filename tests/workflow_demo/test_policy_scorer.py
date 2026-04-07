@@ -262,6 +262,41 @@ def test_suppress_repeat_diagnostic_avoids_diagnostic_question():
 
 
 @pytest.mark.unit
+def test_adequate_understanding_suppresses_diagnostic_question():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="integration",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+        _candidate("m_example", TeachingMoveType.WORKED_EXAMPLE),
+    ]
+    progression = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=True,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=True,
+    )
+    decision = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1", mastery={"integration": 0.5}),
+        teaching_moves=moves,
+        current_focus_lo="integration",
+        user_input="I understand what you mean",
+        progression_signals=progression,
+    )
+    assert decision.selected_move.move_type != TeachingMoveType.DIAGNOSTIC_QUESTION
+
+
+@pytest.mark.unit
 def test_suppress_not_applied_when_confusion_in_signals():
     scorer = PolicyScorer()
     diagnosis = MisconceptionDiagnosis(
@@ -509,3 +544,114 @@ def test_example_request_prefers_graduated_hint_when_worked_example_absent():
         progression_signals=progression,
     )
     assert decision.selected_move.move_type == TeachingMoveType.GRADUATED_HINT
+
+
+@pytest.mark.unit
+def test_progression_step_passed_avoids_diagnostic_question():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="integration",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+        _candidate("m_example", TeachingMoveType.WORKED_EXAMPLE),
+    ]
+    progression = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=False,
+    )
+    decision = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1", mastery={"integration": 0.5}),
+        teaching_moves=moves,
+        current_focus_lo="integration",
+        user_input="ok",
+        progression_signals=progression,
+        progression_just_advanced=False,
+        progression_step_passed=True,
+    )
+    assert decision.selected_move.move_type != TeachingMoveType.DIAGNOSTIC_QUESTION
+
+
+@pytest.mark.unit
+def test_short_explicit_advance_prefers_concrete_move_even_without_prior_diagnostic():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="integration",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+        _candidate("m_example", TeachingMoveType.WORKED_EXAMPLE),
+    ]
+    progression = TurnProgressionSignals(
+        explicit_advance_intent=True,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=False,
+    )
+    decision = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1", mastery={"integration": 0.5}),
+        teaching_moves=moves,
+        current_focus_lo="integration",
+        user_input="yes. lets move forward",
+        progression_signals=progression,
+        progression_just_advanced=False,
+        progression_step_passed=False,
+    )
+    assert decision.selected_move.move_type != TeachingMoveType.DIAGNOSTIC_QUESTION
+
+
+@pytest.mark.unit
+def test_substantive_answer_attempt_penalizes_diagnostic_without_progression_advance():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="integration",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+        _candidate("m_example", TeachingMoveType.WORKED_EXAMPLE),
+    ]
+    progression = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=True,
+        suppress_repeat_diagnostic=False,
+    )
+    decision = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1", mastery={"integration": 0.5}),
+        teaching_moves=moves,
+        current_focus_lo="integration",
+        user_input="I got x^2 + 3",
+        progression_signals=progression,
+        progression_just_advanced=False,
+        progression_step_passed=False,
+    )
+    assert decision.selected_move.move_type != TeachingMoveType.DIAGNOSTIC_QUESTION

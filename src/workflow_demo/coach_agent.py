@@ -21,6 +21,7 @@ from .pedagogy import (
     PedagogicalContext,
     RetrievalSessionSnapshot,
 )
+from .pedagogy.session_progression import build_initial_session_progression
 from .retriever import TeachingPackRetriever
 from .runtime_events import RuntimeEventCallback, emit_runtime_event
 from .session_memory import SessionMemory
@@ -199,6 +200,7 @@ class CoachAgent:
             current_focus_lo=current_focus_lo,
         )
         seed_lo = (current_focus_lo or "").strip() or None
+        progression = build_initial_session_progression(session_params)
         pedagogy_context = PedagogicalContext(
             learner_state=learner_state,
             target_lo=seed_lo,
@@ -206,6 +208,7 @@ class CoachAgent:
             retrieval_session=RetrievalSessionSnapshot(
                 pack_focus_lo=(seed_lo or ""),
             ),
+            extensions={"progression": progression},
         )
         return pedagogy_context.model_dump(mode="json")
 
