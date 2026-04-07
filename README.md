@@ -27,8 +27,7 @@ python -m src.workflow_demo.run_demo
 
 Type `quit` or `exit` to leave the REPL. You can pass image paths in the conversation per the demo’s help text.
 
-### Pedagogy evaluation harness (optional)
-
+### Pedagogy evaluation harness
 ```bash
 python -m src.workflow_demo.pedagogy_eval
 # With math-example guard scenarios enabled:
@@ -67,7 +66,7 @@ pytest tests/workflow_demo -q
 
 ---
 
-## Repository layout (short)
+## Repository layout 
 
 | Path | Role |
 |------|------|
