@@ -14,10 +14,12 @@ This platform creates an adaptive learning knowledge graph system that:
 
 ## Architecture
 
-See the [architecture/](architecture/) folder for detailed design documents:
+See the [architecture/](architecture/) folder for pipeline-oriented design notes:
 - [Phases](architecture/phases.md) - Development roadmap
-- [Implementation Plan](architecture/implementation.md) - Technical implementation details
-- [Sequence Diagrams](architecture/sequence_diagrams.md) - System interactions
+- [Manual ingestion](architecture/manual_ingestion.md) - KG construction notes
+- [G10 retrieval](architecture/g10_retrieval.md) - Retrieval design notes
+
+For the **adaptive tutoring runtime** (`workflow_demo`), see [docs/ADAPTIVE_TUTORING_ARCHITECTURE_SPEC.md](docs/ADAPTIVE_TUTORING_ARCHITECTURE_SPEC.md) and [src/workflow_demo/SYSTEM_DESIGN_DOCUMENT.md](src/workflow_demo/SYSTEM_DESIGN_DOCUMENT.md).
 
 
 #### Knowledge Graph Construction Pipeline

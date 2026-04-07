@@ -1,7 +1,5 @@
 # Adaptive Tutoring System — Implementation Architecture Specification
 
-*Source of truth: this document is derived from inspection of the repository (`src/workflow_demo`, `demo/`, `tests/workflow_demo`, `src/experiments_manual`, `architecture/`). Where a behavior is inferred or missing in code, it is labeled explicitly.*
-
 ---
 
 ## SECTION 1 — Executive system summary
@@ -63,7 +61,7 @@
 
 **Storage format:** Pandas in memory; optional **embedding cache** under `demo/.embedding_cache/` (`.npy` files, hash-keyed) in [`TeachingPackRetriever`](src/workflow_demo/retriever.py).
 
-**Ambiguities:** Production graph in `architecture/` and `docs/PRODUCT_SPEC.md` may describe **ideal** schemas; the **running system** uses the **demo CSV layout** consumed by `load_demo_frames`.
+**Ambiguities:** Notes under `architecture/` may describe **ideal** or pipeline-specific schemas; the **running tutor** uses the **demo CSV layout** consumed by `load_demo_frames`.
 
 ---
 
