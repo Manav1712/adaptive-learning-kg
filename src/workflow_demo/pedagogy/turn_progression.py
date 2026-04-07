@@ -43,6 +43,32 @@ _ADVANCE_PHRASES: tuple[str, ...] = (
     "get back to",
     "back to integration",
     "back to the topic",
+    "let's keep going",
+    "lets keep going",
+    "let's keep moving",
+    "lets keep moving",
+    "can we continue",
+    "can we move on",
+    "can we move forward",
+    "keep going",
+    "keep moving",
+    "okay let's keep",
+    "okay, let's keep",
+    "i get it",
+)
+
+# Learner asks for a concrete example or practice (substring, case-insensitive).
+_EXAMPLE_REQUEST_PHRASES: tuple[str, ...] = (
+    "give me an example",
+    "show me an example",
+    "can you show me",
+    "example problem",
+    "practice problem",
+    "worked example",
+    "can i try one",
+    "let me try",
+    "give me a problem",
+    "show me how",
 )
 
 # Reasoning / substance cues for adequate_check_response (any one helps).
@@ -76,6 +102,27 @@ _CONFUSION_RE = re.compile(
 # Minimum length for a message to count as substantive adequate response (beyond short ack).
 _ADEQUATE_MIN_CHARS = 40
 
+# v1 substantive math attempt: equality, expression-shaped tokens, digit + math cue, or numeric-answer phrasing.
+_MATH_ISH_CUE_RE = re.compile(r"[\+\-\*/^=()]|\*\*")
+_NUMERIC_ANSWER_PHRASE_RE = re.compile(
+    r"(?:"
+    r"\b(?:the\s+)?(?:answer|result)\s*(?:is|are|=)\s*[-+]?\d"
+    r"|\b(?:is|are|equals?)\s+[-+]?\d+\b"
+    r")",
+    re.IGNORECASE,
+)
+# Expression-like tokens (not a full math parser): e.g. 2x, x+1, 3/4, ^2, (a+b).
+_MATH_EXPRESSION_TOKEN_RE = re.compile(
+    r"(?:"
+    r"(?<![\w.])\d+[a-zA-Z](?![a-zA-Z])"  # coefficient-variable: 2x, 3n
+    r"|[a-zA-Z]\s*[\+\-\*/=^]\s*[\d.a-zA-Z]"  # x=5, n+1
+    r"|[\d.a-zA-Z]\s*[\+\-\*/^]\s*[\d.a-zA-Z]"  # 2+3, x*2 (requires op between tokens)
+    r"|\^\s*\d|\*\*"  # exponent markers
+    r"|\d+\s*/\s*\d+"  # simple fraction
+    r"|\([^)]{0,48}[\+\-\*/][^)]{0,48}\)"  # parentheses with an operator inside
+    r")",
+)
+
 
 @dataclass(frozen=True)
 class TurnProgressionSignals:
@@ -83,6 +130,8 @@ class TurnProgressionSignals:
     adequate_check_response: bool
     current_confusion_signal: bool
     short_low_signal_ack: bool
+    learner_requested_example: bool
+    substantive_answer_attempt: bool
     suppress_repeat_diagnostic: bool
 
     def to_json_dict(self) -> Dict[str, Any]:
@@ -95,6 +144,15 @@ def matches_short_low_signal_ack(user_input: str) -> bool:
     if not text:
         return True
     if len(text) < LOW_SIGNAL_MIN_CHARS:
+        # Do not treat short math replies (e.g. "x = 7", "2x") as low-signal acks.
+        if "=" in text:
+            return False
+        if _MATH_EXPRESSION_TOKEN_RE.search(text):
+            return False
+        if _NUMERIC_ANSWER_PHRASE_RE.search(text):
+            return False
+        if re.search(r"\d", text) and _MATH_ISH_CUE_RE.search(text):
+            return False
         return True
     if _LOW_SIGNAL_ACK_RE.match(text):
         return True
@@ -116,6 +174,43 @@ def matches_current_confusion_signal(user_input: str) -> bool:
 def matches_explicit_advance_intent(user_input: str) -> bool:
     lower = (user_input or "").lower()
     return any(p in lower for p in _ADVANCE_PHRASES)
+
+
+def matches_learner_requested_example(user_input: str) -> bool:
+    lower = (user_input or "").lower()
+    return any(p in lower for p in _EXAMPLE_REQUEST_PHRASES)
+
+
+def _looks_like_substantive_math_attempt(text: str) -> bool:
+    """Heuristic math substance: not grading, only loop-closure signal."""
+    if "=" in text:
+        return True
+    if _NUMERIC_ANSWER_PHRASE_RE.search(text):
+        return True
+    if _MATH_EXPRESSION_TOKEN_RE.search(text):
+        return True
+    if re.search(r"\d", text) and _MATH_ISH_CUE_RE.search(text):
+        return True
+    return False
+
+
+def matches_substantive_answer_attempt(
+    user_input: str,
+    previous_last_selected_move_type: Optional[str],
+) -> bool:
+    """
+    True when prior move was diagnostic_question and the reply looks like a concrete math attempt.
+    Does not encode correctness (no correct_attempt / incorrect_attempt).
+    """
+    if (previous_last_selected_move_type or "").strip() != TeachingMoveType.DIAGNOSTIC_QUESTION.value:
+        return False
+    text = (user_input or "").strip()
+    # Short equality answers (e.g. "x = 7") are substantive; other messages stay length-gated.
+    if len(text) < LOW_SIGNAL_MIN_CHARS and "=" not in text:
+        return False
+    if matches_short_low_signal_ack(text):
+        return False
+    return _looks_like_substantive_math_attempt(text)
 
 
 def matches_adequate_check_response(user_input: str) -> bool:
@@ -148,7 +243,8 @@ def compute_turn_progression_signals(
 
     suppress_repeat_diagnostic is True iff:
       previous_last_selected_move_type == diagnostic_question
-      and (explicit_advance_intent or adequate_check_response)
+      and (explicit_advance_intent or adequate_check_response
+           or substantive_answer_attempt or learner_requested_example)
       and not current_confusion_signal
       and not short_low_signal_ack
     """
@@ -157,12 +253,14 @@ def compute_turn_progression_signals(
     confusion = matches_current_confusion_signal(text)
     short_ack = matches_short_low_signal_ack(text)
     adequate = matches_adequate_check_response(text)
+    example_req = matches_learner_requested_example(text)
+    substantive = matches_substantive_answer_attempt(text, previous_last_selected_move_type)
 
     prior_diag = (previous_last_selected_move_type or "").strip() == TeachingMoveType.DIAGNOSTIC_QUESTION.value
 
     suppress = (
         prior_diag
-        and (explicit or adequate)
+        and (explicit or adequate or substantive or example_req)
         and not confusion
         and not short_ack
     )
@@ -172,5 +270,7 @@ def compute_turn_progression_signals(
         adequate_check_response=adequate,
         current_confusion_signal=confusion,
         short_low_signal_ack=short_ack,
+        learner_requested_example=example_req,
+        substantive_answer_attempt=substantive,
         suppress_repeat_diagnostic=suppress,
     )

@@ -232,6 +232,118 @@ def test_scenario_d_substantive_wrong_answer_bounded_by_adequate_heuristic(monke
     assert pol.get("selected_move", {}).get("move_type") != "diagnostic_question"
 
 
+def _handoff_with_prior_diagnostic() -> Dict[str, Any]:
+    return {
+        "session_params": {
+            "subject": "calculus",
+            "learning_objective": "integration",
+            "mode": "practice",
+            "current_plan": [{"title": "integration", "lo_id": 1}],
+        },
+        "pedagogy_context": {
+            "learner_state": {"active_session_id": "sess-diag-loop"},
+            "target_lo": "integration",
+            "retrieval_session": {
+                "pack_focus_lo": "integration",
+                "pack_revision": 2,
+                "last_selected_move_type": "diagnostic_question",
+            },
+        },
+    }
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_substantive_math_attempt_suppresses_diagnostic_and_reply_moves_forward(monkeypatch, coach_agent):
+    """After diagnostic + substantive attempt: suppress repeat diagnostic; stub reply uses example framing."""
+    forward_msg = (
+        "For example, let's work through it: if f(x)=x^2 then f'(x)=2x. Consider the limit definition briefly."
+    )
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload(forward_msg)])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-substantive"
+    coach_agent.bot_session_manager.handoff_context = _handoff_with_prior_diagnostic()
+    coach_agent.bot_session_manager.conversation_history = []
+
+    reply = coach_agent.process_turn("I think it equals 2x")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    tps = pc.get("turn_progression_signals") or {}
+    assert tps.get("substantive_answer_attempt") is True
+    assert tps.get("suppress_repeat_diagnostic") is True
+    pol = pc.get("policy_decision") or {}
+    assert pol.get("selected_move", {}).get("move_type") != "diagnostic_question"
+    lower = reply.lower()
+    assert "for example" in lower or "let's work" in lower or "consider" in lower
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_example_request_selects_worked_example(monkeypatch, coach_agent):
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload("Here is a worked example.")])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-ex"
+    coach_agent.bot_session_manager.handoff_context = _handoff_with_prior_diagnostic()
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("can you give me an example problem instead?")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    assert (pc.get("turn_progression_signals") or {}).get("learner_requested_example") is True
+    pol = pc.get("policy_decision") or {}
+    assert pol.get("selected_move", {}).get("move_type") == "worked_example"
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_new_advance_phrases_suppress_repeat_diagnostic(monkeypatch, coach_agent):
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload("ok")])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-adv"
+    coach_agent.bot_session_manager.handoff_context = _handoff_with_prior_diagnostic()
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("let's keep going, I get it")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    assert (pc.get("turn_progression_signals") or {}).get("suppress_repeat_diagnostic") is True
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_short_ack_after_diagnostic_does_not_suppress(monkeypatch, coach_agent):
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload("ok")])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-ack"
+    coach_agent.bot_session_manager.handoff_context = _handoff_with_prior_diagnostic()
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("yeah")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    assert (pc.get("turn_progression_signals") or {}).get("suppress_repeat_diagnostic") is False
+
+
+@pytest.mark.acceptance
+@pytest.mark.integration
+def test_confusion_overrides_example_request_suppress(monkeypatch, coach_agent):
+    _patch_tutor_bot(monkeypatch, [_tutor_message_payload("ok")])
+
+    coach_agent.bot_session_manager.is_active = True
+    coach_agent.bot_session_manager.bot_type = "tutor"
+    coach_agent.bot_session_manager.active_learner_session_id = "sess-conf"
+    coach_agent.bot_session_manager.handoff_context = _handoff_with_prior_diagnostic()
+    coach_agent.bot_session_manager.conversation_history = []
+
+    coach_agent.process_turn("I'm confused but give me an example")
+    pc = coach_agent.bot_session_manager.handoff_context.get("pedagogy_context") or {}
+    assert (pc.get("turn_progression_signals") or {}).get("suppress_repeat_diagnostic") is False
+
+
 @pytest.mark.acceptance
 @pytest.mark.integration
 def test_scenario_e_math_guard_wrong_integral_repaired(monkeypatch, mock_openai_client, sample_handoff_context):

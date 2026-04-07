@@ -246,6 +246,8 @@ def test_suppress_repeat_diagnostic_avoids_diagnostic_question():
         adequate_check_response=False,
         current_confusion_signal=False,
         short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=False,
         suppress_repeat_diagnostic=True,
     )
     decision = scorer.select_best_move(
@@ -278,6 +280,8 @@ def test_suppress_not_applied_when_confusion_in_signals():
         adequate_check_response=False,
         current_confusion_signal=True,
         short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=False,
         suppress_repeat_diagnostic=False,
     )
     decision = scorer.select_best_move(
@@ -385,3 +389,123 @@ def test_tutor_flow_populates_policy_decision_and_faq_untouched(monkeypatch, coa
     )
     faq_context = coach_agent.bot_session_manager.handoff_context or {}
     assert "pedagogy_context" not in faq_context
+
+
+@pytest.mark.unit
+def test_example_request_boosts_worked_example():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="Derivatives",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+        _candidate("m_example", TeachingMoveType.WORKED_EXAMPLE),
+    ]
+    progression = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=True,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=False,
+    )
+    decision = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1", mastery={"Derivatives": 0.5}),
+        teaching_moves=moves,
+        current_focus_lo="Derivatives",
+        user_input="can you give me an example problem?",
+        progression_signals=progression,
+    )
+    assert decision.selected_move.move_type == TeachingMoveType.WORKED_EXAMPLE
+
+
+@pytest.mark.unit
+def test_example_request_nudges_diagnostic_down_even_without_prior_diagnostic():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="Derivatives",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+    ]
+    with_example = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=True,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=False,
+    )
+    without = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=False,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=False,
+    )
+    d_with = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1"),
+        teaching_moves=moves,
+        current_focus_lo="Derivatives",
+        user_input="show me an example",
+        progression_signals=with_example,
+    )
+    d_without = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1"),
+        teaching_moves=moves,
+        current_focus_lo="Derivatives",
+        user_input="show me an example",
+        progression_signals=without,
+    )
+    assert d_with.scores["m_diag"] < d_without.scores["m_diag"]
+
+
+@pytest.mark.unit
+def test_example_request_prefers_graduated_hint_when_worked_example_absent():
+    scorer = PolicyScorer()
+    diagnosis = MisconceptionDiagnosis(
+        target_lo="Derivatives",
+        suspected_misconception="uncertain_or_low_signal",
+        confidence=0.15,
+        rationale="Low confidence.",
+        prerequisite_gap_los=[],
+    )
+    moves = [
+        _candidate("m_diag", TeachingMoveType.DIAGNOSTIC_QUESTION),
+        _candidate("m_hint", TeachingMoveType.GRADUATED_HINT),
+    ]
+    progression = TurnProgressionSignals(
+        explicit_advance_intent=False,
+        adequate_check_response=False,
+        current_confusion_signal=False,
+        short_low_signal_ack=False,
+        learner_requested_example=True,
+        substantive_answer_attempt=False,
+        suppress_repeat_diagnostic=False,
+    )
+    decision = scorer.select_best_move(
+        diagnosis=diagnosis,
+        learner_state=LearnerState(active_session_id="s1", mastery={"Derivatives": 0.9}),
+        teaching_moves=moves,
+        current_focus_lo="Derivatives",
+        user_input="give me an example problem",
+        progression_signals=progression,
+    )
+    assert decision.selected_move.move_type == TeachingMoveType.GRADUATED_HINT

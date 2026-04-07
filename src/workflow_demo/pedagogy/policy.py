@@ -16,6 +16,11 @@ if TYPE_CHECKING:
 _REPEAT_DIAGNOSTIC_SCORE_PENALTY = 2.5
 _EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE = 0.35
 
+# Example request: boost worked_example; nudge diagnostic down; prefer graduated_hint if no worked_example candidate.
+_EXAMPLE_REQUEST_WORKED_BOOST = 1.20
+_EXAMPLE_REQUEST_DIAGNOSTIC_NUDGE = 0.60
+_EXAMPLE_REQUEST_GRADUATED_HINT_FALLBACK = 1.15
+
 # Lower rank wins when total scores tie (see PolicyScorer.select_best_move sort key).
 MOVE_TYPE_TIEBREAK_PRIORITY: Dict[TeachingMoveType, int] = {
     TeachingMoveType.DIAGNOSTIC_QUESTION: 0,
@@ -42,6 +47,9 @@ class PolicyScorer:
             raise ValueError("teaching_moves must not be empty")
 
         focus_lo = (current_focus_lo or diagnosis.target_lo or learner_state.current_focus_lo or "unknown").strip() or "unknown"
+        has_worked_example_candidate = any(
+            m.move_type == TeachingMoveType.WORKED_EXAMPLE for m in teaching_moves
+        )
         scores: Dict[str, float] = {}
         for move in teaching_moves:
             scores[move.move_id] = round(
@@ -52,6 +60,7 @@ class PolicyScorer:
                     focus_lo=focus_lo,
                     user_input=user_input or "",
                     progression_signals=progression_signals,
+                    has_worked_example_candidate=has_worked_example_candidate,
                 ),
                 6,
             )
@@ -88,6 +97,7 @@ class PolicyScorer:
         focus_lo: str,
         user_input: str,
         progression_signals: Optional["TurnProgressionSignals"] = None,
+        has_worked_example_candidate: bool = True,
     ) -> float:
         score = 0.0
 
@@ -143,6 +153,17 @@ class PolicyScorer:
                 and move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION
             ):
                 score -= _EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE
+
+            if progression_signals.learner_requested_example:
+                if move.move_type == TeachingMoveType.WORKED_EXAMPLE:
+                    score += _EXAMPLE_REQUEST_WORKED_BOOST
+                if move.move_type == TeachingMoveType.DIAGNOSTIC_QUESTION:
+                    score -= _EXAMPLE_REQUEST_DIAGNOSTIC_NUDGE
+                if (
+                    not has_worked_example_candidate
+                    and move.move_type == TeachingMoveType.GRADUATED_HINT
+                ):
+                    score += _EXAMPLE_REQUEST_GRADUATED_HINT_FALLBACK
 
         return score
 
