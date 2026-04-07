@@ -362,3 +362,121 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 4. [`retriever.py`](../src/workflow_demo/retriever.py) + [`pedagogy/retrieval_policy.py`](../src/workflow_demo/pedagogy/retrieval_policy.py)
 5. [`tutor.py`](../src/workflow_demo/tutor.py)
 6. [`tests/workflow_demo/test_integration.py`](../tests/workflow_demo/test_integration.py) (contract examples)
+
+### D. Product goals, non-goals, personas, and journeys
+
+*(Merged from the former `SYSTEM_DESIGN_DOCUMENT.md` and `USER_STORIES.md`.)*
+
+**Problem statement:** One conversational surface for guided **tutoring** or **FAQ/course-policy** answers, with continuity across sessions.
+
+**Goals**
+
+- Unified assistant experience; internal handoffs hidden from the student.
+- Deterministic tutoring session shape: one **primary** LO in `current_plan`, optional supports, one `future_plan` suggestion.
+- Adaptive planning using prior **`lo_mastery`** when present.
+- Hybrid retrieval (dense + BM25, optional CLIP, optional LLM rerank).
+- Session continuity (recent sessions, return greetings, proficiency report).
+- Operational safety: JSON coercion, retries, bot fallbacks.
+
+**Non-goals (for this package)**
+
+- Not a multi-tenant production service by itself; scale-out and auth are out of scope here.
+- Not a full LMS (no gradebook / SIS).
+- Coverage is bounded by the **local demo corpus** and FAQ scripts.
+- Not a full safety/abuse stack beyond prompt-level constraints and narrow guards (e.g. math example guard).
+
+**Personas (short)**
+
+- **Concept-focused student** — wants explanations tied to objectives and prerequisites.
+- **Practice-oriented student** — wants mode-appropriate examples and practice.
+- **FAQ student** — wants short, reliable answers from allowed scripts.
+- **Returning student** — wants memory of prior sessions and progress.
+- **Demo operator** — needs predictable local runs and inspectable behavior.
+
+**Core journeys**
+
+1. Conceptual question → coach → tutoring planner → tutor session (no redundant “ready to begin?”).
+2. Examples/practice intent → planner with mode → tutor.
+3. Syllabus/admin → FAQ planner → FAQ bot from script + follow-up.
+4. “What did we cover last time?” → session memory answer without full coach LLM routing where intercepted.
+5. Image path/URL → optional vision preprocessing + retrieval / multimodal tutor.
+
+### E. Execution model, architecture sketch, and key symbols
+
+**Execution model**
+
+- Single-process, **synchronous** turns.
+- `CoachRouter.handle_turn` may iterate directives (bounded loop) per user message while in coach mode.
+- During an **active** tutor/FAQ session, turns go to `BotSessionManager` (not full coach routing) until the session ends.
+
+**Component view**
+
+```mermaid
+flowchart TD
+    U[Student input] --> C[CoachAgent]
+    C --> R[CoachRouter]
+    R -->|directive| LLM1[CoachLLMClient]
+    R -->|tutoring planner| TP[TutoringPlanner]
+    R -->|FAQ planner| FP[FAQPlanner]
+    TP --> RET[TeachingPackRetriever]
+    RET --> KG[CSV KG + embeddings]
+    R -->|start tutor/FAQ| BSM[BotSessionManager]
+    BSM --> TUT[tutor_bot]
+    BSM --> FAQ[faq_bot]
+    TUT --> LLM2[OpenAI chat/vision]
+    FAQ --> LLM2
+    BSM --> MEM[SessionMemory]
+```
+
+**Main numbered flow (CLI / same logical path in API)**
+
+1. Entry → `CoachAgent.process_turn` (or multimodal variant).
+2. If bot session active → `BotSessionManager.handle_turn`; else → `CoachRouter.handle_turn`.
+3. Router may preclassify intents, then requests coach **directives**.
+4. Directives may call planners, start tutor/FAQ, show proficiency, or return coach text.
+5. Session start → `create_handoff_context` + tutor learner seeding; bots return JSON messages until `end_activity`.
+6. On end: persist session, update **tutor** `lo_mastery` mapping from summary label, optional synthetic coach turn for topic/mode switch.
+
+**Key symbols (navigation)**
+
+- `build_coach_runtime()` — `runtime_factory.py`
+- `CoachAgent.process_turn` — `coach_agent.py`
+- `CoachRouter.handle_turn` — `coach_router.py`
+- `TutoringPlanner.create_plan` / `FAQPlanner.create_plan` — `planner.py`
+- `TeachingPackRetriever.retrieve_candidates` / `retrieve_plan` — `retriever.py`
+- `BotSessionManager.begin` / `handle_turn` / finalize — `bot_sessions.py`
+
+**State transition (sketch)**
+
+```mermaid
+stateDiagram-v2
+    [*] --> CoachMode
+    CoachMode --> PlannerCall: call planners
+    PlannerCall --> CoachMode: need_info or complete
+    CoachMode --> BotSession: start_tutor / start_faq
+    BotSession --> BotSession: student turns
+    BotSession --> CoachMode: end_activity
+    CoachMode --> [*]
+```
+
+### F. Tradeoffs, risks, and maintenance notes
+
+**Tradeoffs**
+
+- Role separation improves control and testing; orchestration and cross-file coupling increase.
+- Heuristic / env-gated LLM planners are more testable; full LLM planning is richer but less deterministic.
+- Local JSON + embedding caches keep setup simple; they limit multi-user concurrency and ops story.
+
+**Risks / debt (recurring)**
+
+- **Dual representations:** planner `current_plan` as LO dicts vs `retrieve_plan` / `SessionPlan` internal shapes — see Section 13.
+- **Prompt coupling:** routing and session end behavior depend on model adherence to JSON contracts.
+- **Legacy retrieval paths:** `retrieve_plan` and candidate flows coexist; keep changes explicit.
+- **Docs vs repo:** root README pipeline steps may reference scripts not present in every branch — verify before running ingestion commands.
+- **Tests:** some tests may lag schema changes (e.g. image preprocessor) — run `pytest` after refactors.
+
+**Maintenance directions (high level)**
+
+- Prefer typed validation for planner/bot JSON over time.
+- Reconcile README with actual scripts in the branch; add or remove commands accordingly.
+- Keep pedagogy eval harness (`pedagogy_eval`) green when changing policy or progression logic.

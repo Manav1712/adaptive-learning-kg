@@ -19,7 +19,7 @@ See the [architecture/](architecture/) folder for pipeline-oriented design notes
 - [Manual ingestion](architecture/manual_ingestion.md) - KG construction notes
 - [G10 retrieval](architecture/g10_retrieval.md) - Retrieval design notes
 
-For the **adaptive tutoring runtime** (`workflow_demo`), see [docs/ADAPTIVE_TUTORING_ARCHITECTURE_SPEC.md](docs/ADAPTIVE_TUTORING_ARCHITECTURE_SPEC.md) and [src/workflow_demo/SYSTEM_DESIGN_DOCUMENT.md](src/workflow_demo/SYSTEM_DESIGN_DOCUMENT.md).
+For the **adaptive tutoring runtime** (`workflow_demo`), see **[docs/ADAPTIVE_TUTORING_ARCHITECTURE_SPEC.md](docs/ADAPTIVE_TUTORING_ARCHITECTURE_SPEC.md)** (canonical: architecture, goals, personas, journeys, tradeoffs). A short pointer file remains at [`src/workflow_demo/SYSTEM_DESIGN_DOCUMENT.md`](src/workflow_demo/SYSTEM_DESIGN_DOCUMENT.md) for old links.
 
 
 #### Knowledge Graph Construction Pipeline
