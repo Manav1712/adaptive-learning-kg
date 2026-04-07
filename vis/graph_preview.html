@@ -185,10 +185,10 @@
             .range(['#4F86F7','#28a745','#ffc107','#FF6B6B','#4ECDC4','#6c757d']);
 
         Promise.all([
-            d3.csv('lo_index.csv'),
-            d3.csv('content_items.csv'),
-            d3.csv('edges_content.csv'),
-            d3.csv('edges_prereqs.csv')
+            d3.csv('../demo/lo_index.csv'),
+            d3.csv('../demo/content_items.csv'),
+            d3.csv('../demo/edges_content.csv'),
+            d3.csv('../demo/edges_prereqs.csv')
         ]).then(([loRows, contentRows, contentEdgesRows, prereqEdgesRows]) => {
             const nodesById = new Map();
             const nodes = []; const links = [];
