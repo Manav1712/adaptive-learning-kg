@@ -308,7 +308,9 @@ class TestDebugFormat:
 # ------------------------------------------------------------------
 
 class TestEventEmission:
-    def test_finalize_emits_observation_and_difficulty(self):
+    def test_finalize_emits_structured_events(self):
+        """Round 4: finalize emits separate completed, observation, and
+        difficulty-decided events with full metadata."""
         flags = _flags()
         obs_filter = HeuristicObservationFilter()
         sequencer = HeuristicProblemSequencer(observation_filter=obs_filter)
@@ -325,15 +327,25 @@ class TestEventEmission:
         )
         ext = _seeded_extensions(mgr)
         mgr.begin_practice_problem(ext)
-        mgr.record_problem_attempt(ext, submission_text="4", is_correct=True)
+        mgr.record_problem_attempt(ext, submission_text="x = 4", is_correct=True)
         mgr.finalize_problem_episode(ext, solved=True)
 
         completed_events = [
             e for e in events if e["args"][0] == "practice_problem_completed"
         ]
         assert len(completed_events) == 1
-        ev = completed_events[0]
-        assert ev["kwargs"]["observation"] is not None
-        assert ev["kwargs"]["current_difficulty"] == 2
-        assert ev["kwargs"]["last_difficulty"] == 1
-        assert ev["kwargs"]["difficulty_reason"] is not None
+        assert completed_events[0]["kwargs"]["solved"] is True
+
+        obs_events = [
+            e for e in events if e["args"][0] == "practice_observation_summarized"
+        ]
+        assert len(obs_events) == 1
+        assert obs_events[0]["kwargs"]["meaningful_attempts"] == 1
+
+        decided_events = [
+            e for e in events if e["args"][0] == "practice_difficulty_decided"
+        ]
+        assert len(decided_events) == 1
+        assert decided_events[0]["kwargs"]["new_difficulty"] == 2
+        assert decided_events[0]["kwargs"]["prior_difficulty"] == 1
+        assert decided_events[0]["kwargs"]["difficulty_reason"] is not None

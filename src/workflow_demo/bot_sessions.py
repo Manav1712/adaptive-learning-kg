@@ -1,10 +1,12 @@
 """Bot session lifecycle management for coach agent."""
 
+from __future__ import annotations
+
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 # Tutor-only REPL-style debug (must not reach the tutor LLM or pedagogy pipeline).
-_TUTOR_DEBUG_COMMANDS = frozenset({"!retrieval", "!policy", "!diagnosis", "!state", "!sequencing"})
+_TUTOR_DEBUG_COMMANDS = frozenset({"!retrieval", "!policy", "!diagnosis", "!state", "!sequencing", "!practice"})
 
 # Explicit student utterances that signal problem completion (Round 3).
 # Only whole-message matches; deliberately narrow to avoid false positives.
@@ -96,6 +98,19 @@ class BotSessionManager:
 
                 obs_filter = HeuristicObservationFilter()
                 sequencer = HeuristicProblemSequencer(observation_filter=obs_filter)
+            elif (
+                self._practice_flags.adaptive_sequencing_enabled
+                and self._practice_flags.sequencer_mode == "pomdp"
+            ):
+                from .pedagogy.pomdp_problem_sequencer import POMDPProblemSequencer
+                from .pedagogy.observation_filter import HeuristicObservationFilter
+
+                obs_filter = HeuristicObservationFilter()
+                sequencer = POMDPProblemSequencer(
+                    rollouts=self._practice_flags.sequencer_rollouts,
+                    horizon=self._practice_flags.sequencer_horizon,
+                    observation_filter=obs_filter,
+                )
             self._practice_mgr = PracticeSessionManager(
                 self._practice_flags,
                 problem_sequencer=sequencer,
@@ -168,7 +183,7 @@ class BotSessionManager:
 
                 if (
                     self._practice_flags.adaptive_sequencing_enabled
-                    and self._practice_flags.sequencer_mode == "heuristic"
+                    and self._practice_flags.sequencer_mode in ("heuristic", "pomdp")
                 ):
                     first_problem = self._practice_mgr.begin_practice_problem(ext)
                     if first_problem is not None:
@@ -471,6 +486,8 @@ class BotSessionManager:
             return self._format_tutor_state_debug_from_snapshot(snap)
         if cmd == "!sequencing":
             return self._format_tutor_sequencing_debug_from_snapshot(snap)
+        if cmd == "!practice":
+            return self._format_tutor_practice_debug_from_snapshot(snap)
         return ""
 
     def _format_tutor_retrieval_debug_from_snapshot(self, snap: Dict[str, Any]) -> str:
@@ -539,6 +556,7 @@ class BotSessionManager:
             "[DEBUG] Practice / sequencing state",
             "(Internal debug — not a tutoring reply.)",
             "",
+            f"practice_loop_enabled: {ps.get('practice_loop_enabled')!r}",
             f"practice_active: {ps.get('active')!r}",
             f"current_problem_id: {ps.get('current_problem_id')!r}",
             f"current_difficulty: {ps.get('current_difficulty')!r}",
@@ -553,8 +571,68 @@ class BotSessionManager:
             f"  meaningful_attempts: {last_obs.get('meaningful_attempts')!r}",
             f"  raw_attempt_count: {last_obs.get('raw_attempt_count')!r}",
             f"  help_turn_count: {last_obs.get('help_turn_count')!r}",
+            f"  time_on_problem_sec: {last_obs.get('time_on_problem_sec')!r}",
             f"  solved: {last_obs.get('solved')!r}",
         ]
+
+        if seq.get("mode") == "pomdp":
+            lines.append("")
+            lines.append("[POMDP posterior]")
+            lines.append(f"  posterior_expected_effort: {seq.get('posterior_expected_effort')!r}")
+            lines.append(f"  posterior_expected_tau: {seq.get('posterior_expected_tau')!r}")
+            lines.append(f"  active_particle_count: {seq.get('active_particle_count')!r}")
+            lines.append(f"  belief_ess: {seq.get('belief_ess')!r}")
+            lines.append(f"  init_source: {seq.get('init_source')!r}")
+            lines.append(f"  decision_margin: {seq.get('decision_margin')!r}")
+            lines.append(f"  served_difficulty: {seq.get('served_difficulty')!r}")
+            action_values = seq.get("action_values")
+            if isinstance(action_values, list):
+                lines.append(f"  action_values: {action_values!r}")
+
+        return "\n".join(lines).strip()
+
+    @staticmethod
+    def _format_tutor_practice_debug_from_snapshot(snap: Dict[str, Any]) -> str:
+        """Detailed practice-loop debug with difficulty history and recent outcomes."""
+        ps = snap.get("practice_session") or {}
+        seq = snap.get("sequencing") or {}
+        diff_history = seq.get("difficulty_history") or []
+        recent_outcomes = seq.get("recent_outcomes") or []
+        lines = [
+            "[DEBUG] Practice loop detail",
+            "(Internal debug — not a tutoring reply.)",
+            "",
+            f"practice_loop_enabled: {ps.get('practice_loop_enabled')!r}",
+            f"practice_active: {ps.get('active')!r}",
+            f"current_problem_id: {ps.get('current_problem_id')!r}",
+            f"current_difficulty: {ps.get('current_difficulty')!r}",
+            f"last_difficulty: {seq.get('last_difficulty')!r}",
+            f"problems_completed: {ps.get('problems_completed')!r}",
+            f"sequencer_mode: {seq.get('mode')!r}",
+            "",
+            "[Difficulty history (recent)]",
+        ]
+        if diff_history:
+            for entry in diff_history[-5:]:
+                pid = entry.get("problem_id", "?")
+                prior = entry.get("prior_difficulty", "?")
+                new = entry.get("new_difficulty", "?")
+                reason = entry.get("reason", "")
+                lines.append(f"  {pid}: {prior} -> {new}  ({reason})")
+        else:
+            lines.append("  (none)")
+        lines.append("")
+        lines.append("[Recent outcomes]")
+        if recent_outcomes:
+            for entry in recent_outcomes[-5:]:
+                pid = entry.get("problem_id", "?")
+                s = "solved" if entry.get("solved") else (
+                    "abandoned" if entry.get("abandoned") else "incomplete"
+                )
+                att = entry.get("attempt_count", 0)
+                lines.append(f"  {pid}: {s} ({att} attempts)")
+        else:
+            lines.append("  (none)")
         return "\n".join(lines).strip()
 
     @property

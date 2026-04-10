@@ -17,6 +17,17 @@ from typing import Any, Dict, List
 import pandas as pd
 import pytest
 
+import sys
+import types
+
+# Guard against broken sentence_transformers in environments where torch or
+# huggingface_hub are not fully installed.  The mock lets all other imports
+# in the workflow_demo package succeed so tests can run.
+if "sentence_transformers" not in sys.modules:
+    _st_stub = types.ModuleType("sentence_transformers")
+    _st_stub.SentenceTransformer = type("SentenceTransformer", (), {"__init__": lambda *a, **k: None})  # type: ignore[attr-defined]
+    sys.modules["sentence_transformers"] = _st_stub
+
 from src.workflow_demo.coach_agent import CoachAgent
 from src.workflow_demo.data_loader import KnowledgeGraphData
 from src.workflow_demo.models import PlanStep, SessionPlan, TeachingPack, RetrievalCandidate, RetrievalResult

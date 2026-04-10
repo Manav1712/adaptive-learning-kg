@@ -27,6 +27,11 @@ class PedagogyRuntimeEvent(str, Enum):
     PRACTICE_PROBLEM_COMPLETED = "practice_problem_completed"
     SEQUENCER_DIFFICULTY_CHOSEN = "sequencer_difficulty_chosen"
     SEQUENCER_STATE_UPDATED = "sequencer_state_updated"
+    # Round 4 — structured instrumentation events
+    PRACTICE_OBSERVATION_SUMMARIZED = "practice_observation_summarized"
+    PRACTICE_DIFFICULTY_DECIDED = "practice_difficulty_decided"
+    PRACTICE_NEXT_PROBLEM_SERVED = "practice_next_problem_served"
+    PRACTICE_EPISODE_ABANDONED = "practice_episode_abandoned"
 
     # Legacy / reserved (not emitted by current runtime paths)
     DIAGNOSIS_COMPLETED = "pedagogy_diagnosis_completed"

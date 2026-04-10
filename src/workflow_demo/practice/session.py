@@ -11,7 +11,7 @@ flag is enabled.
 
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Callable, Dict, List, Optional, Protocol, runtime_checkable
 
 from .feature_flags import PracticeFeatureFlags
 from .models import (
@@ -27,6 +27,9 @@ from .problem_selector import FirstMatchSelector, ProblemSelector
 from .problem_sequencer import NoOpProblemSequencer, ProblemSequencer
 
 EventEmitter = Callable[..., Any]
+
+_MAX_DIFFICULTY_HISTORY = 20
+_MAX_RECENT_OUTCOMES = 10
 
 
 @runtime_checkable
@@ -155,9 +158,26 @@ class PracticeSessionManager:
                 "Served practice problem.",
                 phase="practice",
                 problem_id=problem.problem_id,
+                lo_id=problem.lo_id,
+                lo_title=problem.lo_title,
                 difficulty=difficulty,
                 problem_index=ps.problem_index,
+                sequencer_mode=seq.mode,
             )
+
+            if ps.problem_index > 0:
+                self._emit(
+                    "practice_next_problem_served",
+                    "Next problem served after boundary.",
+                    phase="practice",
+                    problem_id=problem.problem_id,
+                    lo_id=problem.lo_id,
+                    lo_title=problem.lo_title,
+                    difficulty=difficulty,
+                    problem_index=ps.problem_index,
+                    sequencer_mode=seq.mode,
+                    prior_difficulty=seq.last_difficulty,
+                )
 
         return problem
 
@@ -223,10 +243,36 @@ class PracticeSessionManager:
         if self.obs_filter is not None:
             observation = self.obs_filter.summarize(episode)
 
+        prior_difficulty = seq.current_difficulty
+        saved_history = list(seq.debug.get("difficulty_history") or [])
+        saved_outcomes = list(seq.debug.get("recent_outcomes") or [])
+
         seq = self.sequencer.update_after_problem(seq, episode)
 
         if observation is not None:
             seq.debug["last_observation"] = observation.to_dict()
+
+        difficulty_history: List[Dict[str, Any]] = saved_history
+        difficulty_history.append({
+            "problem_id": episode.problem.problem_id,
+            "prior_difficulty": prior_difficulty,
+            "new_difficulty": seq.current_difficulty,
+            "solved": solved,
+            "abandoned": abandoned,
+            "struggle_level": seq.debug.get("struggle_level"),
+            "reason": seq.debug.get("difficulty_reason"),
+        })
+        seq.debug["difficulty_history"] = difficulty_history[-_MAX_DIFFICULTY_HISTORY:]
+
+        recent_outcomes: List[Dict[str, Any]] = saved_outcomes
+        recent_outcomes.append({
+            "problem_id": episode.problem.problem_id,
+            "solved": solved,
+            "abandoned": abandoned,
+            "attempt_count": len(episode.attempts),
+            "chat_turn_count": episode.chat_turn_count,
+        })
+        seq.debug["recent_outcomes"] = recent_outcomes[-_MAX_RECENT_OUTCOMES:]
 
         ps.completed_episodes.append(episode)
         ps.current_problem = None
@@ -236,23 +282,59 @@ class PracticeSessionManager:
 
         self._save(extensions, ps, seq)
 
+        obs_dict = observation.to_dict() if observation else None
+        _common_meta = dict(
+            phase="practice",
+            problem_id=episode.problem.problem_id,
+            lo_id=episode.problem.lo_id,
+            lo_title=episode.problem.lo_title,
+            sequencer_mode=seq.mode,
+        )
+
         if self._emit:
-            obs_dict = observation.to_dict() if observation else None
             self._emit(
                 "practice_problem_completed",
                 "Practice problem finalized.",
-                phase="practice",
-                problem_id=episode.problem.problem_id,
+                **_common_meta,
                 solved=solved,
                 abandoned=abandoned,
                 attempt_count=len(episode.attempts),
                 chat_turn_count=episode.chat_turn_count,
                 problem_index=ps.problem_index,
-                observation=obs_dict,
-                current_difficulty=seq.current_difficulty,
-                last_difficulty=seq.last_difficulty,
-                difficulty_reason=seq.debug.get("difficulty_reason"),
+                time_on_problem_sec=episode.time_on_problem_sec,
             )
+
+            if observation is not None:
+                self._emit(
+                    "practice_observation_summarized",
+                    "Observation filter summarized completed episode.",
+                    **_common_meta,
+                    meaningful_attempts=observation.meaningful_attempts,
+                    raw_attempt_count=observation.raw_attempt_count,
+                    help_turn_count=observation.help_turn_count,
+                    solved=observation.solved,
+                    time_on_problem_sec=observation.time_on_problem_sec,
+                )
+
+            self._emit(
+                "practice_difficulty_decided",
+                "Sequencer chose next difficulty.",
+                **_common_meta,
+                prior_difficulty=prior_difficulty,
+                new_difficulty=seq.current_difficulty,
+                struggle_level=seq.debug.get("struggle_level"),
+                difficulty_reason=seq.debug.get("difficulty_reason"),
+                observation=obs_dict,
+            )
+
+            if abandoned:
+                self._emit(
+                    "practice_episode_abandoned",
+                    "Practice episode abandoned before solve.",
+                    **_common_meta,
+                    attempt_count=len(episode.attempts),
+                    chat_turn_count=episode.chat_turn_count,
+                )
 
         return episode
 
@@ -289,8 +371,39 @@ class PracticeSessionManager:
                 "meaningful_attempts": last_obs.get("meaningful_attempts"),
                 "raw_attempt_count": last_obs.get("raw_attempt_count"),
                 "help_turn_count": last_obs.get("help_turn_count"),
+                "time_on_problem_sec": last_obs.get("time_on_problem_sec"),
                 "solved": last_obs.get("solved"),
             }
+
+        difficulty_history = seq_debug.get("difficulty_history")
+        if not isinstance(difficulty_history, list):
+            difficulty_history = []
+
+        recent_outcomes = seq_debug.get("recent_outcomes")
+        if not isinstance(recent_outcomes, list):
+            recent_outcomes = []
+
+        sequencing_dict = {
+            "mode": seq.get("mode", "off"),
+            "current_difficulty": seq.get("current_difficulty"),
+            "last_difficulty": seq.get("last_difficulty"),
+            "step_index": seq.get("step_index", 0),
+            "struggle_level": seq_debug.get("struggle_level"),
+            "difficulty_reason": seq_debug.get("difficulty_reason"),
+            "last_observation": last_obs_summary,
+            "difficulty_history": difficulty_history[-_MAX_DIFFICULTY_HISTORY:],
+            "recent_outcomes": recent_outcomes[-_MAX_RECENT_OUTCOMES:],
+        }
+
+        if seq.get("mode") == "pomdp":
+            sequencing_dict["posterior_expected_effort"] = seq.get("posterior_expected_effort")
+            sequencing_dict["posterior_expected_tau"] = seq.get("posterior_expected_tau")
+            sequencing_dict["active_particle_count"] = seq.get("active_particle_count")
+            sequencing_dict["decision_margin"] = seq_debug.get("decision_margin")
+            sequencing_dict["belief_ess"] = seq_debug.get("belief_ess")
+            sequencing_dict["init_source"] = seq_debug.get("init_source")
+            sequencing_dict["served_difficulty"] = seq_debug.get("served_difficulty")
+            sequencing_dict["action_values"] = seq_debug.get("action_values")
 
         return {
             "practice_session": {
@@ -300,14 +413,7 @@ class PracticeSessionManager:
                 ),
                 "current_difficulty": seq.get("current_difficulty"),
                 "problems_completed": len(raw_ps.get("completed_episodes") or []),
+                "practice_loop_enabled": True,
             },
-            "sequencing": {
-                "mode": seq.get("mode", "off"),
-                "current_difficulty": seq.get("current_difficulty"),
-                "last_difficulty": seq.get("last_difficulty"),
-                "step_index": seq.get("step_index", 0),
-                "struggle_level": seq_debug.get("struggle_level"),
-                "difficulty_reason": seq_debug.get("difficulty_reason"),
-                "last_observation": last_obs_summary,
-            },
+            "sequencing": sequencing_dict,
         }
