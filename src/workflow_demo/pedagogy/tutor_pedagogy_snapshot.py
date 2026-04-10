@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
+from ..practice.session import PracticeSessionManager
 from .session_progression import get_active_progression_lo
 
 
@@ -87,6 +88,15 @@ def build_tutor_pedagogy_snapshot(
                 "active_step_lo": _clip(get_active_progression_lo(raw_prog), 256),
             }
 
+    # Practice-loop / sequencing snapshot (Round 2+, safe when absent).
+    practice_snapshot = None
+    sequencing_snapshot = None
+    if isinstance(extensions, dict):
+        _ps_snap = PracticeSessionManager.build_snapshot(extensions)
+        if _ps_snap is not None:
+            practice_snapshot = _ps_snap.get("practice_session")
+            sequencing_snapshot = _ps_snap.get("sequencing")
+
     snap: Dict[str, Any] = {
         "session_id": active_learner_session_id,
         "bot_type": "tutor",
@@ -108,6 +118,8 @@ def build_tutor_pedagogy_snapshot(
         "last_selected_move_type": _clip(rs.get("last_selected_move_type"), 64),
         "last_guard_result": pc.get("last_guard_result"),
         "session_progression": session_progression,
+        "practice_session": practice_snapshot,
+        "sequencing": sequencing_snapshot,
     }
 
     if active_learner_session_id and learner_state_engine is not None:

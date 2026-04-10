@@ -1,9 +1,21 @@
 """Bot session lifecycle management for coach agent."""
 
+import re
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 # Tutor-only REPL-style debug (must not reach the tutor LLM or pedagogy pipeline).
-_TUTOR_DEBUG_COMMANDS = frozenset({"!retrieval", "!policy", "!diagnosis", "!state"})
+_TUTOR_DEBUG_COMMANDS = frozenset({"!retrieval", "!policy", "!diagnosis", "!state", "!sequencing"})
+
+# Explicit student utterances that signal problem completion (Round 3).
+# Only whole-message matches; deliberately narrow to avoid false positives.
+_PROBLEM_COMPLETE_PATTERNS: List[re.Pattern[str]] = [
+    re.compile(r"^next\s*problem\s*[.!?]*$", re.IGNORECASE),
+    re.compile(r"^i\s*solved\s*it\s*[.!?]*$", re.IGNORECASE),
+    re.compile(r"^done\s*[.!?]*$", re.IGNORECASE),
+    re.compile(r"^move\s*on\s*[.!?]*$", re.IGNORECASE),
+    re.compile(r"^next\s*[.!?]*$", re.IGNORECASE),
+    re.compile(r"^i['']?m\s*done\s*[.!?]*$", re.IGNORECASE),
+]
 
 from .pedagogy import (
     PedagogyRuntimeEvent,
@@ -21,6 +33,8 @@ from .pedagogy.session_progression import (
 )
 from .pedagogy.tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
 from .pedagogy.turn_progression import compute_turn_progression_signals
+from .practice.feature_flags import PracticeFeatureFlags
+from .practice.session import PracticeSessionManager
 from .session_memory import create_handoff_context
 from .tutor import tutor_bot, faq_bot
 
@@ -46,11 +60,17 @@ class BotSessionManager:
     rather than tracking session fields itself.
     """
 
-    def __init__(self, agent: "CoachAgent") -> None:
+    def __init__(
+        self,
+        agent: "CoachAgent",
+        practice_flags: Optional[PracticeFeatureFlags] = None,
+    ) -> None:
         """Initialize the bot session manager.
 
         Args:
             agent: Reference to the CoachAgent instance (owns shared state).
+            practice_flags: Optional feature flags for the practice loop.
+                When ``None``, flags are read from the environment.
         """
         self.agent = agent
         self.is_active = False
@@ -61,6 +81,27 @@ class BotSessionManager:
         self.teaching_move_generator = TeachingMoveGenerator()
         self.policy_scorer = PolicyScorer()
         self._last_pedagogy_snapshot: Optional[Dict[str, Any]] = None
+
+        self._practice_flags = practice_flags or PracticeFeatureFlags.from_env()
+        self._practice_mgr: Optional[PracticeSessionManager] = None
+        if self._practice_flags.practice_loop_enabled:
+            sequencer = None
+            obs_filter = None
+            if (
+                self._practice_flags.adaptive_sequencing_enabled
+                and self._practice_flags.sequencer_mode == "heuristic"
+            ):
+                from .pedagogy.heuristic_problem_sequencer import HeuristicProblemSequencer
+                from .pedagogy.observation_filter import HeuristicObservationFilter
+
+                obs_filter = HeuristicObservationFilter()
+                sequencer = HeuristicProblemSequencer(observation_filter=obs_filter)
+            self._practice_mgr = PracticeSessionManager(
+                self._practice_flags,
+                problem_sequencer=sequencer,
+                observation_filter=obs_filter,
+                event_emitter=self.agent.emit_event,
+            )
 
     def handle_turn(self, user_input: str) -> str:
         """Process a turn while in a bot session.
@@ -115,6 +156,26 @@ class BotSessionManager:
                 session_id=active_learner_session_id,
                 session_params=session_params,
             )
+
+        # Seed practice-loop state when the feature is enabled (tutor only).
+        if bot_type == "tutor" and self._practice_mgr is not None:
+            pc = context.get("pedagogy_context")
+            if isinstance(pc, dict):
+                ext = pc.get("extensions")
+                if not isinstance(ext, dict):
+                    ext = {}
+                self._practice_mgr.seed_extensions(ext)
+
+                if (
+                    self._practice_flags.adaptive_sequencing_enabled
+                    and self._practice_flags.sequencer_mode == "heuristic"
+                ):
+                    first_problem = self._practice_mgr.begin_practice_problem(ext)
+                    if first_problem is not None:
+                        session_params["active_practice_problem"] = first_problem.to_dict()
+
+                pc["extensions"] = ext
+                context["pedagogy_context"] = pc
 
         self._reset()
         self.is_active = True
@@ -262,6 +323,13 @@ class BotSessionManager:
                     self.conversation_history.append({"speaker": "assistant", "text": dbg})
                 self._refresh_pedagogy_snapshot()
                 return dbg or ""
+
+            boundary_response = self._try_problem_boundary(student_input)
+            if boundary_response is not None:
+                self.conversation_history.append({"speaker": "assistant", "text": boundary_response})
+                self._refresh_pedagogy_snapshot()
+                return boundary_response
+
             if student_input and self.active_learner_session_id:
                 self._run_misconception_diagnosis(student_input, history)
             bot_response = tutor_bot(
@@ -313,6 +381,78 @@ class BotSessionManager:
             return s
         return None
 
+    # ------------------------------------------------------------------
+    # Problem-boundary detection and serve-next flow (Round 3)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_problem_complete_utterance(text: str) -> Optional[bool]:
+        """Check if *text* is an explicit problem-completion utterance.
+
+        Returns ``True`` if it is a solved-claim ("I solved it"),
+        ``False`` if it is a move-on request ("done", "next problem",
+        "move on"), or ``None`` if it is not a completion trigger.
+        """
+        s = text.strip()
+        if not s:
+            return None
+        for pat in _PROBLEM_COMPLETE_PATTERNS:
+            if pat.match(s):
+                lower = s.lower()
+                if "solved" in lower:
+                    return True
+                return False
+        return None
+
+    def _try_problem_boundary(self, student_input: str) -> Optional[str]:
+        """Handle an explicit problem-completion trigger if applicable.
+
+        Returns the next-problem message to the student, or ``None`` if
+        this is not a boundary event.
+        """
+        if not student_input or self._practice_mgr is None or not self.handoff_context:
+            return None
+        if not (
+            self._practice_flags.practice_loop_enabled
+            and self._practice_flags.adaptive_sequencing_enabled
+        ):
+            return None
+
+        solved_claim = self._is_problem_complete_utterance(student_input)
+        if solved_claim is None:
+            return None
+
+        pc = self.handoff_context.get("pedagogy_context")
+        if not isinstance(pc, dict):
+            return None
+        ext = pc.get("extensions")
+        if not isinstance(ext, dict):
+            return None
+        ps_raw = ext.get("practice_session")
+        if not isinstance(ps_raw, dict) or not ps_raw.get("current_episode_trace"):
+            return None
+
+        self._practice_mgr.finalize_problem_episode(
+            ext, solved=solved_claim, abandoned=not solved_claim,
+        )
+
+        next_problem = self._practice_mgr.select_next_problem(ext)
+
+        if next_problem is not None:
+            session_params = self.handoff_context.get("session_params")
+            if isinstance(session_params, dict):
+                session_params["active_practice_problem"] = next_problem.to_dict()
+                self.handoff_context["session_params"] = session_params
+
+        self.handoff_context["pedagogy_context"] = pc
+
+        if next_problem is not None:
+            return (
+                f"Great! Here's your next problem (difficulty {next_problem.difficulty}):\n\n"
+                f"{next_problem.prompt_text}"
+            )
+        return "Nice work! No more problems available at this time."
+
     def _format_tutor_debug_command(self, cmd: str) -> str:
         """Format one tutor-only debug reply from the canonical snapshot."""
         snap = build_tutor_pedagogy_snapshot(
@@ -329,6 +469,8 @@ class BotSessionManager:
             return self._format_tutor_diagnosis_debug_from_snapshot(snap)
         if cmd == "!state":
             return self._format_tutor_state_debug_from_snapshot(snap)
+        if cmd == "!sequencing":
+            return self._format_tutor_sequencing_debug_from_snapshot(snap)
         return ""
 
     def _format_tutor_retrieval_debug_from_snapshot(self, snap: Dict[str, Any]) -> str:
@@ -388,6 +530,38 @@ class BotSessionManager:
         ]
         return "\n".join(lines).strip()
 
+    @staticmethod
+    def _format_tutor_sequencing_debug_from_snapshot(snap: Dict[str, Any]) -> str:
+        ps = snap.get("practice_session") or {}
+        seq = snap.get("sequencing") or {}
+        last_obs = seq.get("last_observation") or {}
+        lines = [
+            "[DEBUG] Practice / sequencing state",
+            "(Internal debug — not a tutoring reply.)",
+            "",
+            f"practice_active: {ps.get('active')!r}",
+            f"current_problem_id: {ps.get('current_problem_id')!r}",
+            f"current_difficulty: {ps.get('current_difficulty')!r}",
+            f"last_difficulty: {seq.get('last_difficulty')!r}",
+            f"problems_completed: {ps.get('problems_completed')!r}",
+            f"sequencer_mode: {seq.get('mode')!r}",
+            f"sequencer_step_index: {seq.get('step_index')!r}",
+            f"struggle_level: {seq.get('struggle_level')!r}",
+            f"difficulty_reason: {seq.get('difficulty_reason')!r}",
+            "",
+            "[Last observation]",
+            f"  meaningful_attempts: {last_obs.get('meaningful_attempts')!r}",
+            f"  raw_attempt_count: {last_obs.get('raw_attempt_count')!r}",
+            f"  help_turn_count: {last_obs.get('help_turn_count')!r}",
+            f"  solved: {last_obs.get('solved')!r}",
+        ]
+        return "\n".join(lines).strip()
+
+    @property
+    def practice_session_manager(self) -> Optional[PracticeSessionManager]:
+        """Expose practice manager for testing and external lifecycle hooks."""
+        return self._practice_mgr
+
     @property
     def last_pedagogy_snapshot(self) -> Optional[Dict[str, Any]]:
         """Last built tutor pedagogy snapshot for API/UI (tutor sessions only)."""
@@ -402,6 +576,18 @@ class BotSessionManager:
         Returns:
             A return greeting or switch request routed back to coach.
         """
+        # Close any active practice-problem episode before persisting.
+        if self._practice_mgr is not None and self.handoff_context:
+            pc = self.handoff_context.get("pedagogy_context")
+            if isinstance(pc, dict):
+                ext = pc.get("extensions")
+                if isinstance(ext, dict) and ext.get("practice_session"):
+                    ps_raw = ext["practice_session"]
+                    if isinstance(ps_raw, dict) and ps_raw.get("current_episode_trace"):
+                        self._practice_mgr.finalize_problem_episode(
+                            ext, abandoned=True,
+                        )
+
         # Capture session data before reset clears it.
         summary = bot_response.get("session_summary") or {}
         session_type = self.bot_type or "tutor"

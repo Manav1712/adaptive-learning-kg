@@ -22,6 +22,12 @@ class PedagogyRuntimeEvent(str, Enum):
     RETRIEVAL_EXECUTED = "pedagogy_retrieval_executed"
     MATH_GUARD_CHECKED = "pedagogy_math_guard_checked"
     MATH_GUARD_REPAIRED = "pedagogy_math_guard_repaired"
+    # Practice-loop / sequencing events (Round 2+)
+    PRACTICE_PROBLEM_STARTED = "practice_problem_started"
+    PRACTICE_PROBLEM_COMPLETED = "practice_problem_completed"
+    SEQUENCER_DIFFICULTY_CHOSEN = "sequencer_difficulty_chosen"
+    SEQUENCER_STATE_UPDATED = "sequencer_state_updated"
+
     # Legacy / reserved (not emitted by current runtime paths)
     DIAGNOSIS_COMPLETED = "pedagogy_diagnosis_completed"
     MOVES_GENERATED = "pedagogy_moves_generated"
