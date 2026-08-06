@@ -72,7 +72,8 @@ pytest tests/workflow_demo -q
 |------|------|
 | `src/workflow_demo/` | Adaptive tutoring runtime (coach, retrieval, pedagogy, tutor bots, optional web API) |
 | `demo/` | CSV-backed knowledge graph + embeddings cache used by the retriever |
-| `src/experiments_manual/` | Offline KG edge discovery and evaluation scripts |
+| `src/knowledge_graph_gen/` | Offline KG generation (chunks → versioned graph CSVs) |
+| `knowledge_graph/runs/` | Versioned knowledge graph artifacts from generation runs |
 | `architecture/` | Phase notes and manual ingestion / retrieval design sketches |
 | `frontend/` | Vite + React demo UI |
 
@@ -80,4 +81,4 @@ pytest tests/workflow_demo -q
 
 ## Knowledge graph construction (offline)
 
-If you are building or refreshing graphs from sources, see commands and context in **`architecture/manual_ingestion.md`** and **`README`-era scripts under `src/experiments_manual/`** (paths in those docs may vary by branch). The **running tutor** in `workflow_demo` consumes data under **`demo/`** as loaded by the runtime.
+See **[`src/knowledge_graph_gen/README.md`](src/knowledge_graph_gen/README.md)** for the standard process (draft CSVs → `knowledge_graph/runs/<run_id>/`). Design notes also live under [`architecture/manual_ingestion.md`](architecture/manual_ingestion.md). The **running tutor** in `workflow_demo` consumes data under **`demo/`** (promote a run there manually when ready).

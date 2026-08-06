@@ -1,5 +1,9 @@
 # Adaptive Tutoring System — Implementation Architecture Specification
 
+**Scope:** This document describes the **adaptive tutoring runtime** under [`src/workflow_demo/`](../src/workflow_demo/). The repository root [`README.md`](../README.md) points here as the **canonical** architecture for that runtime. **Offline KG construction** lives under [`src/knowledge_graph_gen/`](../src/knowledge_graph_gen/); retrieval / ingestion design sketches live under [`architecture/`](../architecture/) (for example [`g10_retrieval.md`](../architecture/g10_retrieval.md), [`manual_ingestion.md`](../architecture/manual_ingestion.md)).
+
+**Conventions:** Paths are relative to the repository root unless noted. **Python 3.10+** is recommended for the runtime (3.11+ typical for development). Re-run `pytest tests/workflow_demo` and `python -m src.workflow_demo.pedagogy_eval` after substantive changes; exact pass counts below are **illustrative**, not a contract.
+
 ---
 
 ## SECTION 1 — Executive system summary
@@ -11,14 +15,14 @@
 1. **Data / KG artifacts** — CSVs (`lo_index`, `content_items`, `edges_prereqs`, `edges_content`) loaded by [`load_demo_frames`](src/workflow_demo/data_loader.py).
 2. **Retrieval** — [`TeachingPackRetriever`](src/workflow_demo/retriever.py): hybrid dense + BM25 (RRF), optional LLM rerank, graph expansion into teaching packs; parallel `retrieve_candidates` for planner LO picking.
 3. **Orchestration** — [`CoachAgent`](src/workflow_demo/coach_agent.py) + [`CoachRouter`](src/workflow_demo/coach_router.py) + [`CoachLLMClient`](src/workflow_demo/coach_llm_client.py); [`BotSessionManager`](src/workflow_demo/bot_sessions.py) for tutor/FAQ lifecycle.
-4. **Pedagogy** — [`MisconceptionDiagnoser`](src/workflow_demo/pedagogy/diagnosis.py), [`TeachingMoveGenerator`](src/workflow_demo/pedagogy/teaching_moves.py), [`PolicyScorer`](src/workflow_demo/pedagogy/policy.py), [`PedagogicalRetrievalPolicy`](src/workflow_demo/pedagogy/retrieval_policy.py), [`compute_turn_progression_signals`](src/workflow_demo/pedagogy/turn_progression.py).
-5. **Integration** — [`web_api.py`](src/workflow_demo/web_api.py) FastAPI: REST + optional SSE; [`runtime_factory.build_coach_runtime`](src/workflow_demo/runtime_factory.py).
+4. **Pedagogy** — [`MisconceptionDiagnoser`](src/workflow_demo/pedagogy/diagnosis.py), [`TeachingMoveGenerator`](src/workflow_demo/pedagogy/teaching_moves.py), [`PolicyScorer`](src/workflow_demo/pedagogy/policy.py), [`PedagogicalRetrievalPolicy`](src/workflow_demo/pedagogy/retrieval_policy.py), [`compute_turn_progression_signals`](src/workflow_demo/pedagogy/turn_progression.py), [`session_progression`](src/workflow_demo/pedagogy/session_progression.py).
+5. **Integration** — [`web_api.py`](src/workflow_demo/web_api.py) FastAPI: REST + SSE; [`runtime_factory.build_coach_runtime`](src/workflow_demo/runtime_factory.py); optional **CLI** [`run_demo.py`](src/workflow_demo/run_demo.py); optional **React + Vite** UI under [`frontend/`](../frontend/).
 
 **Main runtime path (happy path):** Student → coach LLM directive → `call_tutoring_planner` → `TutoringPlanner.create_plan` (`retrieve_candidates` + heuristic or optional planner LLM) → `start_tutor` → `BotSessionManager.begin` → `create_handoff_context` + `ensure_tutor_learner_context` → `tutor_bot` opening message. Subsequent turns: diagnosis + policy + retrieval → `tutor_bot` → optional math guard.
 
-**Design principles visible in code:** (1) **Separation of planner LO selection** (`retrieve_candidates`, simple plan JSON) from **rich pack assembly** (`retrieve_plan`, used in pedagogy refresh paths). (2) **Deterministic policy** with explicit tie-breaks and progression gates. (3) **Feature flags** for LLM-heavy components (planner LLM, diagnosis LLM, math guard). (4) **JSON-only** tutor/FAQ contracts with retry.
+**Design principles visible in code:** (1) **Separation of planner LO selection** (`retrieve_candidates`, simple plan JSON) from **rich pack assembly** (`retrieve_plan`, used in pedagogy refresh paths). (2) **Deterministic policy** with explicit tie-breaks, progression gates, and **session progression** tracking to advance through planned LOs without looping. (3) **Feature flags** for LLM-heavy components (planner LLM, diagnosis LLM, math guard). (4) **JSON-only** tutor/FAQ contracts with retry. (5) **Anti-loop mechanisms** — turn progression signals suppress repeat diagnostics not just after `diagnostic_question` but also after bridge/teach moves (worked_example, graduated_hint, explain_concept) when the learner shows engagement.
 
-**Difference from generic RAG tutor:** Explicit **target_lo vs instruction_lo**, **move-typed conditioning** (`tutor_instruction_directives`), **retrieval policy** with logical actions (`reuse_pack` / `augment_pack` / `refresh_pack`) mapped to **execution modes** (`no_io` / `constrained_refresh` / `full_refresh`), **turn progression** to suppress repeated diagnostics, and **in-process pedagogy events** for observability.
+**Difference from generic RAG tutor:** Explicit **target_lo vs instruction_lo**, **move-typed conditioning** (`tutor_instruction_directives` — now 7 keys including `plan_complete`), **retrieval policy** with logical actions (`reuse_pack` / `augment_pack` / `refresh_pack`) mapped to **execution modes** (`no_io` / `constrained_refresh` / `full_refresh`), **session progression** (step-by-step advancement through planned LOs with `active_step_focus_state` tracking), **turn progression** to suppress repeated diagnostics across both diagnostic and bridge moves, **plan completion signal** that auto-wraps tutor sessions, and **in-process pedagogy events** for observability.
 
 ---
 
@@ -31,14 +35,19 @@
 | **Coach orchestration** | Routing, state | [`coach_agent.py`](src/workflow_demo/coach_agent.py), [`coach_router.py`](src/workflow_demo/coach_router.py), [`coach_llm_client.py`](src/workflow_demo/coach_llm_client.py) | OpenAI | Planners, `BotSessionManager` |
 | **Planners** | Tutoring + FAQ plan JSON | [`planner.py`](src/workflow_demo/planner.py) | Retriever, optional planner LLM | Session params in handoff |
 | **Bot sessions** | Tutor/FAQ turns, pedagogy pipeline | [`bot_sessions.py`](src/workflow_demo/bot_sessions.py) | Diagnoser, policy, retrieval | `tutor_bot` / `faq_bot` |
-| **Pedagogy core** | Diagnosis, moves, policy, retrieval | [`pedagogy/`](src/workflow_demo/pedagogy/) | Learner state, retriever | `pedagogy_context`, events |
+| **Pedagogy core** | Diagnosis, moves, policy, retrieval, session progression | [`pedagogy/`](src/workflow_demo/pedagogy/) | Learner state, retriever | `pedagogy_context`, events |
 | **Tutor / FAQ LLM** | Student-facing JSON bots | [`tutor.py`](src/workflow_demo/tutor.py) | Handoff payload | Student message |
 | **Session + profile** | History, `lo_mastery` | [`session_memory.py`](src/workflow_demo/session_memory.py), [`demo_profiles.py`](src/workflow_demo/demo_profiles.py) | Disk (optional) | Coach, mastery updates |
 | **Learner state (pedagogy)** | In-session attempts, misconceptions | [`learner_state.py`](src/workflow_demo/pedagogy/learner_state.py), [`state_store.py`](src/workflow_demo/pedagogy/state_store.py) | Profile seed | Policy, snapshot |
 | **Runtime events** | Structured telemetry | [`runtime_events.py`](src/workflow_demo/runtime_events.py), [`pedagogy/events.py`](src/workflow_demo/pedagogy/events.py) | Coach emit | Web sink, logs |
 | **Web API** | HTTP bridge | [`web_api.py`](src/workflow_demo/web_api.py) | FastAPI | Coach |
 | **Eval harness** | Scenario pedagogy checks | [`pedagogy_eval/harness.py`](src/workflow_demo/pedagogy_eval/harness.py) | Mocks/patches | Reports |
-| **Offline experiments** | LLM edge discovery (partial repo) | [`src/experiments_manual/`](src/experiments_manual) | Config YAML | Processed CSV edges (external to `demo/` unless copied) |
+| **Offline experiments** | LLM edge discovery | [`src/knowledge_graph_gen/`](../src/knowledge_graph_gen) (`run.py`, `prepare_nodes.py`, `discover_*`, `evaluate_*`) | OpenAI | Versioned CSVs under `knowledge_graph/runs/` (promote to `demo/` manually) |
+| **CLI demo** | REPL coach/tutor | [`run_demo.py`](src/workflow_demo/run_demo.py) | Same runtime as API | Terminal |
+| **Multimodal input** | Image paths / URLs in user text | [`image_preprocessor.py`](src/workflow_demo/image_preprocessor.py), `CoachAgent.process_multimodal_turn` | OpenAI (optional) | Tutor vision + CLIP retrieval |
+| **Frontend** | Browser chat against API | [`frontend/`](../frontend/) | FastAPI backend | Student UI |
+
+**`pedagogy/` package (file index):** [`__init__.py`](src/workflow_demo/pedagogy/__init__.py) (public exports), [`constants.py`](src/workflow_demo/pedagogy/constants.py), [`models.py`](src/workflow_demo/pedagogy/models.py), [`diagnosis.py`](src/workflow_demo/pedagogy/diagnosis.py), [`diagnosis_rules.py`](src/workflow_demo/pedagogy/diagnosis_rules.py), [`diagnosis_llm.py`](src/workflow_demo/pedagogy/diagnosis_llm.py), [`diagnosis_config.py`](src/workflow_demo/pedagogy/diagnosis_config.py) (e.g. `HEURISTIC_ACCEPT_CONFIDENCE`, `WORKFLOW_DEMO_ENABLE_DIAGNOSIS_LLM`), [`teaching_moves.py`](src/workflow_demo/pedagogy/teaching_moves.py), [`policy.py`](src/workflow_demo/pedagogy/policy.py), [`retrieval_policy.py`](src/workflow_demo/pedagogy/retrieval_policy.py), [`instruction_lo.py`](src/workflow_demo/pedagogy/instruction_lo.py), [`learner_state.py`](src/workflow_demo/pedagogy/learner_state.py), [`state_store.py`](src/workflow_demo/pedagogy/state_store.py), [`session_progression.py`](src/workflow_demo/pedagogy/session_progression.py), [`turn_progression.py`](src/workflow_demo/pedagogy/turn_progression.py), [`math_example_guard.py`](src/workflow_demo/pedagogy/math_example_guard.py), [`events.py`](src/workflow_demo/pedagogy/events.py), [`tutor_pedagogy_snapshot.py`](src/workflow_demo/pedagogy/tutor_pedagogy_snapshot.py).
 
 **Navigation tip:** Start at [`runtime_factory.py`](src/workflow_demo/runtime_factory.py) → [`coach_agent.py`](src/workflow_demo/coach_agent.py) → [`bot_sessions.py`](src/workflow_demo/bot_sessions.py) → [`retriever.py`](src/workflow_demo/retriever.py) + [`pedagogy/retrieval_policy.py`](src/workflow_demo/pedagogy/retrieval_policy.py).
 
@@ -55,7 +64,7 @@
 - **Prerequisites:** `edges_prereqs` → `prereq_in_map` (adjacency for prerequisite expansion).
 - **Content–LO links:** `edges_content` → `content_ids_map`.
 
-**How content becomes structured:** The **online** tutor does not run ingestion; it reads **pre-built** CSVs. **Offline** construction is described in [`README.md`](../README.md) and [`architecture/manual_ingestion.md`](../architecture/manual_ingestion.md) and implemented in part under [`src/experiments_manual/`](../src/experiments_manual) (`discover_content_links.py`, `discover_prereqs.py`, `evaluate_heuristic.py`, `evaluate_llm.py`, `config.yaml`). **Gap:** Root README references `prepare_lo_view.py` and `evaluate_outputs.py` — **these files are not present** in this repository snapshot; treat README pipeline steps as **partially aspirational** unless those scripts exist in your branch.
+**How content becomes structured:** The **online** tutor does not run ingestion; it reads **pre-built** CSVs under `demo/`. **Offline** construction is documented in [`src/knowledge_graph_gen/README.md`](../src/knowledge_graph_gen/README.md) and implemented under [`src/knowledge_graph_gen/`](../src/knowledge_graph_gen). Outputs land in `knowledge_graph/runs/`.
 
 **Validation:** [`load_demo_frames`](src/workflow_demo/data_loader.py) builds maps; structural validation for manual experiments is **not centralized** in `workflow_demo` (experiments scripts bear their own checks).
 
@@ -96,7 +105,7 @@
 ### 4.4 `retrieval_intent` vs `retrieval_action` vs `retrieval_execution_mode`
 
 - **`PedagogicalRetrievalIntent`** ([`constants.py`](src/workflow_demo/pedagogy/constants.py)): Step-1 **pedagogical** intent — `teach_current_concept`, `repair_prerequisite`, `retrieve_worked_example`, `retrieve_misconception_support`. Set by [`decide_pedagogical_retrieval_intent`](src/workflow_demo/pedagogy/retrieval_policy.py) from **move type + diagnosis**.
-- **`RetrievalPolicyAction`** (stored on context as string **`retrieval_action`**): Logical decision — `reuse_pack`, `augment_pack`, `refresh_pack`. From [`decide_retrieval_action`](src/workflow_demo/pedagogy/retrieval_policy.py) using **material triggers** `t1`–`t5` (session target change, instruction unsupported by pack, missing artifact for intent, diagnosis fingerprint change, empty/invalid pack).
+- **`RetrievalPolicyAction`** (stored on context as string **`retrieval_action`**): Logical decision — `reuse_pack`, `augment_pack`, `refresh_pack`. From [`decide_retrieval_action`](src/workflow_demo/pedagogy/retrieval_policy.py) using **material triggers** `t1`–`t5` (session target change, instruction unsupported by pack, missing artifact for intent, diagnosis fingerprint change, empty/invalid pack). Trigger `t4` now uses [`diagnosis_fingerprint_coarse`](src/workflow_demo/pedagogy/retrieval_policy.py) (target + prereqs only, omitting suspected_misconception label) to reduce pack churn from label jitter while still detecting real diagnostic shifts.
 - **`RetrievalExecutionMode`:** **Physical** mapping ([`map_action_to_execution_mode`](src/workflow_demo/pedagogy/retrieval_policy.py)):
   - `reuse_pack` → `no_io`
   - `augment_pack` → `constrained_refresh` (**implemented as full `retrieve_plan`**, not incremental merge — comment in code: v1 prefers `retrieve_plan` over weak merge)
@@ -104,6 +113,8 @@
 - **`legacy_retrieval_intent`:** From move’s [`RetrievalIntent`](src/workflow_demo/pedagogy/constants.py) enum via `_map_move_to_intent`; carried in policy output but tutor payload emphasizes `PedagogicalRetrievalIntent` strings on `pedagogy_context`.
 
 **Approximation:** “Augment” does not merge retrieved rows into the old pack in the success path; it **replaces** with a fresh `retrieve_plan` teaching pack (constrained `top_k` in augment path).
+
+**Pack coverage check:** [`_pack_covers_instruction_lo`](src/workflow_demo/pedagogy/retrieval_policy.py) now scans `key_points`, `examples`, `practice`, `prerequisites`, and `citations` (previously only key_points and examples), reducing false-positive `t2` triggers when instruction content exists in other pack sections.
 
 ### 4.5 Candidate retrieval vs plan retrieval
 
@@ -138,7 +149,7 @@
 
 [`create_handoff_context`](src/workflow_demo/session_memory.py): `handoff_metadata`, `session_params`, `conversation_summary`, `recent_sessions`, `student_state`, `image`.
 
-Tutor: [`ensure_tutor_learner_context`](src/workflow_demo/coach_agent.py) seeds `pedagogy_context` as JSON from [`PedagogicalContext`](src/workflow_demo/pedagogy/models.py) (learner state, `target_lo`, `instruction_lo`, `retrieval_session` snapshot).
+Tutor: [`ensure_tutor_learner_context`](src/workflow_demo/coach_agent.py) seeds `pedagogy_context` as JSON from [`PedagogicalContext`](src/workflow_demo/pedagogy/models.py) (learner state, `target_lo`, `instruction_lo`, `retrieval_session` snapshot). It also calls [`build_initial_session_progression`](src/workflow_demo/pedagogy/session_progression.py) to initialize `extensions.progression` with a step list derived from `current_plan` (order preserved, titles de-duplicated, `is_primary` tagged as `"primary"` vs `"support"`).
 
 ---
 
@@ -168,13 +179,25 @@ Tutor: [`ensure_tutor_learner_context`](src/workflow_demo/coach_agent.py) seeds 
 ### 6.4 Policy scorer ([`PolicyScorer`](src/workflow_demo/pedagogy/policy.py))
 
 - Scores each candidate with weighted features (expected gain, priority, leakage risk) + situation flags (low confidence, prereq gap, stuck, etc.).
-- **Progression:** [`TurnProgressionSignals`](src/workflow_demo/pedagogy/turn_progression.py) — `suppress_repeat_diagnostic` applies **penalty** `_REPEAT_DIAGNOSTIC_SCORE_PENALTY` to `diagnostic_question` when gate fires; example-request boosts `worked_example`.
+- **Turn progression penalties/boosts:** `suppress_repeat_diagnostic` applies **penalty** `_REPEAT_DIAGNOSTIC_SCORE_PENALTY` (2.5) to `diagnostic_question`; explicit advance intent without suppress gate applies `_EXPLICIT_ADVANCE_DIAGNOSTIC_NUDGE` (0.35); example-request boosts `worked_example` (+1.45) and penalizes `diagnostic_question` (−0.95), with `graduated_hint` fallback (+1.25) when no worked_example candidate exists.
+- **Session progression inputs:** `select_best_move` now accepts `progression_just_advanced`, `progression_step_passed`, and `step_focus_state` parameters:
+  - When step index advanced or final step passed: strong diagnostic penalty (`_PROGRESSION_STRONG_DIAGNOSTIC_PENALTY` = 2.0) + concrete move boosts (`_PROGRESSION_CONCRETE_MOVE_BOOST` = 0.55 for worked_example, ×0.7 for graduated_hint).
+  - Same-step substantive engagement (substantive answer or example request, no confusion/short ack): diagnostic penalty (1.2), concrete boosts (0.35).
+  - Explicit advance (non-confused, non-short): diagnostic penalty (1.5), concrete boosts (0.45).
+  - Adequate understanding (non-confused, non-short): strong diagnostic penalty (3.0), concrete boost (0.5).
+  - **Step focus state** `"covered"` or `"satisfied"`: diagnostic penalty (2.2), concrete boosts (0.4) — avoids re-checking an LO subidea already engaged with.
 - **Output:** [`PolicyDecision`](src/workflow_demo/pedagogy/models.py) with `selected_move`, `scores`, `decision_reason`.
 
 ### 6.5 `target_lo` vs `instruction_lo`
 
 - **`session_target_lo` / `target_lo`:** Stable session goal — from prior `pedagogy_context.target_lo` or plan focus ([`bot_sessions._run_misconception_diagnosis`](src/workflow_demo/bot_sessions.py)).
-- **`instruction_lo`:** Per-turn focus from [`derive_instruction_lo`](src/workflow_demo/pedagogy/instruction_lo.py): prereq gap first, else non-unknown `diagnosis.target_lo`, else `session_target_lo`.
+- **`instruction_lo`:** Per-turn focus from [`derive_instruction_lo`](src/workflow_demo/pedagogy/instruction_lo.py) with the following precedence (**first match wins** in code):
+  1. **`selected_move_type == PREREQ_REMEDIATION`** and non-empty `diagnosis.prerequisite_gap_los` → first gap entry (string).
+  2. **`active_progression_lo`** from session progression (when steps exist and value is not an unknown sentinel) — keeps the instructional focus aligned with the **current plan step**.
+  3. Concrete `diagnosis.target_lo` (not `unknown`) → that value.
+  4. `session_target_lo` fallback (or `"unknown"`).
+
+**Policy coupling (important):** Branch (1) applies only when the **`PolicyScorer` selected move** is `prereq_remediation`. A diagnosis may still list **`prerequisite_gap_los`** while the policy selects another move (for example `diagnostic_question`); in that case **`instruction_lo` follows branch (2) or (3)**—often the **progression LO** (e.g. primary plan title) rather than the first gap string. Product behavior “always teach the gap first” therefore requires both **diagnosis** and **policy** alignment, not the diagnosis alone.
 
 ### 6.6 Retrieval policy (see Section 4)
 
@@ -182,17 +205,50 @@ Triggers `t1`–`t5`; fingerprint via [`diagnosis_fingerprint`](src/workflow_dem
 
 ### 6.7 Tutor conditioning
 
-[`tutor_instruction_directives`](src/workflow_demo/tutor.py) — six keys: `session_target_lo`, `instruction_lo`, `selected_move_type`, `retrieval_intent`, `retrieval_action`, `policy_reason`. Dual-written as `tutor_directives` on `pedagogy_context`. **`retrieval_execution_mode` is NOT in directives** (tutor system prompt: execution mode on `pedagogy_context` only).
+[`tutor_instruction_directives`](src/workflow_demo/tutor.py) — **seven keys**: `session_target_lo`, `instruction_lo`, `selected_move_type`, `retrieval_intent`, `retrieval_action`, `policy_reason`, **`plan_complete`**. Dual-written as `tutor_directives` on `pedagogy_context`. **`retrieval_execution_mode` is NOT in directives** (tutor system prompt: execution mode on `pedagogy_context` only).
+
+**`plan_complete` flag:** Set `True` when `current_step_passed` is true and `active_step_index >= len(steps) - 1` (i.e. the final progression step has been passed). The tutor system prompt instructs: when `plan_complete` is true, give a brief 2–3 sentence recap, mention what the learner could explore next (from `future_plan` if available), and set `end_activity=true`.
 
 ### 6.8 Turn progression / repeated-check suppression
 
-[`compute_turn_progression_signals`](src/workflow_demo/pedagogy/turn_progression.py): `suppress_repeat_diagnostic` when prior move was `diagnostic_question` and student shows advance intent, adequate check response, substantive math attempt, or example request — and not confusion / short ack.
+[`compute_turn_progression_signals`](src/workflow_demo/pedagogy/turn_progression.py) computes a `TurnProgressionSignals` dataclass with seven boolean flags: `explicit_advance_intent`, `adequate_check_response`, `current_confusion_signal`, `short_low_signal_ack`, `learner_requested_example`, `substantive_answer_attempt`, `suppress_repeat_diagnostic`.
 
-### 6.9 Math guard
+**`suppress_repeat_diagnostic`** fires in two cases:
+1. **After `diagnostic_question`:** when student reply is not confused and not a pure short ack (any engaged reply ends the immediate re-check).
+2. **After bridge/teach moves** (`worked_example`, `graduated_hint`, `explain_concept`): when the learner shows engagement — explicit advance, adequate response, substantive answer attempt, example request, or a non-trivial message (≥12 chars) — and not confused or short ack. This prevents the tutor from snapping back to another broad check on the same LO subidea after a bridge turn.
+
+**`adequate_check_response`:** Heuristic requiring non-short-ack, non-confused text with either understanding-confidence phrases (e.g. "I understand", "this makes sense", "it clicks now") or sufficient length (≥40 chars) plus substance tokens (math/domain cues).
+
+**`substantive_answer_attempt`:** Context-dependent: after `diagnostic_question`, requires concrete math attempt; after `worked_example`/`graduated_hint`/`explain_concept`, also accepts substance tokens or non-trivial text (≥12 chars).
+
+**Short-ack exclusions:** Short math replies (containing `=`, expression tokens, or numeric-answer phrasing) and understanding-confidence phrases are not treated as low-signal acks, even if below `LOW_SIGNAL_MIN_CHARS`.
+
+### 6.9 Session progression ([`session_progression.py`](src/workflow_demo/pedagogy/session_progression.py))
+
+Session-local tracking that advances the learner through planned LOs without looping. Stored under `pedagogy_context["extensions"]["progression"]`.
+
+**Initialization:** [`build_initial_session_progression`](src/workflow_demo/pedagogy/session_progression.py) builds a step list from `current_plan` (order preserved, titles de-duplicated, each tagged `"primary"` or `"support"` from `is_primary`). Falls back to `learning_objective` / `title` as a single `"fallback"` step if plan is empty. Initial state: `active_step_index=0`, `current_step_passed=False`, `active_step_focus_state="fresh"`.
+
+**Step advancement:** [`apply_session_progression_update`](src/workflow_demo/pedagogy/session_progression.py) advances based on `TurnProgressionSignals`:
+- `adequate_check_response` → always advances.
+- `explicit_advance_intent` → advances for primary steps; blocked for `"support"` steps unless `adequate_check_response` also fires.
+- Blocked when `current_confusion_signal` or `short_low_signal_ack`.
+- `substantive_answer_attempt` and `learner_requested_example` do **not** advance the index (engagement without demonstrated understanding).
+- If more steps remain: increments index, resets `current_step_passed`. If at the last step: sets `current_step_passed=True` (triggers `plan_complete`).
+
+**Focus state:** [`update_same_step_focus_state`](src/workflow_demo/pedagogy/session_progression.py) tracks `"fresh"` → `"covered"` → `"satisfied"` per step:
+- Resets to `"fresh"` when step index changes.
+- `adequate_check_response` or `explicit_advance_intent` → `"satisfied"`.
+- `suppress_repeat_diagnostic` (without adequate/advance) when `"fresh"` → `"covered"`.
+- Policy uses focus state to apply `_STEP_FOCUS_DIAGNOSTIC_PENALTY` (2.2) on `"covered"` or `"satisfied"` steps.
+
+**Diagnoser focus:** When progression steps exist, the diagnoser receives `active_progression_lo` (from current step) rather than the prior instruction LO, keeping diagnosis anchored to the current plan step.
+
+### 6.10 Math guard
 
 [`maybe_apply_math_example_guard`](src/workflow_demo/pedagogy/math_example_guard.py): only if `WORKFLOW_DEMO_TUTOR_MATH_GUARD` and `selected_move_type == worked_example`; sympy verifies **single** integral or derivative **polynomial** pattern; repair or append note.
 
-### 6.10 Observability
+### 6.11 Observability
 
 [`PedagogyRuntimeEvent`](src/workflow_demo/pedagogy/events.py) emitted from [`bot_sessions._run_misconception_diagnosis`](src/workflow_demo/bot_sessions.py) (diagnosis, moves, policy, retrieval decided/executed) and math guard callbacks.
 
@@ -229,7 +285,7 @@ Triggers `t1`–`t5`; fingerprint via [`diagnosis_fingerprint`](src/workflow_dem
 - **System:** [`TUTOR_SYSTEM_PROMPT`](src/workflow_demo/tutor.py): rules for plan adherence, off-topic detection, move types, JSON schema.
 - **User payload:** JSON with:
   - `handoff_context` (includes `session_params` with `current_plan`, `future_plan`, `mode`, `teaching_pack`, …),
-  - `tutor_instruction_directives` (six fields),
+  - `tutor_instruction_directives` (seven fields — see Section 6.7),
   - `tutor_directives` (duplicate),
   - `conversation_history` (last 12),
   - `retrieved_images`.
@@ -253,13 +309,30 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 
 **Runtime events:** [`emit_runtime_event`](src/workflow_demo/runtime_events.py) → dict with `id`, `type`, `phase`, `message`, `created_at`, `metadata`.
 
-**Web API:** [`ThreadSafeEventSink`](src/workflow_demo/web_api.py) batches events; **`POST /api/chat`** returns drained events; **`POST /api/chat/stream`** SSE streams events during turn, final `done` with `pedagogy_snapshot`.
+**Web API** ([`web_api.py`](src/workflow_demo/web_api.py)):
 
-**Pedagogy snapshot:** [`build_tutor_pedagogy_snapshot`](src/workflow_demo/pedagogy/tutor_pedagogy_snapshot.py); exposed via `CoachAgent.get_pedagogy_snapshot_for_api()` → `ChatResponse.pedagogy_snapshot`.
+| Endpoint | Role |
+|----------|------|
+| `GET /api/health` | Liveness: `{ "status": "ok" }` |
+| `POST /api/session` | Create `WebCoachSession`, run `initial_greeting`, register session |
+| `POST /api/chat` | One synchronous turn (`process_turn` in a thread pool) |
+| `POST /api/chat/stream` | SSE: `event` frames per runtime event, then `done` or `error` |
+| `POST /api/reset` | Rebuild coach + sink for the session id |
 
-**Debug commands (tutor-only, no LLM):** `!retrieval`, `!policy`, `!diagnosis`, `!state` in [`bot_sessions.py`](src/workflow_demo/bot_sessions.py) — formatted from same snapshot builder.
+**Response bodies (Pydantic models):** In addition to turn text and `events`, API responses include:
 
-**Env:** `WORKFLOW_DEMO_API_HOST`, `WORKFLOW_DEMO_API_PORT`, `WORKFLOW_DEMO_CORS_ORIGINS`, `.env` loaded from repo root in `web_api`.
+- **`pedagogy_snapshot`:** From `CoachAgent.get_pedagogy_snapshot_for_api()` — compact tutor pedagogy state when applicable (else `null`). Built by [`build_tutor_pedagogy_snapshot`](src/workflow_demo/pedagogy/tutor_pedagogy_snapshot.py); may include **`session_progression`** (`active_step_index`, `current_step_passed`, `step_count`, `active_step_lo`, etc.) when progression steps exist.
+- **`tutor_session_active`:** From `CoachAgent.tutor_session_active_for_api()` — `true` only when a **tutor** bot session is active (`bot_type == "tutor"`), not during FAQ-only sessions.
+
+These fields appear on **`SessionResponse`** (create session), **`ChatResponse`** (chat), and **`ResetResponse`** (reset) where defined in code.
+
+**SSE stream (`POST /api/chat/stream`):** During the turn, each runtime event is sent as `data: {"kind":"event","event":...}`. The stream ends with either `{"kind":"error","message":...}` or `{"kind":"done","response":...,"pedagogy_snapshot":...,"tutor_session_active":...}`.
+
+**Threading:** One lock per `WebCoachSession` serializes coach access; async handlers offload blocking work to a [`ThreadPoolExecutor`](src/workflow_demo/web_api.py) or a worker thread for streaming.
+
+**Debug commands (tutor-only, no LLM):** `!retrieval`, `!policy`, `!diagnosis`, `!state` in [`bot_sessions.py`](src/workflow_demo/bot_sessions.py) — formatted from the same snapshot builder as the API.
+
+**Env:** `WORKFLOW_DEMO_API_HOST`, `WORKFLOW_DEMO_API_PORT`, `WORKFLOW_DEMO_CORS_ORIGINS`; `.env` loaded from repo root in `web_api` when `python-dotenv` is available.
 
 ---
 
@@ -275,11 +348,11 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 
 ## SECTION 11 — Evaluation and testing architecture
 
-**Unit / integration tests** under [`tests/workflow_demo/`](../tests/workflow_demo): representative files — `test_tutor.py`, `test_retriever.py`, `test_pedagogy_retrieval_phase5.py`, `test_policy_scorer.py`, `test_turn_progression.py`, `test_math_example_guard.py`, `test_math_guard_integration.py`, `test_tutor_pedagogy_snapshot.py`, `test_acceptance_phase9.py`, `test_integration.py`, `test_pedagogy_eval_harness.py`.
+**Unit / integration tests** under [`tests/workflow_demo/`](../tests/workflow_demo). Current modules include: `test_acceptance_phase9.py`, `test_coach.py`, `test_e2e.py`, `test_image_preprocessor.py`, `test_instruction_lo.py`, `test_integration.py`, `test_learner_state_engine.py`, `test_math_example_guard.py`, `test_math_guard_integration.py`, `test_misconception_diagnoser.py`, `test_models.py`, `test_pedagogy_eval_harness.py`, `test_pedagogy_models.py`, `test_pedagogy_retrieval_phase5.py`, `test_planner.py`, `test_policy_scorer.py`, `test_retriever.py`, `test_session_memory.py`, `test_session_progression.py`, `test_teaching_move_generator.py`, `test_tutor.py`, `test_tutor_instruction_directives.py`, `test_tutor_pedagogy_snapshot.py`, `test_turn_progression.py`.
 
-**Pedagogy eval harness:** [`pedagogy_eval/harness.py`](../src/workflow_demo/pedagogy_eval/harness.py) runs scenarios with patched `tutor_bot` / diagnosis, asserts on `pedagogy_context` fields and snapshot.
+**Pedagogy eval harness:** [`python -m src.workflow_demo.pedagogy_eval`](../src/workflow_demo/pedagogy_eval) ([`harness.py`](../src/workflow_demo/pedagogy_eval/harness.py)) runs scripted scenarios with patched `tutor_bot` / diagnosis where needed. With default options, expect **seven** scenarios: **six passed**, **one skipped** when `WORKFLOW_DEMO_TUTOR_MATH_GUARD` is off (math-guard scenario). Enable the guard for full coverage: `WORKFLOW_DEMO_TUTOR_MATH_GUARD=1 python -m src.workflow_demo.pedagogy_eval`.
 
-**Evidence (local parity run):** Using a Python 3.11+ virtualenv with `requirements.txt` installed: `pytest tests/workflow_demo` reported **224 passed**; `python -m src.workflow_demo.pedagogy_eval --verbose` reported **6 passed, 1 skipped** (math-guard scenario skipped when guard disabled). System Python 3.8 in this environment fails import (`dict[str, ...]` typing); use **Python 3.9+** (as required by modern Pydantic usage in `pedagogy/models.py`) for parity.
+**CI / local runs:** Execute `pytest tests/workflow_demo` after changes; total test count grows with the suite—**do not treat a fixed number in this doc as authoritative.** Use **Python 3.10+**; Pydantic v2 models in `pedagogy/models.py` assume a modern interpreter.
 
 ---
 
@@ -303,15 +376,24 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 
 ## SECTION 13 — Known limitations, ambiguities, open questions
 
-**Implemented:** Coach/planner/tutor loop; pedagogy on tutor **student** turns; retrieval policy; progression gates; math guard (narrow); FastAPI bridge.
+**Implemented:** Coach/planner/tutor loop; pedagogy on tutor **student** turns; retrieval policy; progression gates; math guard (narrow); FastAPI bridge; session progression with plan completion signal; anti-loop mechanisms for bridge/teach moves.
 
 **Partial / gaps:**
 
 - Initial tutor opening may lack **`teaching_pack`** until first student turn.
 - **`augment_pack`** ≈ full `retrieve_plan` replace, not true additive merge (except failed fallback path).
-- **README offline pipeline** references missing scripts — verify before relying on ingestion commands.
-- **TeachingMoveGenerator** does not cover all enum values in tutor prompt.
+- **Docs vs repo:** offline generation lives under [`src/knowledge_graph_gen/`](../src/knowledge_graph_gen); see that folder’s README.
+- **TeachingMoveGenerator** emits only `diagnostic_question`, `prereq_remediation`, `graduated_hint`, `worked_example`; enum **`explain_concept`** exists but is not produced by the generator (tutor prompt may still mention it—see Section 6.3).
 - **Learner state** not persisted to disk (unlike optional session memory).
+- **Session progression** is MVP — step advancement is heuristic (phrase matching), not grading-based. `"support"` steps require `adequate_check_response` before advancing (explicit advance alone is blocked), which may feel conservative for some learners.
+- **`instruction_lo` vs diagnosis gaps:** If acceptance or integration tests assume “first gap string becomes `instruction_lo`” whenever `prerequisite_gap_los` is non-empty, they must align with **policy’s selected move** (`PREREQ_REMEDIATION` required for gap-first mapping in `derive_instruction_lo`)—see Section 6.5.
+
+**Resolved (since prior spec revision):**
+
+- **Retrieval policy `NameError`** on `diagnosis_fingerprint` — fixed; coarse fingerprint variant added for trigger `t4`.
+- **Diagnostic loop after bridge moves** — `suppress_repeat_diagnostic` now fires after `worked_example`/`graduated_hint`/`explain_concept` when the learner shows engagement.
+- **Pack coverage false positives** — `_pack_covers_instruction_lo` now checks `practice`, `prerequisites`, and `citations` in addition to `key_points` and `examples`.
+- **Plan completion signal** — `plan_complete` flag threaded through tutor directives so sessions wrap up automatically when all LOs are covered.
 
 **Model-quality dependence:** Coach directives, tutor wording, optional planner/diagnosis LLMs.
 
@@ -319,12 +401,14 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 
 1. Intended long-term relationship between **planner `current_plan` LO dicts** vs **`retrieve_plan` `PlanStep`** formats.
 2. Whether the **opening tutor turn** should call `retrieve_plan` proactively so `teaching_pack` is populated before the first student message.
+3. Whether **session progression** step advancement should be replaced or augmented by LLM-based understanding assessment (current heuristic: phrase matching + length thresholds).
 
 **Suggested interpretations (inferred; not authoritative):**
 
 - **Dual plan formats:** Treat the planner’s LO dict list as the **authoritative session agenda** for the tutor prompt (`current_plan` / `future_plan`). Treat `SessionPlan.current_plan` as **`TeachingPackRetriever`’s internal retrieval view** used when building packs during `retrieve_plan`, not as something the coach must merge into the handoff unless a future refactor unifies them.
 - **Opening `retrieve_plan`:** If product requires grounding on the first tutor message, add a call after plan creation (e.g. in `BotSessionManager.begin` or post-planner) using the same query/subject/mode as pedagogy refresh; until then, the documented behavior (pack fills on first student turn via `t5`) is the implemented contract.
 - **`EXPLAIN_CONCEPT`:** Either extend `TeachingMoveGenerator` to emit it when appropriate, or narrow the tutor prompt to the four generator move types to avoid dead prompt branches.
+- **Session progression vs BKT:** The current step-list progression is orthogonal to learner-state mastery tracking. If BKT or a richer mastery model is added later, it should inform `adequate_check_response` quality rather than replace the step sequencer.
 
 ---
 
@@ -333,12 +417,12 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 1. Read [`runtime_factory.py`](../src/workflow_demo/runtime_factory.py) and [`coach_agent.py`](../src/workflow_demo/coach_agent.py).
 2. Validate **`demo/`** CSVs and run retriever tests with stubbed embeddings.
 3. Wire **OpenAI** credentials; confirm embedding cache builds.
-4. Implement or restore **offline ingestion** if replacing demo data (`experiments_manual` + any notebooks not in repo).
+4. Refresh **offline ingestion** if replacing demo data (`src/knowledge_graph_gen` → promote a run into `demo/`).
 5. Run **`pytest tests/workflow_demo`** and the **pedagogy_eval** module entrypoint.
 
 **Core vs optional:** Core: `workflow_demo` runtime + demo CSVs + OpenAI. Optional: CLIP image index, planner LLM, diagnosis LLM, math guard, persistent session file.
 
-**Risky areas:** Dual plan representations; empty initial teaching pack; in-memory learner store; env-flag matrix.
+**Risky areas:** Dual plan representations; empty initial teaching pack; in-memory learner store; env-flag matrix; heuristic session progression step advancement (phrase-based, not grading-based).
 
 ---
 
@@ -346,20 +430,21 @@ Returns [`_fallback_tutor_response`](src/workflow_demo/tutor.py) / `_fallback_fa
 
 ### A. Critical implementation artifacts
 
-- [`coach_agent.py`](../src/workflow_demo/coach_agent.py), [`bot_sessions.py`](../src/workflow_demo/bot_sessions.py), [`retriever.py`](../src/workflow_demo/retriever.py), [`pedagogy/retrieval_policy.py`](../src/workflow_demo/pedagogy/retrieval_policy.py), [`tutor.py`](../src/workflow_demo/tutor.py), [`planner.py`](../src/workflow_demo/planner.py), [`web_api.py`](../src/workflow_demo/web_api.py), [`demo/`](../demo) CSVs.
+- [`coach_agent.py`](../src/workflow_demo/coach_agent.py), [`bot_sessions.py`](../src/workflow_demo/bot_sessions.py), [`retriever.py`](../src/workflow_demo/retriever.py), [`pedagogy/retrieval_policy.py`](../src/workflow_demo/pedagogy/retrieval_policy.py), [`pedagogy/session_progression.py`](../src/workflow_demo/pedagogy/session_progression.py), [`pedagogy/turn_progression.py`](../src/workflow_demo/pedagogy/turn_progression.py), [`pedagogy/policy.py`](../src/workflow_demo/pedagogy/policy.py), [`tutor.py`](../src/workflow_demo/tutor.py), [`planner.py`](../src/workflow_demo/planner.py), [`web_api.py`](../src/workflow_demo/web_api.py), [`demo/`](../demo) CSVs.
 
 ### B. Highest-risk ambiguities for human clarification
 
 1. Should **`retrieve_plan`** run at **session start** to populate **`teaching_pack`**?
 2. Official **offline pipeline** outputs vs current **`demo/`** provenance.
 3. Whether **`EXPLAIN_CONCEPT`** should be generated by **`TeachingMoveGenerator`**.
+4. Whether **session progression** step advancement should use LLM-based assessment instead of heuristic phrase matching.
 
 ### C. Quick-start reading order
 
 1. [`runtime_factory.py`](../src/workflow_demo/runtime_factory.py) → [`coach_agent.py`](../src/workflow_demo/coach_agent.py)
 2. [`coach_router.py`](../src/workflow_demo/coach_router.py) + [`planner.py`](../src/workflow_demo/planner.py)
 3. [`bot_sessions.py`](../src/workflow_demo/bot_sessions.py)
-4. [`retriever.py`](../src/workflow_demo/retriever.py) + [`pedagogy/retrieval_policy.py`](../src/workflow_demo/pedagogy/retrieval_policy.py)
+4. [`retriever.py`](../src/workflow_demo/retriever.py) + [`pedagogy/retrieval_policy.py`](../src/workflow_demo/pedagogy/retrieval_policy.py) + [`pedagogy/session_progression.py`](../src/workflow_demo/pedagogy/session_progression.py)
 5. [`tutor.py`](../src/workflow_demo/tutor.py)
 6. [`tests/workflow_demo/test_integration.py`](../tests/workflow_demo/test_integration.py) (contract examples)
 
@@ -421,11 +506,18 @@ flowchart TD
     TP --> RET[TeachingPackRetriever]
     RET --> KG[CSV KG + embeddings]
     R -->|start tutor/FAQ| BSM[BotSessionManager]
+    BSM --> PROG[session_progression + turn_progression]
+    BSM --> DIA[MisconceptionDiagnoser]
+    BSM --> MV[TeachingMoveGenerator]
+    BSM --> POL[PolicyScorer]
+    BSM --> PRP[PedagogicalRetrievalPolicy]
+    PRP --> RET
     BSM --> TUT[tutor_bot]
     BSM --> FAQ[faq_bot]
     TUT --> LLM2[OpenAI chat/vision]
     FAQ --> LLM2
     BSM --> MEM[SessionMemory]
+    BSM --> LSE[LearnerStateEngine]
 ```
 
 **Main numbered flow (CLI / same logical path in API)**
@@ -445,6 +537,8 @@ flowchart TD
 - `TutoringPlanner.create_plan` / `FAQPlanner.create_plan` — `planner.py`
 - `TeachingPackRetriever.retrieve_candidates` / `retrieve_plan` — `retriever.py`
 - `BotSessionManager.begin` / `handle_turn` / finalize — `bot_sessions.py`
+- `build_initial_session_progression` / `apply_session_progression_update` — `pedagogy/session_progression.py`
+- `compute_turn_progression_signals` — `pedagogy/turn_progression.py`
 
 **State transition (sketch)**
 
@@ -474,9 +568,16 @@ stateDiagram-v2
 - **Legacy retrieval paths:** `retrieve_plan` and candidate flows coexist; keep changes explicit.
 - **Docs vs repo:** root README pipeline steps may reference scripts not present in every branch — verify before running ingestion commands.
 - **Tests:** some tests may lag schema changes (e.g. image preprocessor) — run `pytest` after refactors.
+- **Session progression phrase lists:** `_ADVANCE_PHRASES`, `_EXAMPLE_REQUEST_PHRASES`, `_UNDERSTANDING_CONFIDENCE_PHRASES`, and `_SUBSTANCE_TOKENS` are hardcoded — adding support for new languages or phrasings requires code changes in `turn_progression.py`.
 
 **Maintenance directions (high level)**
 
 - Prefer typed validation for planner/bot JSON over time.
 - Reconcile README with actual scripts in the branch; add or remove commands accordingly.
 - Keep pedagogy eval harness (`pedagogy_eval`) green when changing policy or progression logic.
+
+### G. Where pedagogy objects live (quick reference)
+
+[`CoachAgent`](src/workflow_demo/coach_agent.py) owns **`learner_state_store`**, **`learner_state_engine`**, **`misconception_diagnoser`** (shared with tutor turns), and **`bot_session_manager`**. It exposes **`ensure_tutor_learner_context`**, **`get_pedagogy_snapshot_for_api()`**, and **`tutor_session_active_for_api()`** (tutor-only active flag for the API).
+
+[`BotSessionManager`](src/workflow_demo/bot_sessions.py) owns **`TeachingMoveGenerator`** and **`PolicyScorer`**, and runs the per-turn pipeline: progression signals → diagnosis → candidates → policy → **`derive_instruction_lo`** → **`PedagogicalRetrievalPolicy`** → tutor payload. FAQ sessions **do not** run that pipeline (see Section 10).

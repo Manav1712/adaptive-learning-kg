@@ -1,82 +1,98 @@
 """
-Discover LO → LO Prerequisite Edges (Coach Graph)
+Discover LO → LO prerequisite edges.
 
-This module compares Learning Objectives (LOs) to infer prerequisite
-relationships using an LLM.
-
-Inputs (from prepare step; configured in-code via PrereqConfig):
-- data/processed/lo_index.csv
-- data/processed/content_items.csv
-
-Outputs:
-- data/processed/prereq_link_candidates.csv (optional)
-- data/processed/edges_prereqs.csv
+Reads lo_index.csv + content_items.csv from a run folder, then writes:
+  intermediates/prereq_link_candidates.csv
+  edges_prereqs.csv
 
 Approach:
-- Aggregate content per LO into a consolidated view (text + images)
-- Generate candidate LO→LO pairs by considering all earlier LOs (cross-chapter/unit/book)
-- Score each candidate pair using LLM
-- Write filtered edges with columns:
-  source_lo_id, target_lo_id, relation, score, rationale, modality, run_id
+- Aggregate content per LO (text + images)
+- Candidate pairs are chronologically forward only (earlier LO → later LO)
+- LLM scores each pair; keep edges at or above the score threshold
 """
 
 import argparse
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 from dotenv import load_dotenv  # type: ignore
 import pandas as pd
 from openai import OpenAI  # type: ignore
 
-# ----------------------------
-# Configuration
-# ----------------------------
 load_dotenv()
+
+
 @dataclass
 class PrereqConfig:
-    """
-    Configuration for LO→LO prerequisite discovery.
-    """
-    input_lo_index: str = "data/processed/lo_index.csv"
-    input_content_items: str = "data/processed/content_items.csv"
-
-    output_candidates: str = "data/processed/prereq_link_candidates.csv"
-    output_edges: str = "data/processed/edges_prereqs.csv"
-
-    restrict_same_unit: bool = False
-    restrict_same_chapter: bool = False
+    input_lo_index: str = ""
+    input_content_items: str = ""
+    output_candidates: str = ""
+    output_edges: str = ""
 
     model: str = "gpt-4o-mini"
     modality: str = "multimodal"  # "text_only" | "multimodal"
     temperature: float = 0.0
-    max_targets_per_call: int = 8  # number of source LOs per API call
+    max_targets_per_call: int = 8  # candidate sources packed per API call
+    max_response_tokens: int = 1500
+    max_concurrency: int = 8
+    image_detail: str = "low"
     max_retries: int = 3
-    score_mode: str = "score"
     score_threshold: float = 0.7
     min_confidence: float = 0.6
 
 
-def load_config() -> PrereqConfig:
-    """
-    Returns in-code defaults defined by PrereqConfig.
-    """
-    return PrereqConfig()
+def apply_run_dir(config: PrereqConfig, run_dir: str) -> None:
+    """Wire all I/O paths to a versioned run folder."""
+    config.input_lo_index = os.path.join(run_dir, "lo_index.csv")
+    config.input_content_items = os.path.join(run_dir, "content_items.csv")
+    config.output_candidates = os.path.join(run_dir, "intermediates", "prereq_link_candidates.csv")
+    config.output_edges = os.path.join(run_dir, "edges_prereqs.csv")
 
 
 # ----------------------------
 # Utilities
 # ----------------------------
 
-def _first_int_or_raise(val: object) -> int:
-    """Extracts the first integer from a value or raises if none found."""
-    import re
-    m = re.search(r"(\d+)", str(val or ""))
-    if not m:
-        raise ValueError(f"no integer in: {val}")
-    return int(m.group(1))
-    
+def _as_int(val: object, default: Optional[int] = None) -> Optional[int]:
+    """Best-effort int coercion for order columns."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return default
+    try:
+        return int(val)
+    except Exception:
+        return default
+
+
+def create_chronological_key(row: pd.Series) -> Tuple[int, int, int, int, str]:
+    """
+    Curriculum ordering key for an LO.
+
+    Prefers explicit order columns written by prepare_nodes.py:
+      (book_order, chapter_order, unit_order, lo_order, lo_id)
+    Falls back to lo_id alone if order columns are missing.
+    """
+    lo_id = str(row.get("lo_id") or "")
+    book_order = _as_int(row.get("book_order"))
+    chapter_order = _as_int(row.get("chapter_order"))
+    unit_order = _as_int(row.get("unit_order"), 0) or 0
+    lo_order = _as_int(row.get("lo_order"), 0) or 0
+
+    if book_order is None or chapter_order is None:
+        # Legacy fallback: sort by numeric lo_id (works within a book, not across).
+        try:
+            numeric_id = int(float(lo_id))
+        except Exception as exc:
+            raise ValueError(
+                f"LO {lo_id} missing book_order/chapter_order; re-run prepare_nodes.py"
+            ) from exc
+        return (99, 99, 0, numeric_id, lo_id)
+
+    return (book_order, chapter_order, unit_order, lo_order, lo_id)
+
+
 def ensure_parent_directory(path: str) -> None:
     """Ensures parent directory exists for a file path."""
     directory = os.path.dirname(os.path.abspath(path))
@@ -103,29 +119,18 @@ def log_prereq_progress(processed: int, total: int, edges_added: int, total_edge
 def select_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
     """
     Select a chronologically ordered subset of target LOs when limiting.
-    - Sort by (book, unit, chapter_num, lo_id)
-    - Take first `limit` rows in chronological order
+    Sort by prepare_nodes order columns when present.
     """
     if limit is None or limit <= 0 or len(lo_meta) <= limit:
         return lo_meta
 
     tmp = lo_meta.copy()
-    def _safe_chapter(v: object) -> Optional[int]:
-        try:
-            return _first_int_or_raise(v)
-        except Exception:
-            return None
-    tmp["_chapter_num"] = tmp.get("chapter", None).map(_safe_chapter)
-    bad = int(tmp["_chapter_num"].isnull().sum())
-    if bad:
-        print(f"[prereq] Skipped {bad} LOs in --limit due to unparsable chapter.", flush=True)
-        tmp = tmp[tmp["_chapter_num"].notnull()].copy()
-    tmp.sort_values(["book", "unit", "_chapter_num", "lo_id"], inplace=True)
-
-    # Take first `limit` rows (chronologically ordered)
-    out = tmp.head(limit)
-    # Drop helper cols
-    return out.drop(columns=[c for c in ["_chapter_num"] if c in out.columns])
+    order_cols = [c for c in ["book_order", "chapter_order", "unit_order", "lo_order", "lo_id"] if c in tmp.columns]
+    if len(order_cols) >= 2:
+        tmp.sort_values(order_cols, inplace=True)
+    else:
+        tmp.sort_values(["book", "lo_id"], inplace=True)
+    return tmp.head(limit)
 
 
 def unique(seq: Iterable[str]) -> List[str]:
@@ -162,7 +167,8 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
     Aggregates content per LO into a consolidated view.
 
     Returns DataFrame with columns:
-    - lo_id, learning_objective, unit, chapter
+    - lo_id, learning_objective, unit, chapter, book
+    - book_order, chapter_order, unit_order, lo_order (when present on lo_index)
     - aggregate_text: learning objective + concatenated content text
     - image_urls: list JSON-serializable
     """
@@ -186,7 +192,7 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
             images_by_lo.setdefault(lo_id, []).extend([str(u) for u in imgs])
 
     records: List[Dict[str, object]] = []
-    
+
     for _, r in lo_df.iterrows():
         lo_id = str(r.get("lo_id") or "")
         lo_text = str(r.get("learning_objective") or "")
@@ -204,6 +210,10 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
                 "unit": unit,
                 "chapter": chapter,
                 "book": book,
+                "book_order": r.get("book_order"),
+                "chapter_order": r.get("chapter_order"),
+                "unit_order": r.get("unit_order"),
+                "lo_order": r.get("lo_order"),
                 "aggregate_text": agg_text,
                 "image_urls": imgs,
             }
@@ -217,22 +227,6 @@ def build_lo_views(lo_df: pd.DataFrame, content_df: pd.DataFrame) -> pd.DataFram
 # ----------------------------
 
 
-def create_chronological_key(row: pd.Series) -> Tuple[str, str, int, str]:
-    """
-    Creates a chronological ordering key for LOs.
-    Returns (book, unit, chapter_num, lo_id) for sorting.
-    """
-    book = str(row.get("book") or "")
-    unit = str(row.get("unit") or "")
-    chapter = str(row.get("chapter") or "")
-    lo_id = str(row.get("lo_id") or "")
-    
-    # Extract numeric chapter for proper sorting; raise if missing
-    chapter_num = _first_int_or_raise(chapter)
-    
-    return (book, unit, chapter_num, lo_id)
-
-
 def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> pd.DataFrame:
     """
     Generates candidate LO→LO pairs for scoring.
@@ -244,21 +238,29 @@ def generate_prereq_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> p
     """
     rows: List[Dict[str, str]] = []
 
-    # Add chronological keys for sorting, skipping rows that can't be parsed
+    # Attach chronological keys; skip rows that cannot be ordered.
     lo_meta = lo_meta.copy()
     broken_los: List[Tuple[str, str, str]] = []
-    def _safe_key(r: pd.Series) -> Optional[Tuple[str, str, int, str]]:
+
+    def _safe_key(r: pd.Series) -> Optional[Tuple[int, int, int, int, str]]:
         try:
             return create_chronological_key(r)
         except Exception:
-            broken_los.append((str(r.get("lo_id") or ""), str(r.get("unit") or ""), str(r.get("chapter") or "")))
+            broken_los.append(
+                (str(r.get("lo_id") or ""), str(r.get("unit") or ""), str(r.get("chapter") or ""))
+            )
             return None
-    lo_meta['_chrono_key'] = lo_meta.apply(_safe_key, axis=1)
-    bad = int(lo_meta['_chrono_key'].isnull().sum())
+
+    lo_meta["_chrono_key"] = lo_meta.apply(_safe_key, axis=1)
+    bad = int(lo_meta["_chrono_key"].isnull().sum())
     if bad:
         examples = list({t for t in broken_los})[:5]
-        print(f"[prereq] Skipped {bad} LOs with unparsable unit/chapter. Examples: {examples}", flush=True)
-        lo_meta = lo_meta[lo_meta['_chrono_key'].notnull()].copy()
+        print(
+            f"[prereq] Skipped {bad} LOs with missing order columns. "
+            f"Re-run prepare_nodes.py. Examples: {examples}",
+            flush=True,
+        )
+        lo_meta = lo_meta[lo_meta["_chrono_key"].notnull()].copy()
 
     # Candidate generation with chronological constraint:
     # - Always allow cross-chapter/unit/book by using the full pool
@@ -389,9 +391,12 @@ def score_prereq_candidates(
             "aggregate_text": str(r.get("aggregate_text") or ""),
             "unit": str(r.get("unit") or ""),
             "chapter": str(r.get("chapter") or ""),
-            # Include fields required by create_chronological_key
             "book": str(r.get("book") or ""),
             "lo_id": str(r.get("lo_id") or ""),
+            "book_order": r.get("book_order"),
+            "chapter_order": r.get("chapter_order"),
+            "unit_order": r.get("unit_order"),
+            "lo_order": r.get("lo_order"),
             "image_urls": list(r.get("image_urls") or []),
         }
         for _, r in lo_views.iterrows()
@@ -399,79 +404,94 @@ def score_prereq_candidates(
 
     rows: List[Dict[str, object]] = []
 
-    grouped = candidates_df.groupby("target_lo_id")
-    total_groups = int(getattr(grouped, "ngroups", 0) or 0)
-    processed_groups = 0
-    started_at = time.time()
+    use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
+    if not use_llm:
+        raise RuntimeError("LLM scoring is required (heuristic disabled). Please set OPENAI_API_KEY.")
 
-    for target_id, group in grouped:
-        processed_groups += 1
-        len_before = len(rows)
+    client = OpenAI(timeout=120.0)
+
+    def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
+        return [items[i : i + n] for i in range(0, len(items), n)]
+
+    # Flatten to (target, chunk) tasks so API calls can be issued concurrently.
+    tasks: List[Tuple[str, pd.Series, List[Tuple[str, str]]]] = []
+    for target_id, group in candidates_df.groupby("target_lo_id"):
         target_row = lo_views[lo_views["lo_id"].astype(str) == str(target_id)].head(1)
         if target_row.empty:
             continue
         target_series = target_row.iloc[0]
-
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
-
-        # LLM scoring only
-        use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
-        if not use_llm:
-            raise RuntimeError("LLM scoring is required (heuristic disabled). Please set OPENAI_API_KEY.")
-
-        # LLM scoring
-        def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
-            return [items[i : i + n] for i in range(0, len(items), n)]
-
-        client = OpenAI() if use_llm else None
-
         for chunk in chunk_list(candidate_list, max(1, int(config.max_targets_per_call))):
-            results: List[Dict[str, object]] = []
-            last_err: Optional[Exception] = None
+            tasks.append((str(target_id), target_series, chunk))
 
-            if use_llm and client is not None:
-                prompt = build_prompt_for_prereq(target_series, chunk, lo_lookup, config)
-                system_msg = {"role": "system", "content": prompt["system"]}
-                content_blocks: List[Dict[str, object]] = []
-                for block in prompt["user"]:
-                    if block.get("type") == "text":
-                        content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
-                    elif block.get("type") == "image_url":
-                        url = block.get("image_url")
-                        if isinstance(url, str):
-                            content_blocks.append({"type": "image_url", "image_url": {"url": url}})
-                        elif isinstance(url, dict):
-                            content_blocks.append({"type": "image_url", "image_url": url})
-                user_msg = {"role": "user", "content": content_blocks}
+    def score_chunk(
+        task: Tuple[str, pd.Series, List[Tuple[str, str]]]
+    ) -> Tuple[str, List[Dict[str, object]]]:
+        target_id, target_series, chunk = task
+        prompt = build_prompt_for_prereq(target_series, chunk, lo_lookup, config)
+        system_msg = {"role": "system", "content": prompt["system"]}
+        content_blocks: List[Dict[str, object]] = []
+        for block in prompt["user"]:
+            if block.get("type") == "text":
+                content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
+            elif block.get("type") == "image_url":
+                url = block.get("image_url")
+                if isinstance(url, str):
+                    image_url: Dict[str, object] = {"url": url}
+                elif isinstance(url, dict):
+                    image_url = dict(url)
+                else:
+                    continue
+                # Low detail keeps diagram signal at a fraction of the image token cost.
+                image_url.setdefault("detail", config.image_detail)
+                content_blocks.append({"type": "image_url", "image_url": image_url})
 
-                instruction = (
-                    "Respond ONLY with JSON in this schema: {\n"
-                    "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
-                    "} where score in [-1,1] and confidence in [0,1]."
+        instruction = (
+            "Respond ONLY with JSON in this schema: {\n"
+            "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
+            "} where score in [-1,1] and confidence in [0,1]. "
+            "Return one entry per candidate and keep each rationale under 15 words."
+        )
+        content_blocks.append({"type": "text", "text": instruction})
+        user_msg = {"role": "user", "content": content_blocks}
+
+        last_err: Optional[Exception] = None
+        for attempt in range(int(config.max_retries) + 1):
+            try:
+                resp = client.chat.completions.create(
+                    model=config.model,
+                    temperature=float(config.temperature),
+                    messages=[system_msg, user_msg],
+                    max_tokens=int(config.max_response_tokens),
+                    response_format={"type": "json_object"},
                 )
-                content_blocks.append({"type": "text", "text": instruction})
+                text = resp.choices[0].message.content if resp.choices else "{}"
+                try:
+                    data = json.loads(text)
+                except Exception:
+                    start = text.find("{")
+                    end = text.rfind("}")
+                    data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
+                return target_id, (data.get("results", []) if isinstance(data, dict) else [])
+            except Exception as e:  # rate limits, network, truncated JSON, etc.
+                last_err = e
+                time.sleep(2 ** attempt)
 
-                for attempt in range(int(config.max_retries) + 1):
-                    try:
-                        resp = client.chat.completions.create(
-                            model=config.model,
-                            temperature=float(config.temperature),
-                            messages=[system_msg, user_msg],
-                            max_tokens=300,
-                            response_format={"type": "json_object"},
-                        )
-                        text = resp.choices[0].message.content if resp.choices else "{}"
-                        try:
-                            data = json.loads(text)
-                        except Exception:
-                            start = text.find("{")
-                            end = text.rfind("}")
-                            data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
-                        results = data.get("results", []) if isinstance(data, dict) else []
-                        break
-                    except Exception as e:  # rate limits, network, etc.
-                        last_err = e
-                        time.sleep(2 ** attempt)
+        print(
+            f"[prereq] target={target_id} chunk of {len(chunk)} failed after "
+            f"{int(config.max_retries) + 1} attempts: {type(last_err).__name__}: {last_err}",
+            flush=True,
+        )
+        return target_id, []
+
+    total_tasks = len(tasks)
+    processed_tasks = 0
+    started_at = time.time()
+
+    with ThreadPoolExecutor(max_workers=max(1, int(config.max_concurrency))) as pool:
+        for target_id, results in pool.map(score_chunk, tasks):
+            processed_tasks += 1
+            len_before = len(rows)
 
             # Materialize results into edges after guards
             for item in results:
@@ -512,21 +532,21 @@ def score_prereq_candidates(
                         }
                     )
 
-        # Progress logging
-        len_after = len(rows)
-        kept = max(0, len_after - len_before)
-        log_prereq_progress(processed_groups, total_groups, kept, len_after, started_at)
+            # Progress logging
+            len_after = len(rows)
+            kept = max(0, len_after - len_before)
+            log_prereq_progress(processed_tasks, total_tasks, kept, len_after, started_at)
 
     # Remove reciprocals, keeping only forward (chronological) direction as a safety net
     df = pd.DataFrame(rows)
     if not df.empty:
         # Attach chronological keys for sorting
-        lo_key_map: Dict[str, Tuple[str, str, int, str]] = {}
+        lo_key_map: Dict[str, Tuple[int, int, int, int, str]] = {}
         for lo_id, rec in lo_lookup.items():
             lo_key_map[str(lo_id)] = create_chronological_key(pd.Series(rec))
 
         def is_forward(a: str, b: str) -> bool:
-            return lo_key_map.get(a, ("", "", 0, "")) < lo_key_map.get(b, ("", "", 0, ""))
+            return lo_key_map.get(a, (99, 99, 0, 0, "")) < lo_key_map.get(b, (99, 99, 0, 0, ""))
 
         # Identify reciprocal pairs
         pair_set: Set[Tuple[str, str]] = set(zip(df["source_lo_id"].astype(str), df["target_lo_id"].astype(str)))
@@ -559,27 +579,23 @@ def write_candidates(lo_meta: pd.DataFrame, config: PrereqConfig) -> pd.DataFram
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Discover LO→LO prerequisites")
+    parser.add_argument("--run-dir", required=True, help="Run folder with lo_index.csv and content_items.csv")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of target LOs for a smoke run")
-    parser.add_argument("--mode", type=str, default="both", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
+    parser.add_argument("--mode", type=str, default="both", choices=["candidates", "score", "both"])
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    config = load_config()
+    config = PrereqConfig()
+    apply_run_dir(config, args.run_dir)
+    if args.threshold is not None:
+        config.score_threshold = float(args.threshold)
+
     lo_df = pd.read_csv(config.input_lo_index)
     content_df = pd.read_csv(config.input_content_items)
-
-    if args.threshold is not None:
-        try:
-            config.score_threshold = float(args.threshold)
-        except Exception:
-            pass
-
     lo_views = build_lo_views(lo_df, content_df)
     lo_meta = lo_views.copy()
 
-
     if args.limit is not None and args.limit > 0:
-        # Limit target LOs using chronological selection
         lo_meta = select_chronological_los(lo_meta, int(args.limit)).copy()
 
     if args.mode in {"candidates", "both"}:
@@ -592,7 +608,6 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             out_df = write_candidates(lo_meta, config)
         else:
             out_df = pd.read_csv(cand_path)
-
 
         edges_df = score_prereq_candidates(out_df, lo_views, config)
         ensure_parent_directory(config.output_edges)

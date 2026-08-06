@@ -1,19 +1,14 @@
 """
-Evaluate Generated Edges (Content Links and LO→LO Prerequisites)
+Evaluate generated edges (content links and LO→LO prerequisites).
 
-This utility summarizes edges produced by scripts in experiments_manual/:
-- data/processed/edges_content.csv (content→LO links)
-- data/processed/edges_prereqs.csv (LO→LO prerequisites)
+Computes structural metrics, referential integrity, curriculum consistency,
+and parsimony. No LLM calls — this is a fast hygiene check.
 
-It computes simple metrics, validates referential integrity against inputs,
-and can export a machine-readable JSON summary.
-
-CLI usage examples:
-- python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_content.csv
-- python3 src/experiments_manual/evaluate_outputs.py --edges data/processed/edges_prereqs.csv
-- python3 src/experiments_manual/evaluate_outputs.py \
-    --edges data/processed/edges_content.csv \
-    --threshold 0.7 --top-n 5 --json-out data/processed/eval_content_summary.json
+Examples:
+  python src/knowledge_graph_gen/evaluate_heuristic.py \\
+    --run-dir knowledge_graph/runs/<run_id> --edges-kind prereqs
+  python src/knowledge_graph_gen/evaluate_heuristic.py \\
+    --run-dir knowledge_graph/runs/<run_id> --edges-kind content
 """
 
 from __future__ import annotations
@@ -34,22 +29,11 @@ import pandas as pd
 
 @dataclass
 class EvalConfig:
-    """Configuration for evaluating generated edges.
-
-    Inputs:
-    - edges: Path to edges CSV (content or prereqs)
-    - lo_index: Path to LO index CSV
-    - content_items: Path to content items CSV (for content-link evaluation)
-
-    Params:
-    - threshold: Score threshold for counting "kept" edges
-    - top_n: Top-N highest-scoring edges to display per relation
-    - json_out: Optional path to write JSON summary
-    """
+    """Configuration for evaluating generated edges."""
 
     edges: str
-    lo_index: str = "data/processed/lo_index.csv"
-    content_items: str = "data/processed/content_items.csv"
+    lo_index: str = ""
+    content_items: str = ""
     threshold: float = 0.6
     top_n: int = 5
     json_out: Optional[str] = None
@@ -677,30 +661,53 @@ def print_human_readable(summary: Dict[str, object]) -> None:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    """Main entry point for edge evaluation script.
-    
-    Args:
-        argv: Optional command line arguments for testing
-        
-    Returns:
-        Exit code 0 on success
-    """
     parser = argparse.ArgumentParser(description="Evaluate generated edges (content or prereqs)")
-    parser.add_argument("--edges", required=True, type=str, help="Path to edges CSV to evaluate")
-    parser.add_argument("--lo-index", default="data/processed/lo_index.csv", type=str, help="Path to lo_index.csv")
-    parser.add_argument("--content-items", default="data/processed/content_items.csv", type=str, help="Path to content_items.csv (for content-links)")
+    parser.add_argument("--run-dir", default=None, help="Run folder (sets edges/lo/content paths)")
+    parser.add_argument(
+        "--edges-kind",
+        default=None,
+        choices=["prereqs", "content"],
+        help="With --run-dir: which edge file to evaluate",
+    )
+    parser.add_argument("--edges", default=None, type=str, help="Path to edges CSV (overrides --run-dir)")
+    parser.add_argument("--lo-index", default=None, type=str, help="Path to lo_index.csv")
+    parser.add_argument("--content-items", default=None, type=str, help="Path to content_items.csv")
     parser.add_argument("--threshold", default=0.6, type=float, help="Score threshold for kept counts")
     parser.add_argument("--top-n", default=5, type=int, help="Top-N edges to display per relation")
     parser.add_argument("--json-out", default=None, type=str, help="Optional path to write JSON summary")
     args = parser.parse_args(argv)
 
+    edges = args.edges
+    lo_index = args.lo_index
+    content_items = args.content_items
+    json_out = args.json_out
+
+    if args.run_dir:
+        lo_index = lo_index or os.path.join(args.run_dir, "lo_index.csv")
+        content_items = content_items or os.path.join(args.run_dir, "content_items.csv")
+        if not edges:
+            if not args.edges_kind:
+                raise SystemExit("With --run-dir, pass --edges-kind prereqs|content (or --edges)")
+            edges = os.path.join(
+                args.run_dir,
+                "edges_prereqs.csv" if args.edges_kind == "prereqs" else "edges_content.csv",
+            )
+        if not json_out:
+            kind = args.edges_kind or ("prereqs" if "prereq" in os.path.basename(edges) else "content")
+            json_out = os.path.join(args.run_dir, "intermediates", f"eval_heuristic_{kind}.json")
+
+    if not edges:
+        raise SystemExit("Pass --edges or --run-dir with --edges-kind")
+    lo_index = lo_index or "knowledge_graph/runs/lo_index.csv"
+    content_items = content_items or "knowledge_graph/runs/content_items.csv"
+
     cfg = EvalConfig(
-        edges=args.edges,
-        lo_index=args.lo_index,
-        content_items=args.content_items,
+        edges=edges,
+        lo_index=lo_index,
+        content_items=content_items,
         threshold=float(args.threshold),
         top_n=int(args.top_n),
-        json_out=args.json_out,
+        json_out=json_out,
     )
 
     summary = evaluate(cfg.edges, cfg)
@@ -719,6 +726,4 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-
-
 

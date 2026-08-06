@@ -1,28 +1,12 @@
 """
-Minimal strict semantic LLM evaluator
+Minimal strict semantic LLM evaluator.
 
-Purpose:
-- Judge each edge with a binary label per the relation type using an LLM
-- Emit compact JSONL per edge and a minimal summary JSON
+Judges each edge with a binary-ish label using an LLM and writes JSONL + summary.
+Does not accept/reject edges automatically — advisory QA only.
 
-Inputs:
-- --lo-index: CSV with LO metadata (expects columns: lo_id, learning_objective, unit, chapter, book)
-- --content-items: CSV with content metadata (expects columns: content_id, content_type, lo_id_parent, text, learning_objective, unit, chapter, book)
-- --edges-in: CSV with edges to judge (supports two schemas):
+Supports:
   - Prereqs: source_lo_id, target_lo_id, relation
   - Content links: source_lo_id, target_content_id, relation
-
-Outputs:
-- --jsonl-out: JSONL file with one record per edge
-- --summary-out: JSON file with aggregate metrics per relation
-
-Behavior:
-- System prompt requires strict JSON only: {"label":"prerequisite|correct|supports|incorrect","reason":"<=200 chars"}
-- Temperature 0.0, no scores/confidence
-- Prompts include titles plus full summaries; text is clipped only if excessively long
-- On any parse or API error, default to incorrect with short reason
-- Unknown relations default to incorrect with reason "unsupported relation"
-- This tool only evaluates and reports; downstream code decides any acceptance policy
 """
 
 from __future__ import annotations
@@ -48,13 +32,11 @@ class EvalConfig:
 	model: str = "gpt-4o-mini"
 	temperature: float = 0.0
 	max_retries: int = 2
-	# IO
-	input_lo_index: str = "data/processed/lo_index.csv"
-	input_content_items: str = "data/processed/content_items.csv"
-	input_edges: str = "data/processed/edges_prereqs.csv"
-	jsonl_out: str = "data/processed/llm_edge_checks.jsonl"
-	summary_out: str = "data/processed/llm_edge_checks_summary.json"
-	# Cost control
+	input_lo_index: str = ""
+	input_content_items: str = ""
+	input_edges: str = ""
+	jsonl_out: str = ""
+	summary_out: str = ""
 	limit: Optional[int] = None
 
 
@@ -205,7 +187,7 @@ def _sanitize_and_extract_json(text: str) -> Optional[dict]:
 	return None
 
 
-def call_llm(prompt: str, cfg: EvalConfig, is_prereq: bool = False) -> Tuple[str, str]:
+def call_llm(prompt: str, cfg: EvalConfig) -> Tuple[str, str]:
 	"""Call the chat model with strict JSON-only system instruction.
 	Returns (label, reason) with defaults on any error.
 	"""
@@ -358,7 +340,7 @@ def judge_edges(edges_df: pd.DataFrame, lo_lookup: Dict[str, dict], content_look
 				stats["incorrect"] += 1
 			else:
 				prompt = build_prereq_prompt(src, tgt)
-				label, reason = call_llm(prompt, cfg, is_prereq=True)
+				label, reason = call_llm(prompt, cfg)
 				out["llm_label"], out["llm_reason"] = label, reason
 				stats[label] = stats.get(label, 0) + 1
 			results.append(out)
@@ -382,7 +364,7 @@ def judge_edges(edges_df: pd.DataFrame, lo_lookup: Dict[str, dict], content_look
 				stats["incorrect"] += 1
 			else:
 				prompt = build_content_prompt(rel, lo_obj, content_obj)
-				label, reason = call_llm(prompt, cfg, is_prereq=False)
+				label, reason = call_llm(prompt, cfg)
 				out["llm_label"], out["llm_reason"] = label, reason
 				stats[label] = stats.get(label, 0) + 1
 			results.append(out)
@@ -463,27 +445,60 @@ def write_jsonl(path: str, rows: List[dict]) -> None:
 # ----------------------------
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
-	parser = argparse.ArgumentParser(description="Strict LLM edge evaluator (binary)")
-	parser.add_argument("--lo-index", type=str, default="data/processed/lo_index.csv")
-	parser.add_argument("--content-items", type=str, default="data/processed/content_items.csv")
-	parser.add_argument("--edges-in", type=str, required=True)
-	parser.add_argument("--jsonl-out", type=str, default="data/processed/llm_edge_checks.jsonl")
-	parser.add_argument("--summary-out", type=str, default="data/processed/llm_edge_checks_summary.json")
+	parser = argparse.ArgumentParser(description="Strict LLM edge evaluator")
+	parser.add_argument("--run-dir", default=None, help="Run folder (sets lo/content/output paths)")
+	parser.add_argument(
+		"--edges-kind",
+		default=None,
+		choices=["prereqs", "content"],
+		help="With --run-dir: which edge file to judge",
+	)
+	parser.add_argument("--lo-index", type=str, default=None)
+	parser.add_argument("--content-items", type=str, default=None)
+	parser.add_argument("--edges-in", type=str, default=None)
+	parser.add_argument("--jsonl-out", type=str, default=None)
+	parser.add_argument("--summary-out", type=str, default=None)
 	parser.add_argument("--model", type=str, default="gpt-4o-mini")
 	parser.add_argument("--temperature", type=float, default=0.0)
 	parser.add_argument("--max-retries", type=int, default=2)
 	parser.add_argument("--limit", type=int, default=None)
 	args = parser.parse_args(list(argv) if argv is not None else None)
 
+	lo_index = args.lo_index
+	content_items = args.content_items
+	edges_in = args.edges_in
+	jsonl_out = args.jsonl_out
+	summary_out = args.summary_out
+
+	if args.run_dir:
+		lo_index = lo_index or os.path.join(args.run_dir, "lo_index.csv")
+		content_items = content_items or os.path.join(args.run_dir, "content_items.csv")
+		if not edges_in:
+			if not args.edges_kind:
+				raise SystemExit("With --run-dir, pass --edges-kind prereqs|content (or --edges-in)")
+			edges_in = os.path.join(
+				args.run_dir,
+				"edges_prereqs.csv" if args.edges_kind == "prereqs" else "edges_content.csv",
+			)
+		kind = args.edges_kind or ("prereqs" if "prereq" in os.path.basename(edges_in) else "content")
+		inter = os.path.join(args.run_dir, "intermediates")
+		jsonl_out = jsonl_out or os.path.join(inter, f"llm_edge_checks_{kind}.jsonl")
+		summary_out = summary_out or os.path.join(inter, f"llm_edge_checks_{kind}_summary.json")
+
+	if not edges_in or not lo_index or not content_items:
+		raise SystemExit("Pass --run-dir with --edges-kind, or explicit --edges-in/--lo-index/--content-items")
+	jsonl_out = jsonl_out or "llm_edge_checks.jsonl"
+	summary_out = summary_out or "llm_edge_checks_summary.json"
+
 	cfg = EvalConfig(
 		model=args.model,
 		temperature=float(args.temperature),
 		max_retries=int(args.max_retries),
-		input_lo_index=args.lo_index,
-		input_content_items=args.content_items,
-		input_edges=args.edges_in,
-		jsonl_out=args.jsonl_out,
-		summary_out=args.summary_out,
+		input_lo_index=lo_index,
+		input_content_items=content_items,
+		input_edges=edges_in,
+		jsonl_out=jsonl_out,
+		summary_out=summary_out,
 		limit=args.limit,
 	)
 

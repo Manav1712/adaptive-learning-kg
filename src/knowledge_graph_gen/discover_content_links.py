@@ -1,24 +1,13 @@
 """
-Discover Content ↔ LO Links (Candidates + Scoring)
+Discover content ↔ LO links.
 
-This module prepares candidate LO targets for each content item
-to be later scored by an LLM. It reads processed inputs from the
-prepare step and writes candidate pairs for downstream scoring.
+Reads lo_index.csv + content_items.csv from a run folder, then writes:
+  intermediates/content_link_candidates.csv
+  edges_content.csv
 
-Inputs (from prepare step):
-- data/processed/lo_index.csv
-- data/processed/content_items.csv
-
-Outputs:
-- data/processed/content_link_candidates.csv
- - data/processed/edges_content.csv (after scoring)
-
-Candidate strategy:
-- Start with LOs in the same unit and/or chapter as the content's parent LO
-- Optionally add lexical shortlist by overlapping keywords with LO text
-
-This module can both prepare candidates and score them using an LLM
-or a deterministic dry-run heuristic.
+Candidate pool is global (every content item × every LO). The LLM scores
+each pair; edges at or above the threshold are kept with a relation based
+on content type: explained_by / exemplified_by / practiced_by.
 """
 
 from __future__ import annotations
@@ -26,55 +15,44 @@ import argparse
 import json
 import os
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Iterable
 from dotenv import load_dotenv
 import pandas as pd
 from openai import OpenAI
+
 load_dotenv()
 
-# ----------------------------
-# Configuration
-# ----------------------------
 
 @dataclass
 class DiscoveryConfig:
-    """
-    Configuration for content→LO candidate generation.
+    input_lo_index: str = ""
+    input_content_items: str = ""
+    output_candidates: str = ""
+    output_edges: str = ""
 
-    Fields:
-    - input_lo_index: Path to LO index CSV
-    - input_content_items: Path to content items CSV
-    - output_candidates: Path to write candidate pairs CSV
-    - Candidate scope is global (cross-unit/chapter); no structural restriction
-    """
-
-    input_lo_index: str = "data/processed/lo_index.csv"
-    input_content_items: str = "data/processed/content_items.csv"
-    output_candidates: str = "data/processed/content_link_candidates.csv"
-
-    # No structural restriction; pool is global
-
-    # Relation mapping by content type
     relation_concept: str = "explained_by"
     relation_example: str = "exemplified_by"
     relation_try_it: str = "practiced_by"
 
-    # Scoring/LLM parameters
     model: str = "gpt-4o-mini"
-    modality: str = "text_only"  # "text_only" | "multimodal"
+    modality: str = "multimodal"  # "text_only" | "multimodal"
     temperature: float = 0.0
     max_targets_per_call: int = 8
+    max_response_tokens: int = 1500
+    max_concurrency: int = 8
+    image_detail: str = "low"
     max_retries: int = 3
     score_threshold: float = 0.8
-    output_edges: str = "data/processed/edges_content.csv"
 
 
-def load_config() -> DiscoveryConfig:
-    """
-    Returns in-code defaults defined by DiscoveryConfig.
-    """
-    return DiscoveryConfig()
+def apply_run_dir(config: DiscoveryConfig, run_dir: str) -> None:
+    """Wire all I/O paths to a versioned run folder."""
+    config.input_lo_index = os.path.join(run_dir, "lo_index.csv")
+    config.input_content_items = os.path.join(run_dir, "content_items.csv")
+    config.output_candidates = os.path.join(run_dir, "intermediates", "content_link_candidates.csv")
+    config.output_edges = os.path.join(run_dir, "edges_content.csv")
 
 # ----------------------------
 # Utilities
@@ -97,21 +75,23 @@ def select_chronological_content(df: pd.DataFrame, limit: int) -> pd.DataFrame:
     """
     Select a chronologically ordered subset of content items.
 
-    Strategy:
-    - Sort by (book, unit, chapter_num, content_type order, content_id)
-    - Take first `limit` rows in chronological order
+    Prefers prepare_nodes order columns on the parent LO when present;
+    otherwise falls back to book / content_type / content_id.
     """
     if limit is None or limit <= 0 or len(df) <= limit:
         return df
 
     tmp = df.copy()
+    order_cols = [c for c in ["book_order", "chapter_order", "unit_order", "lo_order"] if c in tmp.columns]
+    if order_cols:
+        tmp["_ctype_ord"] = tmp.get("content_type", None).map(_ctype_order)
+        tmp.sort_values([*order_cols, "_ctype_ord", "content_id"], inplace=True)
+        return tmp.drop(columns=["_ctype_ord"]).head(limit)
+
     tmp["_chapter_num"] = tmp.get("chapter", None).map(_chapter_to_int)
     tmp["_ctype_ord"] = tmp.get("content_type", None).map(_ctype_order)
     tmp.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"], inplace=True)
-
-    # Take first `limit` rows (chronologically ordered)
     out = tmp.head(limit)
-    # Drop helper cols
     return out.drop(columns=[c for c in ["_chapter_num", "_ctype_ord"] if c in out.columns])
 
 
@@ -219,121 +199,129 @@ def score_candidates(
 
     rows: List[Dict[str, object]] = []
 
-    # Batch by content_id to pack multiple LOs per call
-    grouped = candidates_df.groupby("target_content_id")
-    total_groups = int(getattr(grouped, "ngroups", 0) or 0)
-    processed_groups = 0
-    started_at = time.time()
-
-    # Decide once whether LLM scoring is available; warn once if not
     use_llm = (OpenAI is not None) and (os.environ.get("OPENAI_API_KEY") not in (None, ""))
-    warned_no_llm = False
+    if not use_llm:
+        raise RuntimeError("LLM scoring is required. Please set OPENAI_API_KEY.")
 
-    for content_id, group in grouped:
-        processed_groups += 1
-        len_before = len(rows)
+    client = OpenAI(timeout=120.0)
+
+    def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
+        return [items[i : i + n] for i in range(0, len(items), n)]
+
+    # Batch by content_id to pack multiple LOs per call, then flatten to
+    # (content, chunk) tasks so API calls can be issued concurrently.
+    tasks: List[Tuple[str, pd.Series, List[Tuple[str, str]]]] = []
+    for content_id, group in candidates_df.groupby("target_content_id"):
         content_row = content_lookup.get(str(content_id))
         if content_row is None:
             continue
-
-        ctext = str(content_row.get("text") or "")
         candidate_list = [(str(r["source_lo_id"]), str(r.get("reason") or "")) for _, r in group.iterrows()]
-
-        # Real LLM integration (if OPENAI_API_KEY is set and OpenAI client available)
-        if not use_llm:
-            if not warned_no_llm:
-                print("[score] Skipping LLM scoring: OPENAI_API_KEY not set. No content edges will be produced.")
-                warned_no_llm = True
-            continue
-
-        # Prepare LO lookup for prompt chunks of size max_targets_per_call
-        def chunk_list(items: List[Tuple[str, str]], n: int) -> List[List[Tuple[str, str]]]:
-            return [items[i : i + n] for i in range(0, len(items), n)]
-
-        client = OpenAI()
-
         for chunk in chunk_list(candidate_list, max(1, int(config.max_targets_per_call))):
-            prompt = build_prompt_for_content(content_row, chunk, lo_lookup, config)
-            # Build OpenAI chat messages structure
-            system_msg = {"role": "system", "content": prompt["system"]}
-            # Convert our user blocks to OpenAI content blocks
-            content_blocks: List[Dict[str, object]] = []
-            for block in prompt["user"]:
-                if block.get("type") == "text":
-                    content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
-                elif block.get("type") == "image_url":
-                    url = block.get("image_url")
-                    # Support both string and dict forms
-                    if isinstance(url, str):
-                        content_blocks.append({"type": "image_url", "image_url": {"url": url}})
-                    elif isinstance(url, dict):
-                        content_blocks.append({"type": "image_url", "image_url": url})
-            user_msg = {"role": "user", "content": content_blocks}
+            tasks.append((str(content_id), content_row, chunk))
 
-            # Ask model to output strict JSON
-            instruction = (
-                "Respond ONLY with JSON in this schema: {\n"
-                "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
-                "} where score in [-1,1] and confidence in [0,1]."
-            )
-            content_blocks.append({"type": "text", "text": instruction})
+    def score_chunk(
+        task: Tuple[str, pd.Series, List[Tuple[str, str]]]
+    ) -> Tuple[str, pd.Series, List[Dict[str, object]]]:
+        content_id, content_row, chunk = task
+        prompt = build_prompt_for_content(content_row, chunk, lo_lookup, config)
+        # Build OpenAI chat messages structure
+        system_msg = {"role": "system", "content": prompt["system"]}
+        # Convert our user blocks to OpenAI content blocks
+        content_blocks: List[Dict[str, object]] = []
+        for block in prompt["user"]:
+            if block.get("type") == "text":
+                content_blocks.append({"type": "text", "text": str(block.get("text", ""))})
+            elif block.get("type") == "image_url":
+                url = block.get("image_url")
+                # Support both string and dict forms
+                if isinstance(url, str):
+                    image_url: Dict[str, object] = {"url": url}
+                elif isinstance(url, dict):
+                    image_url = dict(url)
+                else:
+                    continue
+                # Low detail keeps diagram signal at a fraction of the image token cost.
+                image_url.setdefault("detail", config.image_detail)
+                content_blocks.append({"type": "image_url", "image_url": image_url})
 
-            # Retry with exponential backoff
-            last_err: Optional[Exception] = None
-            results: List[Dict[str, object]] = []
-            for attempt in range(int(config.max_retries) + 1):
+        # Ask model to output strict JSON
+        instruction = (
+            "Respond ONLY with JSON in this schema: {\n"
+            "  \"results\": [ { \"lo_id\": string, \"score\": number, \"confidence\": number, \"rationale\": string } ]\n"
+            "} where score in [-1,1] and confidence in [0,1]. "
+            "Return one entry per candidate and keep each rationale under 15 words."
+        )
+        content_blocks.append({"type": "text", "text": instruction})
+        user_msg = {"role": "user", "content": content_blocks}
+
+        # Retry with exponential backoff
+        last_err: Optional[Exception] = None
+        for attempt in range(int(config.max_retries) + 1):
+            try:
+                resp = client.chat.completions.create(
+                    model=config.model,
+                    temperature=float(config.temperature),
+                    messages=[system_msg, user_msg],
+                    max_tokens=int(config.max_response_tokens),
+                    response_format={"type": "json_object"},
+                )
+                text = resp.choices[0].message.content if resp.choices else "{}"
                 try:
-                    resp = client.chat.completions.create(
-                        model=config.model,
-                        temperature=float(config.temperature),
-                        messages=[system_msg, user_msg],
-                        max_tokens=300,
-                        response_format={"type": "json_object"},
-                    )
-                    text = resp.choices[0].message.content if resp.choices else "{}"
-                    try:
-                        data = json.loads(text)
-                    except Exception:
-                        # Try to extract JSON blob if extra text wraps it
-                        start = text.find("{")
-                        end = text.rfind("}")
-                        data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
-                    results = data.get("results", []) if isinstance(data, dict) else []
-                    for item in results:
-                        lo_id = str(item.get("lo_id", ""))
-                        score = float(item.get("score", 0.0))
-                        confidence = item.get("confidence", None)
-                        try:
-                            confidence = float(confidence) if confidence is not None else None
-                        except Exception:
-                            confidence = None
-                        rationale = str(item.get("rationale", ""))
-                        if score >= config.score_threshold:
-                            relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
-                            rows.append(
-                                {
-                                    "source_lo_id": lo_id,
-                                    "target_content_id": content_id,
-                                    "relation": relation,
-                                    "score": score,
-                                    "confidence": confidence,
-                                    "rationale": rationale or "LLM decision",
-                                    "modality": config.modality,
-                                    "run_id": config.model,
-                                }
-                            )
-                    break  # success
-                except Exception as e:  # rate limits, network, etc.
-                    last_err = e
-                    time.sleep(2 ** attempt)
-            # If all retries failed, skip this chunk
-            if last_err is not None and not results:
-                continue
+                    data = json.loads(text)
+                except Exception:
+                    # Try to extract JSON blob if extra text wraps it
+                    start = text.find("{")
+                    end = text.rfind("}")
+                    data = json.loads(text[start : end + 1]) if start != -1 and end != -1 else {"results": []}
+                return content_id, content_row, (data.get("results", []) if isinstance(data, dict) else [])
+            except Exception as e:  # rate limits, network, truncated JSON, etc.
+                last_err = e
+                time.sleep(2 ** attempt)
 
-        # Per-content progress logging
-        len_after = len(rows)
-        kept_for_content = max(0, len_after - len_before)
-        log_progress(processed_groups, total_groups, kept_for_content, len_after, started_at)
+        print(
+            f"[content] content={content_id} chunk of {len(chunk)} failed after "
+            f"{int(config.max_retries) + 1} attempts: {type(last_err).__name__}: {last_err}",
+            flush=True,
+        )
+        return content_id, content_row, []
+
+    total_tasks = len(tasks)
+    processed_tasks = 0
+    started_at = time.time()
+
+    with ThreadPoolExecutor(max_workers=max(1, int(config.max_concurrency))) as pool:
+        for content_id, content_row, results in pool.map(score_chunk, tasks):
+            processed_tasks += 1
+            len_before = len(rows)
+
+            for item in results:
+                lo_id = str(item.get("lo_id", ""))
+                score = float(item.get("score", 0.0))
+                confidence = item.get("confidence", None)
+                try:
+                    confidence = float(confidence) if confidence is not None else None
+                except Exception:
+                    confidence = None
+                rationale = str(item.get("rationale", ""))
+                if score >= config.score_threshold:
+                    relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
+                    rows.append(
+                        {
+                            "source_lo_id": lo_id,
+                            "target_content_id": content_id,
+                            "relation": relation,
+                            "score": score,
+                            "confidence": confidence,
+                            "rationale": rationale or "LLM decision",
+                            "modality": config.modality,
+                            "run_id": config.model,
+                        }
+                    )
+
+            # Per-content progress logging
+            len_after = len(rows)
+            kept_for_content = max(0, len_after - len_before)
+            log_progress(processed_tasks, total_tasks, kept_for_content, len_after, started_at)
 
     return pd.DataFrame(rows)
 
@@ -391,56 +379,13 @@ def log_progress(processed: int, total: int, edges_added: int, total_edges: int,
 # Candidate generation
 # ----------------------------
 
-def build_lo_metadata(lo_df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Prepares LO metadata.
-
-    Args:
-        lo_df: DataFrame with columns lo_id, learning_objective, unit, chapter, book
-
-    Returns:
-        DataFrame with normalized learning objectives
-    """
-    lo_copy = lo_df.copy()
-    lo_copy["learning_objective"] = lo_copy["learning_objective"].astype(str)
-    return lo_copy
-
-
 def generate_candidates_for_row(
     content_row: pd.Series,
     lo_meta: pd.DataFrame,
     config: DiscoveryConfig,
 ) -> List[Tuple[str, str]]:
-    """
-    Generates candidate LO IDs for a single content row.
-
-    Args:
-        content_row: Row from content_items.csv
-        lo_meta: LO metadata DataFrame with lo_tokens
-        config: Candidate generation config
-
-    Returns:
-        List of tuples (candidate_lo_id, reason_tag)
-    """
-    candidates: List[Tuple[str, str]] = []
-
-    # Global pool (cross-unit/chapter)
-    pool = lo_meta
-
-    # Add unit/chapter matches
-    for lo_id in pool["lo_id"].astype(str).tolist():
-        candidates.append((lo_id, "all"))
-
-    # Deduplicate keeping earliest reason
-    seen: set = set()
-    unique: List[Tuple[str, str]] = []
-    for lo_id, reason in candidates:
-        key = lo_id
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append((lo_id, reason))
-    return unique
+    """Propose every LO as a candidate for this content item (global pool)."""
+    return [(str(lo_id), "all") for lo_id in lo_meta["lo_id"].astype(str).tolist()]
 
 
 def write_candidates(
@@ -448,22 +393,7 @@ def write_candidates(
     lo_meta: pd.DataFrame,
     config: DiscoveryConfig,
 ) -> pd.DataFrame:
-    """
-    Generates and writes candidate pairs for all content items.
-
-    Args:
-        content_df: DataFrame of content items
-        lo_meta: DataFrame of LO metadata with tokens
-        config: Config for candidate generation
-
-    Returns:
-        DataFrame of candidate edges written to CSV
-
-    Behavior:
-        - For each content item, proposes candidate LOs
-        - Infers proposed relation from content_type
-        - Writes CSV with columns: source_lo_id, target_content_id, proposed_relation, reason
-    """
+    """Write candidate pairs: source_lo_id, target_content_id, proposed_relation, reason."""
     rows: List[Dict[str, str]] = []
     for _, row in content_df.iterrows():
         content_id = str(row["content_id"])  # type: ignore
@@ -485,32 +415,31 @@ def write_candidates(
     return out_df
 
 
-# ----------------------------
-# Entrypoint
-# ----------------------------
-
-
 def main(argv: Optional[Iterable[str]] = None) -> int:
-    """
-    CLI entrypoint to generate content→LO candidates.
-
-    Args:
-        argv: Optional CLI args for testing
-
-    Returns:
-        Exit code 0 on success
-    """
     parser = argparse.ArgumentParser(description="Generate and/or score content→LO links")
+    parser.add_argument("--run-dir", required=True, help="Run folder with lo_index.csv and content_items.csv")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of content items for a smoke run")
-    parser.add_argument("--mode", type=str, default="candidates", choices=["candidates", "score", "both"], help="Run candidate generation, scoring, or both")
+    parser.add_argument("--mode", type=str, default="both", choices=["candidates", "score", "both"])
     parser.add_argument("--threshold", type=float, default=None, help="Override score threshold (0-1)")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    config = load_config()
+    config = DiscoveryConfig()
+    apply_run_dir(config, args.run_dir)
+    if args.threshold is not None:
+        config.score_threshold = float(args.threshold)
+
     lo_df = pd.read_csv(config.input_lo_index)
     content_df = pd.read_csv(config.input_content_items)
 
-    # Parse image_urls JSON column if present
+    # Attach LO order columns onto content for chronological --limit selection.
+    order_cols = [c for c in ["lo_id", "book_order", "chapter_order", "unit_order", "lo_order"] if c in lo_df.columns]
+    if len(order_cols) > 1 and "lo_id_parent" in content_df.columns:
+        content_df = content_df.merge(
+            lo_df[order_cols].rename(columns={"lo_id": "lo_id_parent"}),
+            on="lo_id_parent",
+            how="left",
+        )
+
     if "image_urls" in content_df.columns:
         def _safe_parse(s: str) -> List[str]:
             try:
@@ -520,31 +449,22 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 return []
         content_df["image_urls"] = content_df["image_urls"].astype(str).map(_safe_parse)
 
-
     if args.limit is not None and args.limit > 0:
-        # Use chronologically ordered selection
         content_df = select_chronological_content(content_df, int(args.limit)).copy()
 
-    lo_meta = build_lo_metadata(lo_df)
-    # Allow CLI to override score threshold
-    if args.threshold is not None:
-        try:
-            config.score_threshold = float(args.threshold)
-        except Exception:
-            pass
+    lo_meta = lo_df.copy()
+    lo_meta["learning_objective"] = lo_meta["learning_objective"].astype(str)
 
     if args.mode in {"candidates", "both"}:
         out_df = write_candidates(content_df, lo_meta, config)
         print(f"Wrote {config.output_candidates} ({len(out_df)} rows)")
 
     if args.mode in {"score", "both"}:
-        # Load candidates (ensure exists if running score standalone)
         cand_path = config.output_candidates
         if not os.path.exists(cand_path):
             out_df = write_candidates(content_df, lo_meta, config)
         else:
             out_df = pd.read_csv(cand_path)
-
 
         edges_df = score_candidates(out_df, content_df, lo_meta, config)
         ensure_parent_directory(config.output_edges)
@@ -555,4 +475,3 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
-

@@ -45,6 +45,11 @@ data/raw/
 data/processed/
 data/storage/*.json
 
+# Versioned KG generation runs (keep knowledge_graph/runs/.gitkeep)
+knowledge_graph/runs/*/
+!knowledge_graph/runs/.gitkeep
+
+
 # Embedding cache
 .embedding_cache/
 

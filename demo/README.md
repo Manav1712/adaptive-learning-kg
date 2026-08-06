@@ -70,7 +70,7 @@ numpy>=1.24.0
 
 ### Visualization Code Structure
 ```python
-# Main visualization script: src/experiments_manual/build_and_visualize.py
+# KG generation: src/knowledge_graph_gen/ (see its README). Preview HTML may live under vis/.
 # Input: 4 CSV files above
 # Output: Interactive HTML file with vis.js network
 
@@ -112,27 +112,20 @@ numpy>=1.24.0
 
 ### 1. Prepare Data
 ```bash
-# Ensure you have the 4 essential CSV files in data/processed/
-ls data/processed/lo_index.csv
-ls data/processed/content_items.csv
-ls data/processed/edges_content.csv
-ls data/processed/edges_prereqs.csv
+# Runtime graph CSVs live in this demo/ folder.
+# To regenerate from draft chunks, see src/knowledge_graph_gen/README.md
+# (outputs land in knowledge_graph/runs/<run_id>/; copy into demo/ when ready).
+ls demo/lo_index.csv demo/content_items.csv demo/edges_content.csv demo/edges_prereqs.csv
 ```
 
-### 2. Generate Visualization
+### 2. Preview
 ```bash
-# Basic visualization
-python src/experiments_manual/build_and_visualize.py
-
-# Filtered by unit
-python src/experiments_manual/build_and_visualize.py --focus-unit "Solving Trigonometric Equations with Identities"
-
-# Limited nodes for performance
-python src/experiments_manual/build_and_visualize.py --max-nodes 50
+# If present:
+open vis/graph_preview.html
 ```
 
 ### 3. View Results
-- Open `data/processed/graph_preview.html` in browser
+- Open `vis/graph_preview.html` in browser when available
 - Interactive network visualization with all features
 
 ## Architecture Notes
@@ -154,18 +147,15 @@ python src/experiments_manual/build_and_visualize.py --max-nodes 50
 
 ```
 demo/
-├── README.md                    # This file
-├── data/                        # Essential data files
-│   ├── lo_index.csv            # Learning objectives
-│   ├── content_items.csv       # Content items
-│   ├── edges_content.csv       # Content→LO edges
-│   └── edges_prereqs.csv       # LO→LO prerequisites
-├── src/                        # Python code
-│   └── build_and_visualize.py  # Visualization script
-├── requirements.txt            # Dependencies
-└── output/                     # Generated files
-    └── graph_preview.html      # Interactive visualization
+├── README.md
+├── lo_index.csv
+├── content_items.csv
+├── edges_content.csv
+├── edges_prereqs.csv
+└── images/                     # optional image assets
 ```
+
+Offline regeneration: `src/knowledge_graph_gen/` → `knowledge_graph/runs/<run_id>/`.
 
 ## Key Metrics
 
@@ -178,9 +168,9 @@ demo/
 
 ## Next Steps for Demo
 
-1. **Copy Essential Files**: Transfer the 4 CSV files to demo/data/
-2. **Setup Environment**: Install pyvis, networkx, pandas
-3. **Generate Visualization**: Run build_and_visualize.py
+1. **Refresh graph (optional)**: Run `src/knowledge_graph_gen` and copy a run into `demo/`
+2. **Setup Environment**: Install pyvis, networkx, pandas if using local viz
+3. **Preview**: Open `vis/graph_preview.html` when available
 4. **Customize UI**: Modify HTML output for demo presentation
 5. **Add Interactivity**: Enhance with search, filtering, progress tracking
 6. **Deploy**: Host on GitHub Pages, Vercel, or similar

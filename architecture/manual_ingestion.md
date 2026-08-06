@@ -41,12 +41,12 @@ Alternative approach to Zep auto-ingestion: use multimodal LLMs to discover edge
 - Run matrix on 20 LOs first, then 100 LOs
 
 ### Code Structure
-New experiment folder: `src/experiments/llm_edges_v1/` with:
-- `prepare_lo_view.py` (port notebook's LOs_combined logic, image block normalization)
+New experiment folder: `src/knowledge_graph_gen/` with:
+- `prepare_nodes.py` (draft CSVs → LO + content nodes)
 - `discover_prereqs.py` (coach graph)
 - `discover_content_links.py` (retriever edges)
-- `build_and_visualize.py` (merge + HTML + metrics)
-- `config.yaml` (model, modality, pruning, thresholds, sample size)
+- `run.py` (end-to-end into `knowledge_graph/runs/<run_id>/`)
+- `evaluate_heuristic.py` / `evaluate_llm.py` (optional QA)
 
 ## Decision Criteria
 - Recover book edges ≥ target recall
