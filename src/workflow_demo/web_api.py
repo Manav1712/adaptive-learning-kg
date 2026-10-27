@@ -13,7 +13,6 @@ import queue
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,7 +21,7 @@ try:
 except ImportError:
     load_dotenv = None  # type: ignore[misc, assignment]
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
@@ -48,25 +47,6 @@ ALLOWED_ORIGINS = (
 )
 
 _executor = ThreadPoolExecutor(max_workers=4)
-_DEBUG_LOG_PATH = _REPO_ROOT / ".cursor" / "debug-fbf5ed.log"
-
-
-def _debug_log(run_id: str, hypothesis_id: str, location: str, message: str, data: Dict[str, Any]) -> None:
-    payload = {
-        "sessionId": "fbf5ed",
-        "runId": run_id,
-        "hypothesisId": hypothesis_id,
-        "location": location,
-        "message": message,
-        "data": data,
-        "timestamp": int(datetime.now(timezone.utc).timestamp() * 1000),
-    }
-    try:
-        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with _DEBUG_LOG_PATH.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(payload, default=str) + "\n")
-    except Exception:
-        pass
 
 
 class ThreadSafeEventSink:
@@ -186,35 +166,13 @@ def health() -> Dict[str, str]:
 
 
 @app.post("/api/session", response_model=SessionResponse)
-def create_session(request: Request) -> SessionResponse:
+def create_session() -> SessionResponse:
     session_id = uuid.uuid4().hex
-    # region agent log
-    _debug_log(
-        run_id="run2",
-        hypothesis_id="H1",
-        location="src/workflow_demo/web_api.py:create_session:entry",
-        message="Received /api/session request",
-        data={
-            "session_id": session_id,
-            "origin": request.headers.get("origin"),
-            "host": request.headers.get("host"),
-        },
-    )
-    # endregion
     try:
         sess = WebCoachSession(session_id)
         greeting = sess.coach.initial_greeting()
         events = sess.sink.drain()
     except Exception as exc:  # noqa: BLE001 — demo boundary
-        # region agent log
-        _debug_log(
-            run_id="run2",
-            hypothesis_id="H5",
-            location="src/workflow_demo/web_api.py:create_session:exception",
-            message="Session initialization failed",
-            data={"session_id": session_id, "error": str(exc)},
-        )
-        # endregion
         return SessionResponse(
             session_id=session_id,
             greeting="",
@@ -224,15 +182,6 @@ def create_session(request: Request) -> SessionResponse:
 
     with _SESSIONS_LOCK:
         _SESSIONS[session_id] = sess
-    # region agent log
-    _debug_log(
-        run_id="run2",
-        hypothesis_id="H5",
-        location="src/workflow_demo/web_api.py:create_session:success",
-        message="Session initialized successfully",
-        data={"session_id": session_id, "events_count": len(events)},
-    )
-    # endregion
     return SessionResponse(
         session_id=session_id,
         greeting=greeting or "",

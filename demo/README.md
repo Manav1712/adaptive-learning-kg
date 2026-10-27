@@ -13,6 +13,10 @@ This demo showcases an adaptive learning platform built on a knowledge graph con
 - **AI-Powered**: Uses GPT-4o-mini with multimodal prompts for edge discovery
 - **Local-First**: All data stored locally, no cloud dependencies
 
+## What the running tutor loads
+
+`load_demo_frames` reads the four CSVs in this directory. Image search uses `src/workflow_demo/image_corpus/`, not `image_metadata.csv` here. `vis/` is an older preview (428 content edges and 290 prerequisite edges versus 278 and 299 here) and is not loaded. `knowledge_graph/runs/` stays empty until `src/knowledge_graph_gen/run.py` writes a run; copy a run into this directory by hand when you want the tutor to use it.
+
 ## Essential Data Files
 
 To build the knowledge graph, you need these **4 core CSV files**:

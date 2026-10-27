@@ -16,6 +16,9 @@ from src.workflow_demo.practice.models import (
     ProblemEpisodeTrace,
 )
 
+pytestmark = pytest.mark.unit
+
+
 
 def _make_ref(**kw) -> PracticeProblemRef:
     defaults = dict(problem_id="p1", difficulty=1, prompt_text="What is 2+2?")

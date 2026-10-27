@@ -29,28 +29,11 @@ export async function createSession(
   pedagogy_snapshot?: PedagogySnapshot;
   tutor_session_active?: boolean;
 }> {
-  const url = `${baseUrl}/api/session`;
-  // #region agent log
-  fetch("http://127.0.0.1:7242/ingest/60f20f4a-07ea-4752-b692-563be9fbeb6e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fbf5ed" }, body: JSON.stringify({ sessionId: "fbf5ed", runId: "run1", hypothesisId: "H3", location: "frontend/src/api.ts:createSession:url", message: "Preparing session request URL", data: { baseUrl, url, envBase: import.meta.env.VITE_API_BASE_URL ?? null, origin: typeof window !== "undefined" ? window.location.origin : null }, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
-  try {
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/60f20f4a-07ea-4752-b692-563be9fbeb6e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fbf5ed" }, body: JSON.stringify({ sessionId: "fbf5ed", runId: "run1", hypothesisId: "H1", location: "frontend/src/api.ts:createSession:beforeFetch", message: "Calling /api/session", data: { url }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
-    const res = await fetch(url, { method: "POST", signal });
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/60f20f4a-07ea-4752-b692-563be9fbeb6e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fbf5ed" }, body: JSON.stringify({ sessionId: "fbf5ed", runId: "run1", hypothesisId: "H2", location: "frontend/src/api.ts:createSession:afterFetch", message: "Received /api/session response", data: { url, ok: res.ok, status: res.status, statusText: res.statusText, contentType: res.headers.get("content-type") }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
-    if (!res.ok) {
-      throw new Error(`Session failed: ${res.status}`);
-    }
-    return res.json();
-  } catch (error) {
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/60f20f4a-07ea-4752-b692-563be9fbeb6e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fbf5ed" }, body: JSON.stringify({ sessionId: "fbf5ed", runId: "run1", hypothesisId: "H1", location: "frontend/src/api.ts:createSession:catch", message: "Session request failed", data: { url, errorName: error instanceof Error ? error.name : typeof error, errorMessage: error instanceof Error ? error.message : String(error) }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
-    throw error;
+  const res = await fetch(`${baseUrl}/api/session`, { method: "POST", signal });
+  if (!res.ok) {
+    throw new Error(`Session failed: ${res.status}`);
   }
+  return res.json();
 }
 
 export async function chat(

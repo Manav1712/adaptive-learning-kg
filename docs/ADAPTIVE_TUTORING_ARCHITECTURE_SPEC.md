@@ -105,7 +105,7 @@
 ### 4.4 `retrieval_intent` vs `retrieval_action` vs `retrieval_execution_mode`
 
 - **`PedagogicalRetrievalIntent`** ([`constants.py`](src/workflow_demo/pedagogy/constants.py)): Step-1 **pedagogical** intent — `teach_current_concept`, `repair_prerequisite`, `retrieve_worked_example`, `retrieve_misconception_support`. Set by [`decide_pedagogical_retrieval_intent`](src/workflow_demo/pedagogy/retrieval_policy.py) from **move type + diagnosis**.
-- **`RetrievalPolicyAction`** (stored on context as string **`retrieval_action`**): Logical decision — `reuse_pack`, `augment_pack`, `refresh_pack`. From [`decide_retrieval_action`](src/workflow_demo/pedagogy/retrieval_policy.py) using **material triggers** `t1`–`t5` (session target change, instruction unsupported by pack, missing artifact for intent, diagnosis fingerprint change, empty/invalid pack). Trigger `t4` now uses [`diagnosis_fingerprint_coarse`](src/workflow_demo/pedagogy/retrieval_policy.py) (target + prereqs only, omitting suspected_misconception label) to reduce pack churn from label jitter while still detecting real diagnostic shifts.
+- **`RetrievalPolicyAction`** (stored on context as string **`retrieval_action`**): Logical decision — `reuse_pack`, `augment_pack`, `refresh_pack`. From [`decide_retrieval_action`](src/workflow_demo/pedagogy/retrieval_policy.py) using **material triggers** `t1`–`t5` (session target change, instruction unsupported by pack, missing artifact for intent, diagnosis fingerprint change, empty/invalid pack). Trigger `t4` compares [`diagnosis_fingerprint`](src/workflow_demo/pedagogy/retrieval_policy.py), which includes the suspected misconception label, so a label-only change refreshes the pack.
 - **`RetrievalExecutionMode`:** **Physical** mapping ([`map_action_to_execution_mode`](src/workflow_demo/pedagogy/retrieval_policy.py)):
   - `reuse_pack` → `no_io`
   - `augment_pack` → `constrained_refresh` (**implemented as full `retrieve_plan`**, not incremental merge — comment in code: v1 prefers `retrieve_plan` over weak merge)
@@ -390,7 +390,7 @@ These fields appear on **`SessionResponse`** (create session), **`ChatResponse`*
 
 **Resolved (since prior spec revision):**
 
-- **Retrieval policy `NameError`** on `diagnosis_fingerprint` — fixed; coarse fingerprint variant added for trigger `t4`.
+- **Retrieval policy `NameError`** on `diagnosis_fingerprint` — fixed. Trigger `t4` uses that fingerprint, including the misconception label.
 - **Diagnostic loop after bridge moves** — `suppress_repeat_diagnostic` now fires after `worked_example`/`graduated_hint`/`explain_concept` when the learner shows engagement.
 - **Pack coverage false positives** — `_pack_covers_instruction_lo` now checks `practice`, `prerequisites`, and `citations` in addition to `key_points` and `examples`.
 - **Plan completion signal** — `plan_complete` flag threaded through tutor directives so sessions wrap up automatically when all LOs are covered.

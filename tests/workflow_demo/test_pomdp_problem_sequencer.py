@@ -21,6 +21,9 @@ from src.workflow_demo.pedagogy.pomdp_problem_sequencer import POMDPProblemSeque
 from src.workflow_demo.pedagogy.pomdp_model import POMDPConstants
 from src.workflow_demo.pedagogy.mpc import MPCConfig
 
+pytestmark = pytest.mark.unit
+
+
 
 def _make_trace(difficulty: int = 1, attempts: int = 2, solved: bool = True,
                 llm_meaningful: Optional[int] = None) -> ProblemEpisodeTrace:

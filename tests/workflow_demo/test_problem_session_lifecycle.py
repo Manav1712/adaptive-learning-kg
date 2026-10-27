@@ -14,6 +14,9 @@ from src.workflow_demo.practice.models import (
 )
 from src.workflow_demo.practice.session import PracticeSessionManager
 
+pytestmark = pytest.mark.unit
+
+
 
 # ------------------------------------------------------------------
 # Helpers

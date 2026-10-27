@@ -19,6 +19,9 @@ from src.workflow_demo.pedagogy.particle_filter import (
 )
 from src.workflow_demo.pedagogy.pomdp_model import POMDPConstants
 
+pytestmark = pytest.mark.unit
+
+
 
 def _make_belief():
     params = [

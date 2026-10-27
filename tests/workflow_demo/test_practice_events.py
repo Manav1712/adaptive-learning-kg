@@ -21,6 +21,9 @@ from src.workflow_demo.practice.models import (
 )
 from src.workflow_demo.practice.session import PracticeSessionManager
 
+pytestmark = pytest.mark.unit
+
+
 
 def _flags() -> PracticeFeatureFlags:
     return PracticeFeatureFlags(

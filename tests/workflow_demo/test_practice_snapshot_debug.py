@@ -14,6 +14,9 @@ from src.workflow_demo.pedagogy.observation_filter import HeuristicObservationFi
 from src.workflow_demo.practice.feature_flags import PracticeFeatureFlags
 from src.workflow_demo.practice.session import PracticeSessionManager
 
+pytestmark = pytest.mark.unit
+
+
 
 def _flags(enabled: bool = True) -> PracticeFeatureFlags:
     return PracticeFeatureFlags(
