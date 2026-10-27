@@ -11,6 +11,9 @@ from src.workflow_demo.practice.models import SequencerState
 from src.workflow_demo.practice.session import PracticeSessionManager
 from src.workflow_demo.pedagogy.tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
 
+pytestmark = pytest.mark.unit
+
+
 
 # ------------------------------------------------------------------
 # PracticeFeatureFlags

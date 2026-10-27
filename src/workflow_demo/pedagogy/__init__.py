@@ -1,7 +1,8 @@
 """
-Pedagogical decision layer (Phase 0: types and constants only).
+Pedagogical decision layer.
 
-Not wired into coach, planner, retriever, or tutor until later phases.
+Wired on tutor turns from BotSessionManager: diagnosis, teaching moves,
+policy scoring, retrieval policy, and session progression.
 """
 
 from .constants import (

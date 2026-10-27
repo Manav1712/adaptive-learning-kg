@@ -29,6 +29,9 @@ from src.workflow_demo.practice.replay import (
 )
 from src.workflow_demo.practice.session import PracticeSessionManager
 
+pytestmark = pytest.mark.unit
+
+
 
 def _ref(**kw) -> PracticeProblemRef:
     defaults = dict(problem_id="p1", difficulty=1, prompt_text="Solve x+1=2")

@@ -17,6 +17,9 @@ from src.workflow_demo.pedagogy.pomdp_model import (
     transition,
 )
 
+pytestmark = pytest.mark.unit
+
+
 
 # ------------------------------------------------------------------
 # initial_effort

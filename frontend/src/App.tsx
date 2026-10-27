@@ -91,9 +91,6 @@ export default function App() {
           setRows([{ role: "assistant", text: data.greeting }]);
         }
       } catch (e) {
-        // #region agent log
-        fetch("http://127.0.0.1:7242/ingest/60f20f4a-07ea-4752-b692-563be9fbeb6e", { method: "POST", headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "fbf5ed" }, body: JSON.stringify({ sessionId: "fbf5ed", runId: "run1", hypothesisId: "H4", location: "frontend/src/App.tsx:boot:catch", message: "Boot catch triggered", data: { baseUrl, errorName: e instanceof Error ? e.name : typeof e, errorMessage: e instanceof Error ? e.message : String(e) }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
         if (
           !cancelled &&
           thisRun === bootRunRef.current &&

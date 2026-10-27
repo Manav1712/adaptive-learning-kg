@@ -13,6 +13,9 @@ from src.workflow_demo.practice.models import (
     SequencerState,
 )
 
+pytestmark = pytest.mark.unit
+
+
 
 # ------------------------------------------------------------------
 # PracticeProblemRef

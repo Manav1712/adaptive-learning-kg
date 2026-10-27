@@ -21,5 +21,5 @@ IMG019,critical_points_saddle.png,957,critical points,"Saddle point inflection",
 IMG020,concavity_up_down.png,957,concavity,"Concave up and concave down regions","concavity,second derivative,curvature"
 IMG021,concavity_mixed.png,957,concavity,"Mixed concavity on complex curve","concavity,mixed,regions"
 IMG022,inflection_point.png,957,inflection,"Inflection point where f''=0","inflection,concavity change,second derivative"
-IMG023,second_derivative_test.png .jpg,957,second derivative,"Second derivative test for extrema","second derivative,test,max,min,classification"
+IMG023,second_derivative_test.jpg,957,second derivative,"Second derivative test for extrema","second derivative,test,max,min,classification"
 

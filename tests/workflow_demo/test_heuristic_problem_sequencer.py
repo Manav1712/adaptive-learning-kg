@@ -18,6 +18,9 @@ from src.workflow_demo.practice.models import (
 )
 from src.workflow_demo.practice.problem_sequencer import ProblemSequencer
 
+pytestmark = pytest.mark.unit
+
+
 
 def _ref(**kw) -> PracticeProblemRef:
     defaults = dict(problem_id="p1", difficulty=1, prompt_text="Solve x+1=2")

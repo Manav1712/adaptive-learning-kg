@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
+
 from src.workflow_demo.pedagogy.tutor_pedagogy_snapshot import build_tutor_pedagogy_snapshot
+
+pytestmark = pytest.mark.unit
+
 
 
 class _FakeLearnerEngine:

@@ -19,6 +19,9 @@ from src.workflow_demo.pedagogy.pomdp_problem_sequencer import POMDPProblemSeque
 from src.workflow_demo.pedagogy.pomdp_calibration import default_particle_bank
 from src.workflow_demo.pedagogy.mpc import MPCConfig
 
+pytestmark = pytest.mark.unit
+
+
 
 def _make_episode(difficulty: int, attempts: int = 2, solved: bool = True) -> ProblemEpisodeTrace:
     trace = ProblemEpisodeTrace(

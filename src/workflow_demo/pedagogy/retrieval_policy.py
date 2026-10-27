@@ -63,13 +63,6 @@ def diagnosis_fingerprint(diagnosis: MisconceptionDiagnosis) -> str:
     return f"{target_norm}|{label}|{prereqs}"
 
 
-def diagnosis_fingerprint_coarse(diagnosis: MisconceptionDiagnosis) -> str:
-    """Stable across suspected_misconception label jitter; used for pack churn trigger t4."""
-    target_norm = (diagnosis.target_lo or "").strip().lower()
-    prereqs = ",".join(sorted((p or "").strip().lower() for p in diagnosis.prerequisite_gap_los if p))
-    return f"{target_norm}|{prereqs}"
-
-
 def map_action_to_execution_mode(action: RetrievalPolicyAction) -> RetrievalExecutionMode:
     """v1 mapping: logical action -> physical executor."""
     if action == RetrievalPolicyAction.REUSE_PACK:

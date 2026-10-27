@@ -71,9 +71,11 @@ pytest tests/workflow_demo -q
 | Path | Role |
 |------|------|
 | `src/workflow_demo/` | Adaptive tutoring runtime (coach, retrieval, pedagogy, tutor bots, optional web API) |
-| `demo/` | CSV-backed knowledge graph + embeddings cache used by the retriever |
+| `demo/` | CSV knowledge graph the tutor loads via `load_demo_frames` |
+| `src/workflow_demo/image_corpus/` | Image index the retriever searches (not `demo/image_metadata.csv`) |
+| `vis/` | Older graph preview. Not loaded by the tutor (content edges and prerequisite edges differ from `demo/`) |
 | `src/knowledge_graph_gen/` | Offline KG generation (chunks → versioned graph CSVs) |
-| `knowledge_graph/runs/` | Versioned knowledge graph artifacts from generation runs |
+| `knowledge_graph/runs/` | Versioned knowledge graph artifacts. Empty until `run.py` writes a run; promote into `demo/` by hand |
 | `architecture/` | Phase notes and manual ingestion / retrieval design sketches |
 | `frontend/` | Vite + React demo UI |
 
