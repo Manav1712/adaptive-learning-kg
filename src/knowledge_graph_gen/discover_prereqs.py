@@ -127,9 +127,9 @@ def select_chronological_los(lo_meta: pd.DataFrame, limit: int) -> pd.DataFrame:
     tmp = lo_meta.copy()
     order_cols = [c for c in ["book_order", "chapter_order", "unit_order", "lo_order", "lo_id"] if c in tmp.columns]
     if len(order_cols) >= 2:
-        tmp.sort_values(order_cols, inplace=True)
+        tmp = tmp.sort_values(order_cols)
     else:
-        tmp.sort_values(["book", "lo_id"], inplace=True)
+        tmp = tmp.sort_values(["book", "lo_id"])
     return tmp.head(limit)
 
 
@@ -374,7 +374,104 @@ def build_prompt_for_prereq(
 # ----------------------------
 # Scoring
 # ----------------------------
- 
+
+PREREQ_EDGE_COLUMNS = [
+    "source_lo_id",
+    "target_lo_id",
+    "relation",
+    "score",
+    "confidence",
+    "rationale",
+    "modality",
+    "run_id",
+]
+
+
+def _parse_scored_item(item: object) -> Optional[Tuple[str, float, Optional[float], str]]:
+    """Return (lo_id, score, confidence, rationale), or None if score is unusable.
+
+    A missing confidence stays None. The caller decides whether that skips the
+    confidence gate. A non-numeric score used to raise and abort the run.
+    """
+    if not isinstance(item, dict):
+        return None
+    raw_id = item.get("lo_id")
+    if raw_id is None or str(raw_id).strip() == "":
+        return None
+    raw_score = item.get("score", 0.0)
+    if raw_score is None:
+        raw_score = 0.0
+    try:
+        score = float(raw_score)
+    except (TypeError, ValueError):
+        return None
+    if score != score:  # NaN
+        return None
+    raw_conf = item.get("confidence", None)
+    confidence: Optional[float]
+    if raw_conf is None:
+        confidence = None
+    else:
+        try:
+            confidence = float(raw_conf)
+        except (TypeError, ValueError):
+            confidence = None
+        else:
+            if confidence != confidence:
+                confidence = None
+    return str(raw_id).strip(), score, confidence, str(item.get("rationale") or "")
+
+
+def prereq_edge_from_result(
+    item: object,
+    *,
+    target_id: str,
+    allowed_source_ids: Set[str],
+    lo_lookup: Dict[str, Dict[str, object]],
+    config: PrereqConfig,
+) -> Optional[Dict[str, object]]:
+    """Turn one model result into a prerequisite edge, or None to drop it.
+
+    The source id must be one of the ids sent in this batch. An id the model
+    invents is ignored, including when it is missing from ``lo_lookup`` and
+    would otherwise skip the chronological guard.
+    """
+    parsed = _parse_scored_item(item)
+    if parsed is None:
+        return None
+    src_id, score, confidence, rationale = parsed
+    if src_id not in allowed_source_ids:
+        return None
+
+    src_row = lo_lookup.get(src_id) or {}
+    target_row = lo_lookup.get(str(target_id)) or {}
+    if not src_row or not target_row:
+        return None
+    try:
+        src_key = create_chronological_key(pd.Series(src_row))
+        target_key = create_chronological_key(pd.Series(target_row))
+    except (TypeError, ValueError):
+        return None
+    if src_key >= target_key:
+        return None
+
+    if config.min_confidence is not None and confidence is not None:
+        if float(confidence) < float(config.min_confidence):
+            return None
+    if score < float(config.score_threshold):
+        return None
+
+    return {
+        "source_lo_id": src_id,
+        "target_lo_id": str(target_id),
+        "relation": "prerequisite",
+        "score": float(score),
+        "confidence": confidence,
+        "rationale": rationale or "LLM decision",
+        "modality": config.modality,
+        "run_id": config.model,
+    }
+
 
 def score_prereq_candidates(
     candidates_df: pd.DataFrame,
@@ -489,56 +586,36 @@ def score_prereq_candidates(
     started_at = time.time()
 
     with ThreadPoolExecutor(max_workers=max(1, int(config.max_concurrency))) as pool:
-        for target_id, results in pool.map(score_chunk, tasks):
+        scored = pool.map(score_chunk, tasks)
+        for (target_id, _target_series, chunk), (_returned_id, results) in zip(tasks, scored):
             processed_tasks += 1
             len_before = len(rows)
+            allowed = {src for src, _reason in chunk}
+            if not isinstance(results, list):
+                results = []
+            seen_sources: Set[str] = set()
 
-            # Materialize results into edges after guards
             for item in results:
-                src_id = str(item.get("lo_id", ""))
-                score = float(item.get("score", 0.0))
-                confidence = item.get("confidence", None)
-                try:
-                    confidence = float(confidence) if confidence is not None else None
-                except Exception:
-                    confidence = None
-                rationale = str(item.get("rationale", ""))
-
-                # POST-SCORE GUARD: Ensure chronological direction
-                src_row = lo_lookup.get(src_id, {})
-                target_row_dict = lo_lookup.get(str(target_id), {})
-                if src_row and target_row_dict:
-                    src_key = create_chronological_key(pd.Series(src_row))
-                    target_key = create_chronological_key(pd.Series(target_row_dict))
-                    if src_key >= target_key:
-                        continue
-
-                # Confidence gate
-                if config.min_confidence is not None and confidence is not None:
-                    if float(confidence) < float(config.min_confidence):
-                        continue
-
-                if score >= float(config.score_threshold):
-                    rows.append(
-                        {
-                            "source_lo_id": src_id,
-                            "target_lo_id": str(target_id),
-                            "relation": "prerequisite",
-                            "score": float(score),
-                            "confidence": confidence,
-                            "rationale": rationale or "LLM decision",
-                            "modality": config.modality,
-                            "run_id": config.model,
-                        }
-                    )
+                edge = prereq_edge_from_result(
+                    item,
+                    target_id=str(target_id),
+                    allowed_source_ids=allowed,
+                    lo_lookup=lo_lookup,
+                    config=config,
+                )
+                if edge is None or edge["source_lo_id"] in seen_sources:
+                    continue
+                seen_sources.add(str(edge["source_lo_id"]))
+                rows.append(edge)
 
             # Progress logging
             len_after = len(rows)
             kept = max(0, len_after - len_before)
             log_prereq_progress(processed_tasks, total_tasks, kept, len_after, started_at)
 
-    # Remove reciprocals, keeping only forward (chronological) direction as a safety net
-    df = pd.DataFrame(rows)
+    # Remove reciprocals, keeping only forward (chronological) direction as a safety net.
+    # Columns stay present when nothing was kept, so the CSV still has a header.
+    df = pd.DataFrame(rows, columns=PREREQ_EDGE_COLUMNS)
     if not df.empty:
         # Attach chronological keys for sorting
         lo_key_map: Dict[str, Tuple[int, int, int, int, str]] = {}

@@ -8,9 +8,9 @@ Creates a versioned run folder, then:
   4. (optional) evaluate  → intermediates/
 
 Usage:
-  python src/knowledge_graph_gen/run.py --raw-dir data/raw
-  python src/knowledge_graph_gen/run.py --raw-dir data/raw --eval
-  python src/knowledge_graph_gen/run.py --raw-dir data/raw --limit 5   # smoke test
+  python -m src.knowledge_graph_gen.run --raw-dir data/raw
+  python -m src.knowledge_graph_gen.run --raw-dir data/raw --eval
+  python -m src.knowledge_graph_gen.run --raw-dir data/raw --limit 5   # smoke test
 """
 
 from __future__ import annotations

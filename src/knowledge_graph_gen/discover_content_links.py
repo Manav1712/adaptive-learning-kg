@@ -17,7 +17,7 @@ import os
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Iterable
+from typing import Dict, List, Optional, Set, Tuple, Iterable
 from dotenv import load_dotenv
 import pandas as pd
 from openai import OpenAI
@@ -85,12 +85,12 @@ def select_chronological_content(df: pd.DataFrame, limit: int) -> pd.DataFrame:
     order_cols = [c for c in ["book_order", "chapter_order", "unit_order", "lo_order"] if c in tmp.columns]
     if order_cols:
         tmp["_ctype_ord"] = tmp.get("content_type", None).map(_ctype_order)
-        tmp.sort_values([*order_cols, "_ctype_ord", "content_id"], inplace=True)
+        tmp = tmp.sort_values([*order_cols, "_ctype_ord", "content_id"])
         return tmp.drop(columns=["_ctype_ord"]).head(limit)
 
     tmp["_chapter_num"] = tmp.get("chapter", None).map(_chapter_to_int)
     tmp["_ctype_ord"] = tmp.get("content_type", None).map(_ctype_order)
-    tmp.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"], inplace=True)
+    tmp = tmp.sort_values(["book", "unit", "_chapter_num", "_ctype_ord", "content_id"])
     out = tmp.head(limit)
     return out.drop(columns=[c for c in ["_chapter_num", "_ctype_ord"] if c in out.columns])
 
@@ -165,6 +165,85 @@ def build_prompt_for_content(
 
     # Returning a generic payload; the LLM client will adapt as needed
     return {"system": system, "user": user_blocks}
+
+
+CONTENT_EDGE_COLUMNS = [
+    "source_lo_id",
+    "target_content_id",
+    "relation",
+    "score",
+    "confidence",
+    "rationale",
+    "modality",
+    "run_id",
+]
+
+
+def _parse_scored_item(item: object) -> Optional[Tuple[str, float, Optional[float], str]]:
+    """Return (lo_id, score, confidence, rationale), or None if score is unusable.
+
+    Same guard as prerequisite scoring: a non-numeric score must not abort the run.
+    """
+    if not isinstance(item, dict):
+        return None
+    raw_id = item.get("lo_id")
+    if raw_id is None or str(raw_id).strip() == "":
+        return None
+    raw_score = item.get("score", 0.0)
+    if raw_score is None:
+        raw_score = 0.0
+    try:
+        score = float(raw_score)
+    except (TypeError, ValueError):
+        return None
+    if score != score:  # NaN
+        return None
+    raw_conf = item.get("confidence", None)
+    confidence: Optional[float]
+    if raw_conf is None:
+        confidence = None
+    else:
+        try:
+            confidence = float(raw_conf)
+        except (TypeError, ValueError):
+            confidence = None
+        else:
+            if confidence != confidence:
+                confidence = None
+    return str(raw_id).strip(), score, confidence, str(item.get("rationale") or "")
+
+
+def content_edge_from_result(
+    item: object,
+    *,
+    content_id: str,
+    allowed_lo_ids: Set[str],
+    content_row: pd.Series,
+    config: DiscoveryConfig,
+) -> Optional[Dict[str, object]]:
+    """Turn one model result into a content edge, or None to drop it.
+
+    The learning-objective id must be one of the ids sent in this batch.
+    The relation comes from the content type, not from the model.
+    """
+    parsed = _parse_scored_item(item)
+    if parsed is None:
+        return None
+    lo_id, score, confidence, rationale = parsed
+    if lo_id not in allowed_lo_ids:
+        return None
+    if score < float(config.score_threshold):
+        return None
+    return {
+        "source_lo_id": lo_id,
+        "target_content_id": str(content_id),
+        "relation": relation_for_content_type(str(content_row.get("content_type") or ""), config),
+        "score": float(score),
+        "confidence": confidence,
+        "rationale": rationale or "LLM decision",
+        "modality": config.modality,
+        "run_id": config.model,
+    }
 
 
 def score_candidates(
@@ -290,40 +369,34 @@ def score_candidates(
     started_at = time.time()
 
     with ThreadPoolExecutor(max_workers=max(1, int(config.max_concurrency))) as pool:
-        for content_id, content_row, results in pool.map(score_chunk, tasks):
+        scored = pool.map(score_chunk, tasks)
+        for (_content_id, content_row, chunk), (content_id, _row, results) in zip(tasks, scored):
             processed_tasks += 1
             len_before = len(rows)
+            allowed = {lo_id for lo_id, _reason in chunk}
+            if not isinstance(results, list):
+                results = []
+            seen_los: Set[str] = set()
 
             for item in results:
-                lo_id = str(item.get("lo_id", ""))
-                score = float(item.get("score", 0.0))
-                confidence = item.get("confidence", None)
-                try:
-                    confidence = float(confidence) if confidence is not None else None
-                except Exception:
-                    confidence = None
-                rationale = str(item.get("rationale", ""))
-                if score >= config.score_threshold:
-                    relation = relation_for_content_type(str(content_row.get("content_type") or ""), config)
-                    rows.append(
-                        {
-                            "source_lo_id": lo_id,
-                            "target_content_id": content_id,
-                            "relation": relation,
-                            "score": score,
-                            "confidence": confidence,
-                            "rationale": rationale or "LLM decision",
-                            "modality": config.modality,
-                            "run_id": config.model,
-                        }
-                    )
+                edge = content_edge_from_result(
+                    item,
+                    content_id=str(content_id),
+                    allowed_lo_ids=allowed,
+                    content_row=content_row,
+                    config=config,
+                )
+                if edge is None or edge["source_lo_id"] in seen_los:
+                    continue
+                seen_los.add(str(edge["source_lo_id"]))
+                rows.append(edge)
 
             # Per-content progress logging
             len_after = len(rows)
             kept_for_content = max(0, len_after - len_before)
             log_progress(processed_tasks, total_tasks, kept_for_content, len_after, started_at)
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows, columns=CONTENT_EDGE_COLUMNS)
 
 def relation_for_content_type(content_type: str, config: DiscoveryConfig) -> str:
     """
